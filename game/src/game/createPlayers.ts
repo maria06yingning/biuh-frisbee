@@ -10,9 +10,10 @@ import {
   type TeamId,
   type World,
 } from './types';
+import { PALETTE, addOutline, addScaleOutline, blobShadow, toonMat } from './toon';
 
 const clamp = THREE.MathUtils.clamp;
-const TEAM_COLORS = [0x2f6bff, 0xff5a3d];
+const TEAM_COLORS = [PALETTE.teamA, PALETTE.teamB];
 
 /** 头顶数字标签（对应 1 / 2 键传球） */
 function makeLabel(text: string): THREE.Sprite {
@@ -94,14 +95,28 @@ export function laneClearance(
 }
 
 /* ───────── 创建 ───────── */
+interface Rig {
+  body: THREE.Group;
+  legL: THREE.Group;
+  legR: THREE.Group;
+  armL: THREE.Group;
+  armR: THREE.Group;
+  phase: number;
+}
+
 export function createPlayers(scene: THREE.Scene): Agent[] {
-  const bodyGeo = new THREE.CapsuleGeometry(0.26, 0.9, 4, 12);
+  const torsoGeo = new THREE.CapsuleGeometry(0.25, 0.5, 4, 12);
   const headGeo = new THREE.SphereGeometry(0.17, 16, 12);
+  const legGeo = new THREE.CapsuleGeometry(0.085, 0.4, 3, 8);
+  const armGeo = new THREE.CapsuleGeometry(0.06, 0.34, 3, 8);
+  const bandGeo = new THREE.TorusGeometry(0.175, 0.03, 6, 20);
   const visorGeo = new THREE.BoxGeometry(0.22, 0.07, 0.12);
   const markerGeo = new THREE.OctahedronGeometry(0.14);
-  const skinMat = new THREE.MeshStandardMaterial({ color: 0xf0c8a0, roughness: 0.8 });
-  const visorMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-  const teamMats = TEAM_COLORS.map((c) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7 }));
+  const skinMat = toonMat(PALETTE.skin);
+  const shortsMat = toonMat(PALETTE.shorts);
+  const creamMat = toonMat(PALETTE.cream);
+  const visorMat = new THREE.MeshBasicMaterial({ color: PALETTE.ink });
+  const teamMats = TEAM_COLORS.map((c) => toonMat(c));
 
   const specs: { team: TeamId; isUser: boolean; name: string }[] = [
     { team: 0, isUser: true, name: '你' },
@@ -114,21 +129,56 @@ export function createPlayers(scene: THREE.Scene): Agent[] {
 
   return specs.map((s, id) => {
     const group = new THREE.Group();
-    const body = new THREE.Mesh(bodyGeo, teamMats[s.team]);
-    body.position.y = 0.71;
-    body.castShadow = true;
+    const body = new THREE.Group(); // 躯干 + 头 + 手臂：前倾时整体一起动
+
+    const torso = new THREE.Mesh(torsoGeo, teamMats[s.team]);
+    torso.position.y = 1.02;
+    addOutline(torso, 0.03);
     const head = new THREE.Mesh(headGeo, skinMat);
-    head.position.y = 1.58;
-    head.castShadow = true;
-    const visor = new THREE.Mesh(visorGeo, visorMat);
-    visor.position.set(0, 1.62, -0.13); // 脸朝 -z
-    group.add(body, head, visor);
+    head.position.y = 1.64;
+    addOutline(head, 0.03);
+    const band = new THREE.Mesh(bandGeo, creamMat); // 头带：远处也能看出是人
+    band.position.y = 1.7;
+    band.rotation.x = Math.PI / 2;
+    const visor = new THREE.Mesh(visorGeo, visorMat); // 脸朝 -z
+    visor.position.set(0, 1.64, -0.14);
+    body.add(torso, head, band, visor);
+
+    const mkArm = (x: number) => {
+      const g = new THREE.Group();
+      g.position.set(x, 1.38, 0);
+      const m = new THREE.Mesh(armGeo, s.team === 0 ? teamMats[0] : teamMats[1]);
+      m.position.y = -0.25;
+      addOutline(m, 0.02);
+      g.add(m);
+      body.add(g);
+      return g;
+    };
+    const armL = mkArm(-0.33);
+    const armR = mkArm(0.33);
+
+    const mkLeg = (x: number) => {
+      const g = new THREE.Group();
+      g.position.set(x, 0.62, 0);
+      const m = new THREE.Mesh(legGeo, s.team === 0 ? shortsMat : shortsMat);
+      m.position.y = -0.3;
+      addOutline(m, 0.02);
+      g.add(m);
+      group.add(g);
+      return g;
+    };
+    const legL = mkLeg(-0.12);
+    const legR = mkLeg(0.12);
+
+    group.add(body, blobShadow(0.46, 0.3));
+    group.userData.rig = { body, legL, legR, armL, armR, phase: Math.random() * 6 } satisfies Rig;
 
     let marker: THREE.Mesh | null = null;
     if (s.team === 0 && !s.isUser) {
       marker = new THREE.Mesh(markerGeo, new THREE.MeshBasicMaterial({ color: 0x3ddc84, fog: false }));
-      marker.position.y = 2.15;
+      marker.position.y = 2.2;
       marker.visible = false;
+      addScaleOutline(marker, 1.4);
       marker.add(makeLabel(String(id)));
       group.add(marker);
     }
@@ -161,6 +211,45 @@ export function createPlayers(scene: THREE.Scene): Agent[] {
       openness: 6,
     } satisfies Agent;
   });
+}
+
+/** 跑步动画：摆腿、摆臂、前倾、起伏——速度越快幅度越大 */
+export function animateAgents(agents: Agent[], dt: number): void {
+  for (const a of agents) {
+    const rig = a.group.userData.rig as Rig | undefined;
+    if (!rig) continue;
+    const speed = Math.hypot(a.vel.x, a.vel.z);
+    const k = Math.min(1, speed / 5);
+    rig.phase += speed * dt * 2.6;
+    const sn = Math.sin(rig.phase);
+    rig.legL.rotation.x = sn * 0.95 * k;
+    rig.legR.rotation.x = -sn * 0.95 * k;
+    rig.armL.rotation.x = -sn * 0.85 * k;
+    rig.armR.rotation.x = sn * 0.85 * k;
+    rig.body.rotation.x = -0.24 * k;
+    rig.body.position.y = Math.abs(Math.cos(rig.phase)) * 0.05 * k;
+  }
+}
+
+/** 第一人称手臂：挂在相机上，持盘时伸到画面右下方 */
+export interface ViewArm {
+  group: THREE.Group;
+}
+
+export function createViewArm(camera: THREE.Camera): ViewArm {
+  const group = new THREE.Group();
+  const dir = new THREE.Vector3(0.23, -0.4, 0.72).normalize(); // 从手指向肩膀
+  const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.7, 4, 10), toonMat(PALETTE.teamA));
+  arm.position.copy(dir).multiplyScalar(0.46);
+  arm.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir);
+  addOutline(arm, 0.014);
+  const hand = new THREE.Mesh(new THREE.SphereGeometry(0.085, 14, 10), toonMat(PALETTE.skin));
+  addOutline(hand, 0.014);
+  group.add(arm, hand);
+  group.scale.setScalar(0.62); // 手臂别太大，别挡视野
+  group.visible = false;
+  camera.add(group);
+  return { group };
 }
 
 export function syncAgents(agents: Agent[]): void {

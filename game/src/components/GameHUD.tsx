@@ -11,13 +11,11 @@ export interface TipItem extends TipPayload {
 }
 
 function tip(h: HudState): string {
-  if (h.userHasDisc) return '按 1 / 2 直接传给队友（线红 = 有人站在线上会被截）· 或按住左键蓄力自己瞄准传盘 · 持盘不能移动';
+  if (h.userHasDisc) return '按 1 / 2 传给队友（线红 = 会被截）· 或按住左键蓄力自己瞄准 · 持盘不能移动';
   if (h.possession === 'mate') return '队友持盘 · 跑向空当要球，靠近落点会自动接盘';
   if (h.possession === 'opp') return '对手持盘 · 盯住人，站到传球线路上';
-  if (h.possession === 'loose') return h.offense === 0 ? '飞盘落地了 · 跑过去捡盘（靠近自动拾取）' : '对手去捡盘 · 趁机回防盯人';
-  return h.offense === 0
-    ? '飞盘在空中 · 冲进绿圈接盘（圈内都能接）'
-    : '对手传盘中 · 红圈是落点，冲过去拦截或封堵';
+  if (h.possession === 'loose') return h.offense === 0 ? '飞盘落地了 · 跑过去捡盘' : '对手去捡盘 · 趁机回防盯人';
+  return h.offense === 0 ? '飞盘在空中 · 冲进青色圈接盘' : '对手传盘中 · 红圈是落点，冲过去拦截';
 }
 
 function possessionLabel(h: HudState): string {
@@ -28,92 +26,121 @@ function possessionLabel(h: HudState): string {
   return '飞盘在空中';
 }
 
-const RING_R = 26;
-const RING_C = 2 * Math.PI * RING_R;
+const STALL_R = 26;
+const STALL_C = 2 * Math.PI * STALL_R;
+const STAM_R = 27;
+const STAM_C = 2 * Math.PI * STAM_R;
 
 export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: ToastItem | null; tips: TipItem[] }) {
   const stallColor =
-    hud.stallLeft === null ? '#fff' : hud.stallLeft > 5 ? '#3ddc84' : hud.stallLeft > 2.5 ? '#ffd23f' : '#ff4d4d';
+    hud.stallLeft === null ? '#f6ecd2' : hud.stallLeft > 5 ? '#14c2d8' : hud.stallLeft > 2.5 ? '#ffd23f' : '#ff5a4a';
   const stallFrac = hud.stallLeft === null ? 0 : hud.stallLeft / 10;
+  const stamVisible = hud.stamina < 0.995 || hud.exhausted;
+  const speedOp = Math.max(0, Math.min(1, (hud.speed - 0.6) / 0.4));
+  const segs = 12;
+  const lit = Math.round(hud.charge * segs);
 
   return (
     <div className="hud">
-      {/* 准星 */}
-      <div className="hud-crosshair" />
+      {/* 速度线：冲刺时画面边缘的放射线（The Pathless 式的速度感） */}
+      <div className="hud-speed" style={{ opacity: speedOp * 0.75 }} />
 
-      {/* 蓄力条 */}
+      {/* 准星 + 体力环 */}
+      <div className="hud-cross">
+        <svg viewBox="0 0 64 64" width="64" height="64">
+          <g style={{ opacity: stamVisible ? 1 : 0, transition: 'opacity 0.25s' }}>
+            <circle cx="32" cy="32" r={STAM_R} className="hud-ring-bg" />
+            <circle
+              cx="32"
+              cy="32"
+              r={STAM_R}
+              className={`hud-ring-fg${hud.exhausted ? ' is-bad' : ''}`}
+              strokeDasharray={STAM_C}
+              strokeDashoffset={STAM_C * (1 - hud.stamina)}
+              transform="rotate(-90 32 32)"
+            />
+          </g>
+          <circle cx="32" cy="32" r="4.2" className="hud-dot" />
+        </svg>
+      </div>
+
+      {/* 蓄力条（分段） */}
       {hud.charge > 0 && (
         <div className="hud-charge" aria-label="蓄力">
-          <div className="hud-charge-fill" style={{ width: `${Math.round(hud.charge * 100)}%` }} />
+          {Array.from({ length: segs }, (_, i) => (
+            <i key={i} className={i < lit ? `on s${i < 5 ? 1 : i < 9 ? 2 : 3}` : ''} />
+          ))}
         </div>
       )}
 
       {/* 比分 */}
       <div className="hud-score">
-        <div className="hud-score-row">
-          <span className="hud-team hud-team-a">我方</span>
-          <span className="hud-num">{hud.scoreA}</span>
-          <span className="hud-colon">:</span>
-          <span className="hud-num">{hud.scoreB}</span>
-          <span className="hud-team hud-team-b">对手</span>
+        <div className="hud-score-a">
+          <span className="hud-score-name">我方</span>
+          <span className="hud-score-num">{hud.scoreA}</span>
         </div>
-        <div className="hud-score-sub">先到 {hud.winScore} 分获胜 · {possessionLabel(hud)}</div>
+        <div className="hud-score-mid">先到 {hud.winScore}</div>
+        <div className="hud-score-b">
+          <span className="hud-score-num">{hud.scoreB}</span>
+          <span className="hud-score-name">对手</span>
+        </div>
       </div>
+      <div className="hud-poss">{possessionLabel(hud)}</div>
 
-      {/* 数秒圆环 */}
-      {hud.stallLeft !== null && (
-        <div className={`hud-stall${hud.stallRunning ? '' : ' is-idle'}`} aria-label="数秒">
-          <svg viewBox="0 0 64 64" width="72" height="72">
-            <circle cx="32" cy="32" r={RING_R} className="hud-stall-bg" />
-            <circle
-              cx="32"
-              cy="32"
-              r={RING_R}
-              className="hud-stall-fg"
-              stroke={stallColor}
-              strokeDasharray={RING_C}
-              strokeDashoffset={RING_C * (1 - stallFrac)}
-              transform="rotate(-90 32 32)"
-            />
-          </svg>
-          <span className="hud-stall-num" style={{ color: stallColor }}>
-            {Math.ceil(hud.stallLeft)}
-          </span>
-          <span className="hud-stall-label">{hud.stallRunning ? '数秒中' : '无人贴防·暂停'}</span>
+      {/* 连传计数 */}
+      {hud.chain >= 2 && (
+        <div key={`${hud.chainTeam}-${hud.chain}`} className={`hud-chain ${hud.chainTeam === 0 ? 'is-a' : 'is-b'}`}>
+          连传 ×{hud.chain}
         </div>
       )}
 
-      {/* 进攻方向箭头 */}
-      <div className="hud-compass">
-        <div className="hud-compass-arrow" style={{ transform: `rotate(${hud.goalAngle}rad)` }}>
-          <svg viewBox="0 0 24 24" width="30" height="30">
-            <path d="M12 2 L20 20 L12 15 L4 20 Z" fill="#ffc83d" stroke="#7a5a00" strokeWidth="1.2" />
+      {/* 数秒 */}
+      {hud.stallLeft !== null && (
+        <div className={`hud-stall${hud.stallRunning ? '' : ' is-idle'}`} aria-label="数秒">
+          <svg viewBox="0 0 64 64" width="76" height="76">
+            <circle cx="32" cy="32" r="30" className="hud-stall-face" />
+            <circle cx="32" cy="32" r={STALL_R} className="hud-stall-bg" />
+            <circle
+              cx="32"
+              cy="32"
+              r={STALL_R}
+              className="hud-stall-fg"
+              stroke={stallColor}
+              strokeDasharray={STALL_C}
+              strokeDashoffset={STALL_C * (1 - stallFrac)}
+              transform="rotate(-90 32 32)"
+            />
           </svg>
+          <span className="hud-stall-num">{Math.ceil(hud.stallLeft)}</span>
+          <span className="hud-stall-label">{hud.stallRunning ? '数秒中' : '无人贴防'}</span>
+        </div>
+      )}
+
+      {/* 进攻方向 */}
+      <div className="hud-compass">
+        <div className="hud-compass-face">
+          <div style={{ transform: `rotate(${hud.goalAngle}rad)`, display: 'flex' }}>
+            <svg viewBox="0 0 24 24" width="30" height="30">
+              <path d="M12 2 L21 21 L12 16 L3 21 Z" fill="#ffcf4a" stroke="#1b1a2e" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+          </div>
         </div>
         <span>进攻方向</span>
       </div>
 
-      {/* 体力 */}
-      <div className="hud-stamina">
-        <div
-          className={`hud-stamina-fill${hud.exhausted ? ' is-exhausted' : ''}`}
-          style={{ width: `${Math.round(hud.stamina * 100)}%` }}
-        />
-        <span>Shift 冲刺</span>
-      </div>
-
-      {/* 反手 / 正手 */}
+      {/* 反手 / 正手 + 冲刺提示 */}
       <div className="hud-curve">
-        <span className={hud.curve === 'backhand' ? 'is-on' : ''}>Q 反手（左弯）</span>
-        <span className={hud.curve === 'forehand' ? 'is-on' : ''}>E 正手（右弯）</span>
+        <span className={hud.curve === 'backhand' ? 'is-on' : ''}>Q 反手</span>
+        <span className={hud.curve === 'forehand' ? 'is-on' : ''}>E 正手</span>
+        <span className="is-plain">Shift 冲刺</span>
       </div>
 
-      {/* 落点指示：方向 + 距离（落点在视野外时也能找到） */}
+      {/* 落点指示 */}
       {hud.landing && (
         <div className={`hud-landing${hud.landing.mine ? ' is-mine' : ' is-opp'}`}>
           <div className="hud-landing-arrow" style={{ transform: `rotate(${hud.landing.angle}rad)` }}>
-            <svg viewBox="0 0 24 24" width="26" height="26">
-              <path d="M12 2 L20 20 L12 15 L4 20 Z" fill="currentColor" stroke="#0a190f" strokeWidth="1.2" />
+            <svg viewBox="0 0 24 24" width="24" height="24">
+              <path d="M12 2 L21 21 L12 16 L3 21 Z" fill="currentColor" stroke="#1b1a2e" strokeWidth="2" strokeLinejoin="round" />
             </svg>
           </div>
           <span>落点 {Math.round(hud.landing.dist)}m</span>
@@ -147,7 +174,7 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
         </div>
       )}
 
-      {/* 攻防转换 / 得分 toast */}
+      {/* 攻防转换 / 得分：漫画贴纸 */}
       {toast && (
         <div key={toast.id} className={`hud-toast hud-toast-${toast.kind}`}>
           <div className="hud-toast-title">{toast.title}</div>

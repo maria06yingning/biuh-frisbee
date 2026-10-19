@@ -93,6 +93,7 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
   return (
     <div className="exp-root">
       <div ref={mountRef} className="exp-canvas" />
+      <div className="exp-halftone" />
 
       {hud && (ui === 'playing' || ui === 'paused' || ui === 'over') && <GameHUD hud={hud} toast={toast} tips={tips} />}
 

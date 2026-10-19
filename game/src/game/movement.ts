@@ -20,10 +20,11 @@ export interface UserControl {
   pitch: number;
   stamina: number; // 0..1
   exhausted: boolean;
+  sprint: number; // 0..1 冲刺爬升（速度是逐渐加上去的，不是瞬间切换）
 }
 
 export function createUserControl(): UserControl {
-  return { yaw: 0, pitch: 0, stamina: 1, exhausted: false };
+  return { yaw: 0, pitch: 0, stamina: 1, exhausted: false, sprint: 0 };
 }
 
 export function createInput(
@@ -108,6 +109,7 @@ export function createInput(
 const _fwd = new THREE.Vector3();
 const _right = new THREE.Vector3();
 const _want = new THREE.Vector3();
+const _diff = new THREE.Vector3();
 
 /** 鼠标视角 + WASD 移动 + 冲刺体力 + 边界；持盘时锁定位移（轴心脚），只能转视角 */
 export function updateUserMovement(
@@ -147,9 +149,16 @@ export function updateUserMovement(
     if (u.exhausted && u.stamina >= 0.3) u.exhausted = false;
   }
 
-  const speed = wantSprint ? SPRINT : WALK;
+  // 有惯性的移动：起步要加速，松手要滑一小段；冲刺速度逐渐爬升
+  u.sprint = THREE.MathUtils.clamp(u.sprint + (wantSprint ? 2.2 : -3.0) * dt, 0, 1);
+  const speed = WALK + (SPRINT - WALK) * u.sprint;
   _want.multiplyScalar(speed);
-  agent.vel.lerp(_want, Math.min(1, (holding ? 14 : 10) * dt));
+  const accel = moving ? 26 : holding ? 7 : 16; // 持盘时是"接盘后滑步停下"
+  _diff.copy(_want).sub(agent.vel);
+  const dl = _diff.length();
+  const maxStep = accel * dt;
+  if (dl <= maxStep) agent.vel.copy(_want);
+  else agent.vel.addScaledVector(_diff, maxStep / dl);
   agent.pos.addScaledVector(agent.vel, dt);
   agent.pos.x = THREE.MathUtils.clamp(agent.pos.x, -(FIELD_HALF_W - 0.35), FIELD_HALF_W - 0.35);
   agent.pos.z = THREE.MathUtils.clamp(agent.pos.z, -(END_Z - 0.35), END_Z - 0.35);

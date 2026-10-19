@@ -2,8 +2,10 @@ import * as THREE from 'three';
 import { createScene } from './createScene';
 import { createField } from './createField';
 import {
+  animateAgents,
   assignMarks,
   createPlayers,
+  createViewArm,
   laneClearance,
   resetFormation,
   syncAgents,
@@ -17,13 +19,16 @@ import {
   MIN_SPEED,
   PHYS_STEP,
   createDisc,
+  createTrail,
   launchDisc,
   simulateFlight,
   solveAim,
   syncDiscObject,
   throwDisc,
   updateDisc,
+  updateTrail,
 } from './disc';
+import { PALETTE } from './toon';
 import { Rules, inAttackZone, isOutOfBounds, restartSpot, type RuleEvent } from './rules';
 import {
   Emitter,
@@ -74,12 +79,12 @@ const REASON_TEXT: Record<TurnoverReason, { lose: [string, string]; gain: [strin
     gain: ['封堵成功！', '防守者拍落了飞盘，换你们进攻'],
   },
   ground: {
-    lose: ['落地失误！', '飞盘没人接住落地，对方在落点持盘'],
-    gain: ['对手失误！', '飞盘落地没人接，你们在落点接管进攻'],
+    lose: ['落地失误！', '飞盘没人接住落地，对方去落点捡盘'],
+    gain: ['对手失误！', '飞盘落地没人接，你们去落点捡盘进攻'],
   },
   out: {
-    lose: ['出界！', '飞盘飞出边界，对方在边线内侧持盘'],
-    gain: ['对手传球出界！', '飞盘出界，你们在边线内侧持盘'],
+    lose: ['出界！', '飞盘飞出边界，对方去边线内侧捡盘'],
+    gain: ['对手传球出界！', '飞盘出界，你们去边线内侧捡盘'],
   },
   stall: {
     lose: ['数秒超时！', '持盘超过 10 秒没传出，攻防转换'],
@@ -135,6 +140,19 @@ export function createGame(container: HTMLElement): GameHandle {
   let pendingPass: 0 | 1 | 2 = 0; // 玩家按下的 1 / 2 键
   let stallNear = false; // 防守者是否在 3m 内
   let prevStallNear = false;
+  // 手感 / 反馈状态
+  let chain = 0; // 连续传球次数
+  let chainTeam: TeamId = 0;
+  let freezeT = 0; // 命中停顿
+  let shake = 0; // 屏幕震动
+  let fovPunch = 0; // 强力传球时的 FOV 冲击
+  let bobPhase = 0;
+  let roll = 0;
+  let prevYaw = 0;
+  let swingT = 0; // 投掷挥臂动画
+  let swingSign = 1; // 1 = 反手（从右往左），-1 = 正手
+  let armIn = 1; // 接盘时手臂举起的进度
+  let wasHolding = false;
   const tipNext = new Map<string, number>(); // 规则提醒的冷却
 
   const _hp = new THREE.Vector3();
@@ -147,31 +165,34 @@ export function createGame(container: HTMLElement): GameHandle {
   const rules = new Rules(handleRule);
 
   /* ───────── 场景内的"判断辅助"：传球线路 / 预测落点 ───────── */
+  // 传球线路：一根扁平的彩色丝带（绿 = 安全，红 = 有人站在线上）
+  const ribbonGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 6);
+  ribbonGeo.rotateX(Math.PI / 2); // 轴向沿 z，方便 lookAt
   const laneLines = [1, 2].map(() => {
-    const g = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(), new THREE.Vector3()]);
-    const l = new THREE.Line(
-      g,
-      new THREE.LineBasicMaterial({ color: 0x3ddc84, transparent: true, opacity: 0.7 }),
-    );
-    l.visible = false;
-    l.frustumCulled = false;
-    ctx.scene.add(l);
-    return l;
+    const m = new THREE.Mesh(ribbonGeo, new THREE.MeshBasicMaterial({ color: 0x9dff4a }));
+    m.visible = false;
+    ctx.scene.add(m);
+    return m;
   });
+  // 蓄力时的预测弧线：一串奶油色小圆点
+  const ARC_DOTS = 40;
+  const arcDots = new THREE.InstancedMesh(
+    new THREE.SphereGeometry(0.05, 8, 6),
+    new THREE.MeshBasicMaterial({ color: PALETTE.cream }),
+    ARC_DOTS,
+  );
+  arcDots.frustumCulled = false;
+  arcDots.visible = false;
+  ctx.scene.add(arcDots);
   const trajArr = new Float32Array(TRAJ_N * 3);
-  const trajGeo = new THREE.BufferGeometry();
-  trajGeo.setAttribute('position', new THREE.BufferAttribute(trajArr, 3));
-  trajGeo.setDrawRange(0, 0);
-  const trajLine = new THREE.Line(trajGeo, new THREE.LineBasicMaterial({ color: 0xfff3a0 }));
-  trajLine.frustumCulled = false;
-  trajLine.visible = false;
-  ctx.scene.add(trajLine);
+  const _m4 = new THREE.Matrix4();
+  const _lp = new THREE.Vector3();
   const ring = new THREE.Mesh(
     new THREE.RingGeometry(0.5, 0.72, 32),
     new THREE.MeshBasicMaterial({
-      color: 0xfff3a0,
+      color: PALETTE.cream,
       transparent: true,
-      opacity: 0.85,
+      opacity: 0.9,
       side: THREE.DoubleSide,
       depthWrite: false,
     }),
@@ -179,10 +200,12 @@ export function createGame(container: HTMLElement): GameHandle {
   ring.rotation.x = -Math.PI / 2;
   ring.visible = false;
   ctx.scene.add(ring);
+  const trail = createTrail(ctx.scene); // 飞盘拖尾
+  const viewArm = createViewArm(ctx.camera); // 第一人称手臂
 
   // 空中飞盘的落点提示：地面圆圈（= 大致的接盘范围）+ 一根光柱
   const landRing = new THREE.Mesh(
-    new THREE.RingGeometry(0.88, 1, 48),
+    new THREE.RingGeometry(0.8, 1, 48),
     new THREE.MeshBasicMaterial({ color: 0x3ddc84, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }),
   );
   landRing.rotation.x = -Math.PI / 2;
@@ -204,6 +227,12 @@ export function createGame(container: HTMLElement): GameHandle {
       pendingPass = slot;
     },
   });
+
+  /* ───────── 命中停顿 / 屏幕震动（Windjammers 式的打击感） ───────── */
+  function hitStop(sec: number, amount: number): void {
+    freezeT = Math.max(freezeT, sec);
+    shake = Math.max(shake, amount);
+  }
 
   /* ───────── 工具 ───────── */
   function handPos(a: Agent, out: THREE.Vector3): THREE.Vector3 {
@@ -258,6 +287,9 @@ export function createGame(container: HTMLElement): GameHandle {
       goalAngle: Math.atan2(gx * rx + gz * rz, gx * fx + gz * fz),
       guide,
       landing,
+      speed: Math.min(1, Math.hypot(user.vel.x, user.vel.z) / 7.6),
+      chain,
+      chainTeam,
     };
   }
 
@@ -300,6 +332,7 @@ export function createGame(container: HTMLElement): GameHandle {
     disc.deadReason = null;
     disc.guidedTarget = -1;
     world.holder = null;
+    chain = 0;
     world.loose = true;
     world.pickupTeam = to;
     world.offense = to;
@@ -320,6 +353,7 @@ export function createGame(container: HTMLElement): GameHandle {
   function setupPoint(offense: TeamId, delay = 0): void {
     const starter = resetFormation(agents, rules.dirA, offense);
     world.dirA = rules.dirA;
+    chain = 0;
     world.frozen = delay > 0; // 新一回合先"各就各位"
     world.readyT = delay;
     world.rush = 10; // 防守方从自己的得分线冲回来
@@ -377,6 +411,8 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   function knockDown(reason: TurnoverReason): void {
+    chain = 0;
+    hitStop(0.1, 0.2);
     disc.dead = true;
     disc.deadReason = reason;
     disc.vel.multiplyScalar(0.25);
@@ -385,6 +421,9 @@ export function createGame(container: HTMLElement): GameHandle {
 
   /** 进攻方接到盘：转移控制权；在对方得分区内 = 得分 */
   function completeCatch(a: Agent): void {
+    chain = chainTeam === a.team && chain > 0 ? chain + 1 : 1;
+    chainTeam = a.team;
+    hitStop(0.05, 0.06);
     giveDisc(a);
     pickupReadyAt = world.time + 0.25;
     if (inAttackZone(a.pos.z, teamDir(rules.dirA, a.team))) rules.scorePoint(a.team);
@@ -425,6 +464,8 @@ export function createGame(container: HTMLElement): GameHandle {
     } else if (Math.random() < 0.5) {
       // 防守者碰到了盘：一半截获，一半只是拍落
       toastTurnover('intercept', winner.team);
+      chain = 0;
+      hitStop(0.12, 0.3);
       giveDisc(winner);
       pickupReadyAt = world.time + 0.25;
     } else {
@@ -471,6 +512,12 @@ export function createGame(container: HTMLElement): GameHandle {
     handPos(user, _hp);
     throwDisc(disc, _hp, user, power, _dir, curve === 'backhand' ? -1 : 1, noise);
     afterThrow(user);
+    swingT = 0.22;
+    swingSign = curve === 'backhand' ? 1 : -1;
+    if (power > 0.85) {
+      fovPunch = 5; // 强力传球：镜头猛地拉开
+      hitStop(0.03, 0.12);
+    }
   }
 
   /** 1 / 2 键：把盘直接传给对应队友，必定到达——除非有防守者站在传球线路上 */
@@ -489,6 +536,8 @@ export function createGame(container: HTMLElement): GameHandle {
     disc.guidedTarget = target.id;
     disc.landing.set(target.pos.x, 0, target.pos.z);
     afterThrow(user);
+    swingT = 0.22;
+    swingSign = 1;
   }
 
   function stepGuided(dt: number): void {
@@ -501,6 +550,8 @@ export function createGame(container: HTMLElement): GameHandle {
         if (o.team === disc.throwTeam) continue;
         if (Math.hypot(o.pos.x - disc.pos.x, o.pos.z - disc.pos.z) < LANE_BLOCK_R) {
           toastTurnover('intercept', o.team);
+          chain = 0;
+          hitStop(0.12, 0.3);
           giveDisc(o);
           pickupReadyAt = world.time + 0.25;
           return;
@@ -559,11 +610,12 @@ export function createGame(container: HTMLElement): GameHandle {
       }
       case 'score': {
         world.frozen = true;
+        hitStop(0.35, 0.7);
         const mine = e.team === 0;
         bus.emit('toast', {
           title: mine ? '达阵得分！' : '对手得分',
           sub: mine ? '你们在得分区内接到了盘，+1 分' : '对手在得分区接到盘得分',
-          kind: mine ? 'good' : 'bad',
+          kind: mine ? 'score' : 'bad',
         });
         emitHud();
         break;
@@ -727,19 +779,7 @@ export function createGame(container: HTMLElement): GameHandle {
     ruleCoach(world.holder === user && disc.mode === 'held');
 
     if (disc.mode === 'held' && world.holder) {
-      const h = world.holder;
-      if (h.isUser) {
-        const yaw = control.yaw;
-        const back = 0.55 - 0.2 * charge;
-        const side = 0.28 + 0.12 * charge;
-        disc.pos.set(
-          h.pos.x - Math.sin(yaw) * back + Math.cos(yaw) * side,
-          1.3 - 0.15 * charge,
-          h.pos.z - Math.cos(yaw) * back - Math.sin(yaw) * side,
-        );
-      } else {
-        handPos(h, disc.pos);
-      }
+      if (!world.holder.isUser) handPos(world.holder, disc.pos);
     } else if (disc.mode === 'flying') {
       if (disc.guidedTarget >= 0) {
         stepGuided(dt);
@@ -762,6 +802,9 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   /* ───────── 画面更新 ───────── */
+  const LANE_OK = 0x9dff4a;
+  const LANE_BAD = 0xff4d4d;
+
   function updateGuides(): void {
     const userHolding =
       world.holder === user && disc.mode === 'held' && !world.frozen && rules.phase === 'playing';
@@ -770,14 +813,16 @@ export function createGame(container: HTMLElement): GameHandle {
       line.visible = userHolding;
       if (!userHolding) return;
       const clr = laneClearance(world, user.pos.x, user.pos.z, mate.pos.x, mate.pos.z, 0);
-      (line.material as THREE.LineBasicMaterial).color.setHex(clr < LANE_BLOCK_R ? 0xff4d4d : 0x3ddc84);
-      const attr = line.geometry.attributes.position as THREE.BufferAttribute;
-      attr.setXYZ(0, user.pos.x, 1.0, user.pos.z);
-      attr.setXYZ(1, mate.pos.x, 1.2, mate.pos.z);
-      attr.needsUpdate = true;
+      (line.material as THREE.MeshBasicMaterial).color.setHex(clr < LANE_BLOCK_R ? LANE_BAD : LANE_OK);
+      _hp.set(user.pos.x, 1.0, user.pos.z);
+      _lp.set(mate.pos.x, 1.2, mate.pos.z);
+      line.position.copy(_hp).add(_lp).multiplyScalar(0.5);
+      line.scale.set(1, 1, _hp.distanceTo(_lp));
+      line.lookAt(_lp);
     });
+
     const show = userHolding && charging;
-    trajLine.visible = show;
+    arcDots.visible = show;
     ring.visible = show;
     if (show) {
       const power = Math.max(0.12, charge);
@@ -787,17 +832,24 @@ export function createGame(container: HTMLElement): GameHandle {
       handPos(user, _hp);
       _vel.copy(_dir).multiplyScalar(speed);
       const { count } = simulateFlight(_hp, _vel, curve === 'backhand' ? -1 : 1, _land, trajArr);
-      trajGeo.setDrawRange(0, count);
-      (trajGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+      const step = Math.max(1, Math.floor(count / ARC_DOTS));
+      let k = 0;
+      for (let i = 4; i < count && k < ARC_DOTS; i += step, k++) {
+        _m4.makeTranslation(trajArr[i * 3], trajArr[i * 3 + 1], trajArr[i * 3 + 2]);
+        arcDots.setMatrixAt(k, _m4);
+      }
+      arcDots.count = k;
+      arcDots.instanceMatrix.needsUpdate = true;
       ring.position.set(_land.x, 0.06, _land.z);
     }
 
+    // 空中飞盘的落点：青色 = 我方传球（接它），红色 = 对手传球（拦它），灰色 = 会出界
     const inAir = disc.mode === 'flying' && disc.guidedTarget < 0 && !disc.dead;
     landRing.visible = inAir;
     landBeam.visible = inAir;
     if (inAir) {
       const out = Math.abs(world.landing.x) > FIELD_HALF_W || Math.abs(world.landing.z) > END_Z;
-      const color = out ? 0xb0b0b0 : disc.throwTeam === 0 ? 0x3ddc84 : 0xff4d4d;
+      const color = out ? 0xb0b0b0 : disc.throwTeam === 0 ? PALETTE.teamA : PALETTE.teamB;
       (landRing.material as THREE.MeshBasicMaterial).color.setHex(color);
       (landBeam.material as THREE.MeshBasicMaterial).color.setHex(color);
       const base = disc.throwTeam === 0 ? CATCH_R + 0.5 : DEF_REACH + 0.25;
@@ -811,25 +863,93 @@ export function createGame(container: HTMLElement): GameHandle {
   function frame(now: number): void {
     if (disposed) return;
     raf = requestAnimationFrame(frame);
-    const dt = Math.min(0.033, Math.max(0, (now - last) / 1000));
+    const rawDt = Math.min(0.05, Math.max(0, (now - last) / 1000));
     last = now;
+    const dt = Math.min(0.033, rawDt);
     if (!paused) {
-      update(dt);
-      hudT += dt;
+      if (freezeT > 0) {
+        freezeT -= rawDt; // 命中停顿：画面定格一瞬
+      } else {
+        update(dt);
+        hudT += dt;
+      }
     }
+    const live = !paused && freezeT <= 0;
+    const adt = live ? dt : 0;
+    if (live) animateAgents(agents, dt);
     syncAgents(agents);
     updateMarkers(world, world.time);
-    syncDiscObject(disc, dt);
     updateGuides();
 
+    // —— 相机：脚步起伏 / 转向侧倾 / 速度 FOV / 震动 ——
     const cam = ctx.camera;
-    cam.position.set(user.pos.x, EYE_HEIGHT, user.pos.z);
-    cam.rotation.set(control.pitch, control.yaw, 0);
-    const sprinting = input.state.keys.has('ShiftLeft') && user.vel.lengthSq() > 36;
-    const targetFov = sprinting ? 80 : 75;
-    if (Math.abs(cam.fov - targetFov) > 0.05) {
-      cam.fov += (targetFov - cam.fov) * Math.min(1, 6 * dt);
+    const yaw = control.yaw;
+    const rx = Math.cos(yaw);
+    const rz = -Math.sin(yaw);
+    const speed = Math.hypot(user.vel.x, user.vel.z);
+    const sp = Math.min(1, speed / 7.6);
+    bobPhase += speed * adt * 1.5;
+    const strafe = (user.vel.x * rx + user.vel.z * rz) / 7.6;
+    const yawRate = adt > 0 ? (yaw - prevYaw) / adt : 0;
+    prevYaw = yaw;
+    const targetRoll = -strafe * 0.04 + clamp(yawRate * 0.006, -0.035, 0.035);
+    roll += (targetRoll - roll) * Math.min(1, 8 * Math.max(adt, 0.001));
+    const bobY = Math.sin(bobPhase * 2) * 0.035 * sp;
+    const bobX = Math.cos(bobPhase) * 0.022 * sp;
+    fovPunch *= Math.pow(0.002, dt);
+    shake *= Math.pow(0.0008, dt);
+    const sx = (Math.random() - 0.5) * shake * 0.18;
+    const sy = (Math.random() - 0.5) * shake * 0.18;
+    const sr = (Math.random() - 0.5) * shake * 0.03;
+    cam.position.set(user.pos.x + rx * bobX + sx, EYE_HEIGHT + bobY + sy, user.pos.z + rz * bobX);
+    cam.rotation.set(control.pitch + Math.sin(bobPhase * 2) * 0.004 * sp, yaw, roll + sr);
+    const targetFov = 75 + sp * 9 + fovPunch;
+    if (Math.abs(cam.fov - targetFov) > 0.02) {
+      cam.fov += (targetFov - cam.fov) * Math.min(1, 10 * dt);
       cam.updateProjectionMatrix();
+    }
+    cam.updateMatrixWorld(true);
+
+    // —— 第一人称手臂 + 手里的飞盘 ——
+    const holdingNow = world.holder === user && disc.mode === 'held';
+    if (holdingNow && !wasHolding) armIn = 0;
+    if (!holdingNow && wasHolding) disc.object.rotation.set(0, 0, 0);
+    wasHolding = holdingNow;
+    armIn = Math.min(1, armIn + adt * 5);
+    if (swingT > 0) swingT = Math.max(0, swingT - adt);
+    const showArm = holdingNow || swingT > 0;
+    viewArm.group.visible = showArm;
+    if (showArm) {
+      let hx = 0.3 + 0.08 * charge;
+      let hy = -0.27 + Math.sin(bobPhase * 2) * 0.012 - 0.55 * (1 - armIn) * (1 - armIn);
+      let hz = -0.7 + 0.12 * charge; // 蓄力时手向后拉
+      if (swingT > 0) {
+        const p = 1 - swingT / 0.22; // 挥臂进度 0 → 1
+        hx = swingSign > 0 ? 0.45 - 0.7 * p : -0.15 + 0.7 * p;
+        hy = -0.28;
+        hz = -0.62 - 0.25 * Math.sin(p * Math.PI);
+      }
+      viewArm.group.position.set(hx, hy, hz);
+    }
+    if (holdingNow) {
+      _hp.set(viewArm.group.position.x, viewArm.group.position.y + 0.03, viewArm.group.position.z - 0.05);
+      cam.localToWorld(_hp);
+      disc.pos.copy(_hp);
+    }
+    syncDiscObject(disc, adt, holdingNow);
+    if (holdingNow) {
+      disc.object.quaternion.copy(cam.quaternion);
+      disc.object.rotateX(0.5);
+      disc.object.scale.setScalar(0.42);
+    } else {
+      disc.object.scale.setScalar(1);
+    }
+
+    // —— 飞盘拖尾：高速传球（>19 m/s）变金色 ——
+    if (live) {
+      const flying = disc.mode === 'flying' && !disc.dead;
+      const hot = disc.vel.length() > 19;
+      updateTrail(trail, disc, flying, hot ? PALETTE.disc : disc.throwTeam === 0 ? PALETTE.teamA : PALETTE.teamB, cam.position);
     }
 
     ctx.renderer.render(ctx.scene, cam);

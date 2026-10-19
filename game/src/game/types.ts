@@ -64,6 +64,7 @@ export interface DiscState {
   landing: THREE.Vector3; // 抛出时预测的落点
   dead: boolean; // 已被封堵 / 掉盘，不能再被接
   deadReason: TurnoverReason | null;
+  shadow: THREE.Mesh; // 地面圆影（看影子大小判断盘的高度）
   guidedTarget: number; // >=0：玩家按键定向传球的目标队友 id（不走物理）
 }
 
@@ -107,12 +108,15 @@ export interface HudState {
   goalAngle: number; // 进攻得分区相对视线方向的角度（弧度，顺时针为正）
   guide: boolean;
   landing: { angle: number; dist: number; mine: boolean } | null; // 空中飞盘的落点（相对视线）
+  speed: number; // 0..1，相对冲刺速度
+  chain: number; // 连续传球次数
+  chainTeam: TeamId;
 }
 
 export interface ToastPayload {
   title: string;
   sub: string;
-  kind: 'good' | 'bad' | 'info';
+  kind: 'good' | 'bad' | 'info' | 'score';
 }
 
 export interface TipPayload {

@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import type { Agent, DiscState } from './types';
+import { PALETTE, addOutline, addScaleOutline, toonMat } from './toon';
 
 /* 飞行物理：重力 + 升力（随水平速度） + 空气阻力 + 侧向弧线 */
 const G = 9.8;
@@ -33,20 +34,23 @@ function accel(v: THREE.Vector3, curve: number, out: THREE.Vector3): void {
 export function createDisc(scene: THREE.Scene): DiscState {
   const object = new THREE.Group();
   const spinner = new THREE.Group();
-  const body = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.22, 0.22, 0.035, 28),
-    new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.35 }),
-  );
-  body.castShadow = true;
-  const rim = new THREE.Mesh(
-    new THREE.TorusGeometry(0.19, 0.02, 8, 28),
-    new THREE.MeshStandardMaterial({ color: 0xff5a1f, roughness: 0.5 }),
-  );
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.04, 28), toonMat(PALETTE.disc));
+  addScaleOutline(body, 1.12, 2.0, 1.12);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(0.185, 0.024, 8, 28), toonMat(PALETTE.discRim));
   rim.rotation.x = Math.PI / 2;
-  rim.position.y = 0.018;
+  rim.position.y = 0.022;
+  addOutline(rim, 0.012);
   spinner.add(body, rim);
   object.add(spinner);
   scene.add(object);
+
+  const shadow = new THREE.Mesh(
+    new THREE.CircleGeometry(0.3, 24),
+    new THREE.MeshBasicMaterial({ color: PALETTE.ink, transparent: true, opacity: 0.4, depthWrite: false }),
+  );
+  shadow.rotation.x = -Math.PI / 2;
+  shadow.position.y = 0.045;
+  scene.add(shadow);
 
   return {
     mode: 'grounded',
@@ -61,6 +65,7 @@ export function createDisc(scene: THREE.Scene): DiscState {
     landing: new THREE.Vector3(),
     dead: false,
     deadReason: null,
+    shadow,
     guidedTarget: -1,
   };
 }
@@ -79,13 +84,81 @@ export function updateDisc(d: DiscState, dt: number): boolean {
   return false;
 }
 
-export function syncDiscObject(d: DiscState, dt: number): void {
+export function syncDiscObject(d: DiscState, dt: number, hideShadow = false): void {
   d.object.position.copy(d.pos);
   if (d.mode === 'flying' && !d.dead) {
     d.spinner.rotation.y += 28 * dt;
     d.object.rotation.z = -d.curve * 0.28;
   } else {
     d.object.rotation.z *= 0.8;
+  }
+  // 圆影：盘越高，影子越小越淡——接盘时看影子最直观
+  const h = Math.max(0, d.pos.y);
+  d.shadow.visible = !hideShadow;
+  d.shadow.position.set(d.pos.x, 0.045, d.pos.z);
+  const sc = 1.15 / (1 + 0.32 * h);
+  d.shadow.scale.set(sc, sc, 1);
+  (d.shadow.material as THREE.MeshBasicMaterial).opacity = 0.42 / (1 + 0.18 * h);
+}
+
+/* ───────── 飞行拖尾（Windjammers 式的速度感） ───────── */
+export interface DiscTrail {
+  meshes: THREE.Mesh[];
+  pts: THREE.Vector3[];
+  material: THREE.MeshBasicMaterial;
+  n: number;
+  active: boolean;
+}
+
+export function createTrail(scene: THREE.Scene): DiscTrail {
+  const N = 14;
+  const geo = new THREE.SphereGeometry(1, 8, 6);
+  const material = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.85,
+    depthWrite: false,
+    fog: false,
+  });
+  const meshes: THREE.Mesh[] = [];
+  const pts: THREE.Vector3[] = [];
+  for (let i = 0; i < N; i++) {
+    const m = new THREE.Mesh(geo, material);
+    m.visible = false;
+    scene.add(m);
+    meshes.push(m);
+    pts.push(new THREE.Vector3());
+  }
+  return { meshes, pts, material, n: 0, active: false };
+}
+
+export function updateTrail(
+  t: DiscTrail,
+  d: DiscState,
+  show: boolean,
+  color: number,
+  camPos?: THREE.Vector3,
+): void {
+  if (show) {
+    if (!t.active) {
+      t.active = true;
+      t.n = 0;
+      for (const p of t.pts) p.copy(d.pos);
+    }
+    t.material.color.setHex(color);
+    for (let i = t.pts.length - 1; i > 0; i--) t.pts[i].copy(t.pts[i - 1]);
+    t.pts[0].copy(d.pos);
+    t.n = Math.min(t.pts.length, t.n + 1);
+  } else {
+    t.active = false;
+    t.n = Math.max(0, t.n - 2);
+  }
+  for (let i = 0; i < t.meshes.length; i++) {
+    const m = t.meshes[i];
+    m.visible = i < t.n && !(camPos && t.pts[i].distanceToSquared(camPos) < 9); // 离相机太近的不画，免得挡视线
+    if (!m.visible) continue;
+    m.position.copy(t.pts[i]);
+    m.scale.setScalar(0.015 + 0.12 * Math.pow(1 - i / t.meshes.length, 1.2));
   }
 }
 
