@@ -1,498 +1,109 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowLeft, Disc3, Maximize2, Mouse, Pause, Play, RotateCcw, Volume2, VolumeX } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 import { PointerLockControls } from 'three/examples/jsm/controls/PointerLockControls.js';
+import { ArrowUpRight, CircleHelp, RotateCcw, Users, Zap } from 'lucide-react';
 
-type GameState = 'intro' | 'playing' | 'paused';
+type Mate = { group: THREE.Group; name: string; color: string; base: THREE.Vector3; phase: number; role: string };
+type Game = { renderer: THREE.WebGLRenderer; scene: THREE.Scene; camera: THREE.PerspectiveCamera; controls: PointerLockControls; disc: THREE.Mesh; mates: Mate[]; opponents: THREE.Group[]; discVelocity: THREE.Vector3; discFlying: boolean; discAge: number; held: boolean; charge: number; keys: Set<string>; lastTime: number; status: string; passes: number; catches: number; selected: number; field: THREE.Group };
 
-const FIELD_W = 36;
-const FIELD_L = 60;
+const TEAM = ['#2855ff', '#b7f34a', '#ff765f'];
+const MATE_NAMES = ['MIA', 'JULES', 'ALEX'];
 
-function App() {
-  const mountRef = useRef<HTMLDivElement>(null);
-  const gameRef = useRef<{
-    renderer: THREE.WebGLRenderer;
-    scene: THREE.Scene;
-    camera: THREE.PerspectiveCamera;
-    controls: PointerLockControls;
-    disc: THREE.Group;
-    keys: Set<string>;
-    velocity: THREE.Vector3;
-    discVelocity: THREE.Vector3;
-    discFlying: boolean;
-    discSpin: number;
-    charge: number;
-    charging: boolean;
-    animationId: number;
-    clock: THREE.Clock;
-    throwDisc: () => void;
-    resetDisc: () => void;
-  } | null>(null);
-
-  const [state, setState] = useState<GameState>('intro');
-  const [charge, setCharge] = useState(0);
-  const [message, setMessage] = useState('Walk around. Find a teammate. Throw the disc.');
-  const [showHelp, setShowHelp] = useState(true);
-  const [muted, setMuted] = useState(true);
-  const [throws, setThrows] = useState(0);
-
-  const resetDisc = useCallback(() => {
-    const game = gameRef.current;
-    if (!game) return;
-    game.discFlying = false;
-    game.charging = false;
-    game.charge = 0;
-    game.discVelocity.set(0, 0, 0);
-    game.disc.position.set(0.38, -0.22, -0.62);
-    game.disc.rotation.set(-0.12, 0, -0.1);
-    game.disc.visible = true;
-    setCharge(0);
-    setMessage('Disc ready. Aim at a teammate and throw.');
-  }, []);
-
-  const throwDisc = useCallback(() => {
-    const game = gameRef.current;
-    if (!game || game.discFlying || state !== 'playing') return;
-    const power = THREE.MathUtils.clamp(game.charge, 0.22, 1);
-    const direction = new THREE.Vector3();
-    game.camera.getWorldDirection(direction);
-    const origin = game.camera.position.clone().addScaledVector(direction, 0.75);
-    origin.y -= 0.22;
-    game.disc.position.copy(origin);
-    game.discVelocity.copy(direction).multiplyScalar(8 + power * 16);
-    game.discVelocity.y += 1.4 + power * 2.4;
-    game.discSpin = 22 + power * 38;
-    game.discFlying = true;
-    game.charging = false;
-    game.disc.visible = true;
-    setCharge(0);
-    setThrows((n) => n + 1);
-    setMessage('Nice throw! Press R to get the disc back.');
-  }, [state]);
-
-  useEffect(() => {
-    const mount = mountRef.current;
-    if (!mount) return;
-
-    const scene = new THREE.Scene();
-    scene.background = new THREE.Color('#dbe8ef');
-    scene.fog = new THREE.Fog('#dbe8ef', 58, 120);
-
-    const camera = new THREE.PerspectiveCamera(74, mount.clientWidth / mount.clientHeight, 0.1, 220);
-    camera.position.set(0, 1.72, 19);
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
-    renderer.setSize(mount.clientWidth, mount.clientHeight);
-    renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.08;
-    mount.appendChild(renderer.domElement);
-
-    const hemi = new THREE.HemisphereLight('#fff8e8', '#66846a', 2.15);
-    scene.add(hemi);
-    const sun = new THREE.DirectionalLight('#fff1ce', 3.1);
-    sun.position.set(-22, 34, 16);
-    sun.castShadow = true;
-    sun.shadow.mapSize.set(1024, 1024);
-    sun.shadow.camera.left = -42;
-    sun.shadow.camera.right = 42;
-    sun.shadow.camera.top = 42;
-    sun.shadow.camera.bottom = -42;
-    scene.add(sun);
-
-    // Ground and field markings
-    const ground = new THREE.Mesh(
-      new THREE.PlaneGeometry(180, 220),
-      new THREE.MeshStandardMaterial({ color: '#7ec66c', roughness: 1 })
-    );
-    ground.rotation.x = -Math.PI / 2;
-    ground.position.y = -0.045;
-    ground.receiveShadow = true;
-    scene.add(ground);
-
-    const field = new THREE.Mesh(
-      new THREE.PlaneGeometry(FIELD_W, FIELD_L),
-      new THREE.MeshStandardMaterial({ color: '#66b85e', roughness: 1 })
-    );
-    field.rotation.x = -Math.PI / 2;
-    field.position.y = -0.02;
-    field.receiveShadow = true;
-    scene.add(field);
-
-    const lineMat = new THREE.MeshBasicMaterial({ color: '#fff7df' });
-    const addLine = (x1: number, z1: number, x2: number, z2: number, width = 0.095) => {
-      const dx = x2 - x1;
-      const dz = z2 - z1;
-      const length = Math.hypot(dx, dz);
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, length), lineMat);
-      mesh.rotation.x = -Math.PI / 2;
-      mesh.rotation.z = -Math.atan2(dx, dz);
-      mesh.position.set((x1 + x2) / 2, 0.012, (z1 + z2) / 2);
-      scene.add(mesh);
-    };
-    const x = FIELD_W / 2;
-    const z = FIELD_L / 2;
-    addLine(-x, -z, x, -z);
-    addLine(-x, z, x, z);
-    addLine(-x, -z, -x, z);
-    addLine(x, -z, x, z);
-    addLine(-x, -z + 9, x, -z + 9, 0.12);
-    addLine(-x, z - 9, x, z - 9, 0.12);
-
-    // End zones: bright but still grounded in a real field layout
-    const endMatA = new THREE.MeshStandardMaterial({ color: '#2d58df', roughness: 0.88 });
-    const endMatB = new THREE.MeshStandardMaterial({ color: '#f27d64', roughness: 0.88 });
-    const endA = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_W - 0.18, 9), endMatA);
-    endA.rotation.x = -Math.PI / 2;
-    endA.position.set(0, 0.002, -z + 4.5);
-    scene.add(endA);
-    const endB = new THREE.Mesh(new THREE.PlaneGeometry(FIELD_W - 0.18, 9), endMatB);
-    endB.rotation.x = -Math.PI / 2;
-    endB.position.set(0, 0.002, z - 4.5);
-    scene.add(endB);
-
-    // Simple readable team markers
-    const makePlayer = (px: number, pz: number, color: string, rotation = 0) => {
-      const group = new THREE.Group();
-      group.position.set(px, 0, pz);
-      group.rotation.y = rotation;
-      const jersey = new THREE.Mesh(
-        new THREE.CapsuleGeometry(0.36, 0.78, 4, 8),
-        new THREE.MeshStandardMaterial({ color, roughness: 0.82 })
-      );
-      jersey.position.y = 1.05;
-      jersey.castShadow = true;
-      group.add(jersey);
-      const head = new THREE.Mesh(
-        new THREE.SphereGeometry(0.24, 16, 12),
-        new THREE.MeshStandardMaterial({ color: '#d5a17c', roughness: 0.95 })
-      );
-      head.position.y = 1.88;
-      head.castShadow = true;
-      group.add(head);
-      const legMat = new THREE.MeshStandardMaterial({ color: '#f7f1e5', roughness: 0.9 });
-      for (const side of [-1, 1]) {
-        const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.11, 0.58, 3, 6), legMat);
-        leg.position.set(side * 0.16, 0.38, 0);
-        group.add(leg);
-      }
-      scene.add(group);
-      return group;
-    };
-
-    const players = [
-      makePlayer(-5, -13, '#2d58df', 0.2),
-      makePlayer(7, -19, '#2d58df', -0.2),
-      makePlayer(-10, -27, '#2d58df', 0.35),
-      makePlayer(5, 5, '#f27d64', Math.PI),
-      makePlayer(-7, -2, '#f27d64', Math.PI - 0.3),
-      makePlayer(10, -8, '#f27d64', Math.PI + 0.2),
-    ];
-    // Tiny colored markers make player silhouettes legible at a distance.
-    players.forEach((p, i) => {
-      const marker = new THREE.Mesh(
-        new THREE.SphereGeometry(0.07, 8, 8),
-        new THREE.MeshBasicMaterial({ color: i < 3 ? '#d8f36c' : '#fff4d6' })
-      );
-      marker.position.set(0, 2.15, 0);
-      p.add(marker);
-    });
-
-    // Disc model: flat white disc with a raised rim
-    const disc = new THREE.Group();
-    const plate = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.31, 0.29, 0.055, 40),
-      new THREE.MeshStandardMaterial({ color: '#fff9e9', roughness: 0.32, metalness: 0.04 })
-    );
-    plate.castShadow = true;
-    disc.add(plate);
-    const rim = new THREE.Mesh(
-      new THREE.TorusGeometry(0.285, 0.025, 8, 40),
-      new THREE.MeshStandardMaterial({ color: '#2d58df', roughness: 0.35 })
-    );
-    rim.rotation.x = Math.PI / 2;
-    rim.position.y = 0.015;
-    disc.add(rim);
-    disc.position.set(0.38, -0.22, -0.62);
-    camera.add(disc);
-    scene.add(camera);
-
-    const controls = new PointerLockControls(camera, renderer.domElement);
-    controls.pointerSpeed = 0.8;
-    controls.minPolarAngle = 0.22;
-    controls.maxPolarAngle = Math.PI - 0.22;
-
-    const game = {
-      renderer, scene, camera, controls, disc,
-      keys: new Set<string>(),
-      velocity: new THREE.Vector3(),
-      discVelocity: new THREE.Vector3(),
-      discFlying: false,
-      discSpin: 0,
-      charge: 0,
-      charging: false,
-      animationId: 0,
-      clock: new THREE.Clock(),
-      throwDisc: () => {},
-      resetDisc: () => {},
-    };
-    game.throwDisc = () => {
-      if (game.discFlying) return;
-      const power = THREE.MathUtils.clamp(game.charge, 0.22, 1);
-      const direction = new THREE.Vector3();
-      camera.getWorldDirection(direction);
-      const origin = camera.position.clone().addScaledVector(direction, 0.75);
-      origin.y -= 0.22;
-      scene.attach(game.disc);
-      game.disc.position.copy(origin);
-      game.discVelocity.copy(direction).multiplyScalar(8 + power * 16);
-      game.discVelocity.y += 1.4 + power * 2.4;
-      game.discSpin = 22 + power * 38;
-      game.discFlying = true;
-      game.charging = false;
-    };
-    game.resetDisc = () => {
-      game.discFlying = false;
-      game.charging = false;
-      game.charge = 0;
-      game.discVelocity.set(0, 0, 0);
-      camera.add(game.disc);
-      game.disc.position.set(0.38, -0.22, -0.62);
-      game.disc.rotation.set(-0.12, 0, -0.1);
-      game.disc.visible = true;
-    };
-    gameRef.current = game;
-
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (['KeyW', 'KeyA', 'KeyS', 'KeyD', 'KeyR', 'Space'].includes(event.code)) event.preventDefault();
-      game.keys.add(event.code);
-      if (event.code === 'KeyR') {
-        game.resetDisc();
-        setCharge(0);
-        setMessage('Disc back in your hand. Try another throw.');
-      }
-      if (event.code === 'Escape') {
-        setState('paused');
-      }
-    };
-    const onKeyUp = (event: KeyboardEvent) => game.keys.delete(event.code);
-    const onMouseDown = (event: MouseEvent) => {
-      if (event.button !== 0 || !game.controls.isLocked || game.discFlying) return;
-      game.charging = true;
-      game.charge = 0.18;
-    };
-    const onMouseUp = (event: MouseEvent) => {
-      if (event.button !== 0 || !game.charging) return;
-      game.throwDisc();
-      setThrows((n) => n + 1);
-      setMessage('Disc away! Press R to retrieve it and throw again.');
-      setCharge(0);
-    };
-    const onLock = () => setState('playing');
-    const onUnlock = () => setState((current) => current === 'playing' ? 'paused' : current);
-
-    window.addEventListener('keydown', onKeyDown);
-    window.addEventListener('keyup', onKeyUp);
-    renderer.domElement.addEventListener('mousedown', onMouseDown);
-    window.addEventListener('mouseup', onMouseUp);
-    controls.addEventListener('lock', onLock);
-    controls.addEventListener('unlock', onUnlock);
-
-    const clock = game.clock;
-    const animate = () => {
-      game.animationId = requestAnimationFrame(animate);
-      const delta = Math.min(clock.getDelta(), 0.04);
-
-      if (controls.isLocked) {
-        const direction = new THREE.Vector3();
-        const forward = new THREE.Vector3();
-        camera.getWorldDirection(forward);
-        forward.y = 0;
-        forward.normalize();
-        const right = new THREE.Vector3().crossVectors(forward, new THREE.Vector3(0, 1, 0)).normalize().negate();
-        const move = new THREE.Vector3();
-        if (game.keys.has('KeyW')) move.add(forward);
-        if (game.keys.has('KeyS')) move.sub(forward);
-        if (game.keys.has('KeyD')) move.add(right);
-        if (game.keys.has('KeyA')) move.sub(right);
-        if (move.lengthSq() > 0) {
-          move.normalize().multiplyScalar(5.2 * delta);
-          camera.position.add(move);
-        }
-        camera.position.x = THREE.MathUtils.clamp(camera.position.x, -FIELD_W / 2 + 0.7, FIELD_W / 2 - 0.7);
-        camera.position.z = THREE.MathUtils.clamp(camera.position.z, -FIELD_L / 2 + 0.7, FIELD_L / 2 - 0.7);
-        camera.position.y = 1.72;
-
-        if (game.charging && !game.discFlying) {
-          game.charge = Math.min(1, game.charge + delta * 0.55);
-          setCharge(game.charge);
-        }
-      }
-
-      if (game.discFlying) {
-        game.discVelocity.y -= 5.8 * delta;
-        game.disc.position.addScaledVector(game.discVelocity, delta);
-        game.disc.rotation.y += game.discSpin * delta;
-        game.disc.rotation.z = THREE.MathUtils.lerp(game.disc.rotation.z, 0.3, delta * 1.6);
-        if (game.disc.position.y < 0.16) {
-          game.disc.position.y = 0.16;
-          game.discFlying = false;
-          game.discVelocity.set(0, 0, 0);
-          setMessage('The disc landed. Press R to pick it up and try again.');
-        }
-        if (Math.abs(game.disc.position.x) > 70 || Math.abs(game.disc.position.z) > 90) {
-          game.disc.visible = false;
-          game.discFlying = false;
-          setMessage('That one went a long way! Press R to reset.');
-        }
-      }
-
-      renderer.render(scene, camera);
-    };
-    animate();
-
-    const onResize = () => {
-      const width = mount.clientWidth;
-      const height = mount.clientHeight;
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.8));
-    };
-    window.addEventListener('resize', onResize);
-
-    return () => {
-      cancelAnimationFrame(game.animationId);
-      window.removeEventListener('keydown', onKeyDown);
-      window.removeEventListener('keyup', onKeyUp);
-      renderer.domElement.removeEventListener('mousedown', onMouseDown);
-      window.removeEventListener('mouseup', onMouseUp);
-      controls.removeEventListener('lock', onLock);
-      controls.removeEventListener('unlock', onUnlock);
-      window.removeEventListener('resize', onResize);
-      controls.dispose();
-      renderer.dispose();
-      if (mount.contains(renderer.domElement)) mount.removeChild(renderer.domElement);
-      scene.traverse((obj) => {
-        if (obj instanceof THREE.Mesh) {
-          obj.geometry.dispose();
-          const material = obj.material;
-          if (Array.isArray(material)) material.forEach((m) => m.dispose());
-          else material.dispose();
-        }
-      });
-      gameRef.current = null;
-    };
-  }, []);
-
-  const enterField = () => {
-    const game = gameRef.current;
-    if (!game) return;
-    game.controls.lock();
-    setState('playing');
-  };
-
-  const togglePause = () => {
-    const game = gameRef.current;
-    if (!game) return;
-    if (game.controls.isLocked) game.controls.unlock();
-    else game.controls.lock();
-  };
-
-  const reset = () => {
-    const game = gameRef.current;
-    if (!game) return;
-    game.resetDisc();
-    setCharge(0);
-    setMessage('Disc ready. Aim at a teammate and throw.');
-  };
-
-  return (
-    <main className="app-shell">
-      <header className="topbar">
-        <a className="wordmark" href="#" onClick={(e) => { e.preventDefault(); if (gameRef.current?.controls.isLocked) gameRef.current.controls.unlock(); setState('intro'); }}>
-          <span className="mark"><Disc3 size={20} strokeWidth={2.5} /></span>
-          <span>FIELD<span className="wordmark-light">NOTES</span></span>
-        </a>
-        <div className="topbar-right">
-          <span className="pill"><span className="live-dot" /> 3D PLAYGROUND</span>
-          <button className="icon-button" aria-label="Toggle sound" onClick={() => setMuted(!muted)}>{muted ? <VolumeX size={18} /> : <Volume2 size={18} />}</button>
-        </div>
-      </header>
-
-      <section className="game-frame">
-        <div className="scene" ref={mountRef} />
-        <div className="scene-vignette" />
-
-        <div className="hud-top">
-          <div className="hud-label">
-            <span className="hud-kicker">ULTIMATE FRISBEE / 01</span>
-            <strong>Find your line.</strong>
-          </div>
-          <div className="hud-stats">
-            <span><b>{throws.toString().padStart(2, '0')}</b><small>THROWS</small></span>
-            <span><b>∞</b><small>RETRIES</small></span>
-          </div>
-        </div>
-
-        {state === 'playing' && (
-          <>
-            <div className="crosshair"><span /></div>
-            <div className="bottom-hud">
-              <div className="disc-status">
-                <div className="disc-icon"><Disc3 size={24} /></div>
-                <div><strong>DISC READY</strong><span>{message}</span></div>
-              </div>
-              <div className="charge-wrap">
-                <div className="charge-label"><span>THROW POWER</span><b>{Math.round(charge * 100)}%</b></div>
-                <div className="charge-track"><div className="charge-fill" style={{ width: `${charge * 100}%` }} /></div>
-              </div>
-            </div>
-            {showHelp && (
-              <div className="control-hint">
-                <button className="hint-close" onClick={() => setShowHelp(false)}>×</button>
-                <div className="hint-row"><span className="keycap">W</span><span className="keycap">A</span><span className="keycap">S</span><span className="keycap">D</span><span>Move</span></div>
-                <div className="hint-row"><span className="mouse-icon"><Mouse size={17} /></span><span>Look around</span></div>
-                <div className="hint-row"><span className="mouse-key">LMB</span><span>Hold to charge · Release to throw</span></div>
-                <div className="hint-row"><span className="keycap">R</span><span>Reset disc</span></div>
-              </div>
-            )}
-          </>
-        )}
-
-        {state !== 'playing' && (
-          <div className={`overlay ${state === 'paused' ? 'overlay-paused' : ''}`}>
-            <div className="overlay-content">
-              <div className="eyebrow"><span className="eyebrow-line" /> A LITTLE FIELD, A LOT OF GAME</div>
-              <h1>{state === 'intro' ? <>STEP ONTO<br /><em>THE FIELD.</em></> : <>TAKE A BREATH.<br /><em>RESET YOUR LINE.</em></>}</h1>
-              <p>{state === 'intro'
-                ? 'Walk the field. Find your teammate. Send the disc flying.'
-                : 'The field is still here. Ready when you are.'}</p>
-              <button className="primary-button" onClick={state === 'intro' ? enterField : togglePause}>
-                {state === 'intro' ? <><Play size={17} fill="currentColor" /> Enter the field <span>↗</span></> : <><Play size={17} fill="currentColor" /> Back to play <span>↗</span></>}
-              </button>
-              <div className="overlay-foot"><span>NO SCORE. NO PRESSURE.</span><span>JUST THROW.</span></div>
-            </div>
-            <div className="overlay-note"><span className="note-dot" /> First-person field experience <span className="note-sep">/</span> Prototype 01</div>
-          </div>
-        )}
-
-        <div className="scene-footer">
-          <span><span className="footer-dot" /> OUTDOOR FIELD / SUNNY DAY</span>
-          <button onClick={reset}><RotateCcw size={14} /> Reset disc</button>
-          <button onClick={togglePause}><Pause size={14} /> {state === 'playing' ? 'Pause' : 'Play'}</button>
-        </div>
-      </section>
-
-      <footer className="page-footer">
-        <div className="footer-copy"><span className="footer-brand">FIELDNOTES®</span><span>Learn the game by stepping into it.</span></div>
-        <div className="footer-links"><span>MOVE</span><span>LOOK</span><span>THROW</span><span className="footer-arrow">↗</span></div>
-      </footer>
-    </main>
-  );
+function makePlayer(color: string, accent = '#f4f0e7') {
+  const g = new THREE.Group();
+  const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.82 });
+  const skinMat = new THREE.MeshStandardMaterial({ color: '#c98d67', roughness: 0.9 });
+  const darkMat = new THREE.MeshStandardMaterial({ color: '#273044', roughness: 0.9 });
+  const torso = new THREE.Mesh(new THREE.CapsuleGeometry(0.25, 0.62, 4, 8), bodyMat); torso.position.y = 1.05; g.add(torso);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.19, 12, 10), skinMat); head.position.y = 1.63; g.add(head);
+  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.195, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), darkMat); hair.position.y = 1.69; g.add(hair);
+  for (const x of [-0.12, 0.12]) { const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.085, 0.48, 3, 6), darkMat); leg.position.set(x, 0.42, 0); g.add(leg); }
+  for (const x of [-0.31, 0.31]) { const arm = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.43, 3, 6), bodyMat); arm.position.set(x, 1.12, 0); arm.rotation.z = x < 0 ? -0.13 : 0.13; g.add(arm); }
+  const shoes = new THREE.Mesh(new THREE.BoxGeometry(0.19, 0.08, 0.32), new THREE.MeshStandardMaterial({ color: accent })); shoes.position.set(0, 0.1, -0.04); g.add(shoes);
+  return g;
+}
+function createDisc() {
+  const group = new THREE.Group();
+  const rim = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 0.035, 32), new THREE.MeshStandardMaterial({ color: '#f7f5ef', roughness: 0.4, metalness: 0.05 }));
+  group.add(rim);
+  const top = new THREE.Mesh(new THREE.CylinderGeometry(0.185, 0.19, 0.018, 32), new THREE.MeshStandardMaterial({ color: '#2855ff', roughness: 0.48 })); top.position.y = 0.02; group.add(top);
+  const mark = new THREE.Mesh(new THREE.TorusGeometry(0.115, 0.009, 6, 24), new THREE.MeshStandardMaterial({ color: '#b7f34a' })); mark.rotation.x = Math.PI / 2; mark.position.y = 0.032; group.add(mark);
+  return group;
 }
 
+function App() {
+  const mountRef = useRef<HTMLDivElement>(null); const gameRef = useRef<Game | null>(null);
+  const [screen, setScreen] = useState<'intro'|'playing'|'paused'>('intro');
+  const [charge, setCharge] = useState(0); const [passes, setPasses] = useState(0); const [catches, setCatches] = useState(0); const [status, setStatus] = useState('Find a teammate. Make the pass.');
+  const [target, setTarget] = useState(0); const [help, setHelp] = useState(false);
+
+  useEffect(() => {
+    const mount = mountRef.current; if (!mount) return;
+    const scene = new THREE.Scene(); scene.background = new THREE.Color('#dfe8e4'); scene.fog = new THREE.Fog('#dfe8e4', 38, 100);
+    const camera = new THREE.PerspectiveCamera(72, mount.clientWidth / mount.clientHeight, 0.1, 140); camera.position.set(0, 1.72, 12);
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' }); renderer.setPixelRatio(Math.min(window.devicePixelRatio, 1.7)); renderer.setSize(mount.clientWidth, mount.clientHeight); renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.outputColorSpace = THREE.SRGBColorSpace; mount.appendChild(renderer.domElement);
+    const controls = new PointerLockControls(camera, renderer.domElement); scene.add(camera);
+    scene.add(new THREE.HemisphereLight('#f5fff9', '#49614b', 2.0)); const sun = new THREE.DirectionalLight('#fff2d7', 2.7); sun.position.set(-12, 24, 8); sun.castShadow = true; sun.shadow.mapSize.set(1024, 1024); scene.add(sun);
+    const field = new THREE.Group(); scene.add(field);
+    const ground = new THREE.Mesh(new THREE.PlaneGeometry(44, 78), new THREE.MeshStandardMaterial({ color: '#a9d87b', roughness: 1 })); ground.rotation.x = -Math.PI/2; ground.position.y = -0.03; ground.receiveShadow = true; field.add(ground);
+    const addLine = (x:number,z:number,w:number,d:number,color='#f8f6ed') => { const m = new THREE.Mesh(new THREE.BoxGeometry(w,0.025,d), new THREE.MeshBasicMaterial({color})); m.position.set(x,0.005,z); field.add(m); };
+    addLine(0, -30, 28, .12); addLine(0, 30, 28, .12); addLine(-14,0,.12,60); addLine(14,0,.12,60); addLine(0,-22,28,.1); addLine(0,22,28,.1);
+    for (const [z,c] of [[-26,'#2855ff'],[26,'#ff765f']] as [number,string][]) { const zone = new THREE.Mesh(new THREE.PlaneGeometry(28,8),new THREE.MeshStandardMaterial({color:c,roughness:1})); zone.rotation.x=-Math.PI/2; zone.position.set(0,.01,z); field.add(zone); }
+    // Small field markings, grass tufts and sideline flags make depth readable without heavy assets.
+    const center = new THREE.Mesh(new THREE.RingGeometry(3.8,3.92,48),new THREE.MeshBasicMaterial({color:'#f8f6ed',side:THREE.DoubleSide})); center.rotation.x=-Math.PI/2; center.position.y=.02; field.add(center);
+    for (const x of [-16,16]) for (const z of [-25,-15,0,15,25]) { const pole = new THREE.Mesh(new THREE.CylinderGeometry(.035,.05,1.35,6),new THREE.MeshStandardMaterial({color:'#f8f6ed'})); pole.position.set(x,.65,z); field.add(pole); const flag = new THREE.Mesh(new THREE.ConeGeometry(.28,.45,3),new THREE.MeshStandardMaterial({color:x<0?'#2855ff':'#ff765f'})); flag.rotation.z=Math.PI/2; flag.position.set(x+.2,1.05,z); field.add(flag); }
+    const mates: Mate[] = [];
+    const matePositions = [[-5, 0, 4],[4,0,-3],[7,0,9]];
+    matePositions.forEach((p,i)=>{ const g=makePlayer(TEAM[i]); g.position.set(p[0],0,p[2]); g.rotation.y=Math.PI; g.traverse(o=>{if(o instanceof THREE.Mesh){o.castShadow=true;o.receiveShadow=true;}}); field.add(g); mates.push({group:g,name:MATE_NAMES[i],color:TEAM[i],base:new THREE.Vector3(p[0],0,p[2]),phase:i*2.1,role:['CUT LEFT','DEEP CUT','RESET'][i]}); });
+    const opponents: THREE.Group[]=[]; [[-1,0,-4],[2,0,5]].forEach((p,i)=>{const g=makePlayer('#ff765f');g.position.set(p[0],0,p[2]);g.rotation.y=Math.PI;field.add(g);opponents.push(g);});
+    const disc=createDisc(); camera.add(disc); disc.position.set(.38,-.27,-.65); disc.rotation.set(0,0,-.18);
+    const game: Game={renderer,scene,camera,controls,disc,mates,opponents,discVelocity:new THREE.Vector3(),discFlying:false,discAge:0,held:false,charge:0,keys:new Set(),lastTime:performance.now(),status:'',passes:0,catches:0,selected:0,field}; gameRef.current=game;
+    const keyDown=(e:KeyboardEvent)=>{game.keys.add(e.key.toLowerCase()); if(['1','2','3'].includes(e.key)){game.selected=Number(e.key)-1;setTarget(game.selected);setStatus(`Target: ${game.mates[game.selected].name} · ${game.mates[game.selected].role}`);} if(e.key.toLowerCase()==='r'){resetDisc(game);setStatus('Disc reset. Choose a teammate and pass.');} };
+    const keyUp=(e:KeyboardEvent)=>game.keys.delete(e.key.toLowerCase());
+    const mouseDown=(e:MouseEvent)=>{if(e.button===0&&game.controls.isLocked&&!game.discFlying){game.held=true;game.charge=.15;}};
+    const mouseUp=(e:MouseEvent)=>{if(e.button===0&&game.held){game.held=false;throwDisc(game);setPasses(game.passes);setStatus('Pass away! Watch the disc and your teammate.');}};
+    window.addEventListener('keydown',keyDown);window.addEventListener('keyup',keyUp);renderer.domElement.addEventListener('mousedown',mouseDown);window.addEventListener('mouseup',mouseUp);
+    const clock=new THREE.Clock(); let frame=0;
+    const animate=()=>{frame=requestAnimationFrame(animate); const dt=Math.min(clock.getDelta(),.04); const t=performance.now()/1000;
+      if(game.controls.isLocked){const forward=new THREE.Vector3();camera.getWorldDirection(forward);forward.y=0;forward.normalize();const right=new THREE.Vector3().crossVectors(forward,new THREE.Vector3(0,1,0)).normalize();const speed=game.keys.has('shift')?8:5.2;const move=new THREE.Vector3();if(game.keys.has('w'))move.add(forward);if(game.keys.has('s'))move.sub(forward);if(game.keys.has('d'))move.add(right);if(game.keys.has('a'))move.sub(right);if(move.lengthSq()>0){move.normalize().multiplyScalar(speed*dt);camera.position.add(move);}camera.position.x=THREE.MathUtils.clamp(camera.position.x,-12.5,12.5);camera.position.z=THREE.MathUtils.clamp(camera.position.z,-28,28);camera.position.y=1.72;
+        game.mates.forEach((m,i)=>{if(!game.discFlying){const spread=i===game.selected?2.5:0;const dest=new THREE.Vector3(m.base.x+Math.sin(t*.8+m.phase)*2.1+spread,m.base.y,m.base.z+Math.cos(t*.7+m.phase)*2.5);m.group.position.lerp(dest,dt*1.1);}else{const dest=new THREE.Vector3(m.base.x+Math.sin(t*1.4+m.phase)*2.8,m.base.y,m.base.z+Math.cos(t*1.2+m.phase)*3.8);m.group.position.lerp(dest,dt*1.35);} });
+      }
+      if(game.held){game.charge=Math.min(1,game.charge+dt*.55);setCharge(game.charge);}
+      if(game.discFlying){game.discAge+=dt;const old=game.disc.position.clone();game.discVelocity.y-=2.8*dt;game.disc.position.addScaledVector(game.discVelocity,dt);game.disc.rotation.y+=dt*18;game.disc.rotation.z=Math.sin(game.discAge*4)*.12;
+        // Segment-vs-sphere catch checks prevent the disc skipping through a player between frames.
+        let caught=-1; for(let i=0;i<game.mates.length;i++){const m=game.mates[i];const center=m.group.position.clone().add(new THREE.Vector3(0,1.05,0));if(segmentDistance(center,old,game.disc.position)<.72&&game.disc.position.y>.35&&game.disc.position.y<2.5){caught=i;break;}}
+        if(caught>=0){game.discFlying=false;game.discAge=0;game.catches++;setCatches(game.catches);camera.add(game.disc);game.disc.position.set(.38,-.27,-.65);game.disc.rotation.set(0,0,-.18);game.mates[caught].group.position.x+=.3;setStatus(`CATCH! ${game.mates[caught].name} secured the disc. Choose your next pass.`);}
+        else if(game.disc.position.y<.16||Math.abs(game.disc.position.x)>14||Math.abs(game.disc.position.z)>31||game.discAge>5){game.discFlying=false;game.discAge=0;setStatus(game.disc.position.y<.16?'Turnover: disc hit the ground. Press R to reset.':'Out of bounds. Press R to reset.');}
+        else {for(const opp of game.opponents){const c=opp.position.clone().add(new THREE.Vector3(0,1.1,0));if(segmentDistance(c,old,game.disc.position)<.62&&game.disc.position.y<2.5){game.discFlying=false;game.discAge=0;setStatus('Defended! The opponent got a hand on it. Press R to reset.');break;}}}
+      }
+      renderer.render(scene,camera);
+    }; animate();
+    const resize=()=>{if(!mount)return;camera.aspect=mount.clientWidth/mount.clientHeight;camera.updateProjectionMatrix();renderer.setSize(mount.clientWidth,mount.clientHeight);};window.addEventListener('resize',resize);
+    return()=>{cancelAnimationFrame(frame);window.removeEventListener('resize',resize);window.removeEventListener('keydown',keyDown);window.removeEventListener('keyup',keyUp);renderer.domElement.removeEventListener('mousedown',mouseDown);window.removeEventListener('mouseup',mouseUp);controls.dispose();renderer.dispose();if(renderer.domElement.parentNode===mount)mount.removeChild(renderer.domElement);gameRef.current=null;};
+  },[]);
+
+  function start(){const g=gameRef.current;if(!g)return;g.controls.lock();setScreen('playing');}
+  function pause(){const g=gameRef.current;if(!g)return;if(g.controls.isLocked)g.controls.unlock();else{g.controls.lock();setScreen('playing');}}
+  function choose(i:number){const g=gameRef.current;if(g){g.selected=i;setTarget(i);}setStatus(`Target: ${MATE_NAMES[i]} · ${['CUT LEFT','DEEP CUT','RESET'][i]}`);}
+
+  return <main className="app-shell">
+    <header className="topbar"><div className="brand"><span className="brand-mark">F</span><span>FIELDNOTES <small>ULTIMATE PLAYGROUND</small></span></div><div className="top-meta"><span className="live-dot"/> TRAINING MODE <span className="meta-divider"/> 01 / PASS & MOVE</div><button className="icon-button" onClick={()=>setHelp(!help)} aria-label="Help"><CircleHelp size={18}/></button></header>
+    <section className="stage-wrap"><div className="stage" ref={mountRef}>
+      <div className="stage-top"><span className="pill">01 — THE FIRST PASS</span><span className="stage-coordinate">FIELD 01 / 70 × 40 M</span></div>
+      <div className="crosshair"><i/><i/></div>
+      <div className="aim-label">AIM · LOOK AT YOUR TEAMMATE</div>
+      <div className="status-toast"><span className="status-icon"><Zap size={15}/></span>{status}</div>
+      <div className="bottom-hud"><div className="charge-box"><div className="hud-label">THROW POWER <b>{Math.round(charge*100)}%</b></div><div className="charge-track"><span style={{width:`${charge*100}%`}}/></div><div className="hud-tip">HOLD LEFT CLICK TO CHARGE · RELEASE TO THROW</div></div><div className="stat-box"><div><span>PASSES</span><strong>{passes}</strong></div><div><span>CATCHES</span><strong>{catches}</strong></div></div></div>
+      {screen!=='playing'&&<div className="screen-overlay"><div className="overlay-card"><div className="eyebrow">LESS TALK. MORE DISC.</div><h1>{screen==='intro'?<>STEP ONTO<br/><em>THE FIELD.</em></>:<>TAKE A<br/><em>BREATHER.</em></>}</h1><p>{screen==='intro'?'Move, read the field, and find a teammate. This is your first passing drill.':'The field is paused. Get your bearings, then get back into the flow.'}</p><button className="primary-button" onClick={start}>{screen==='intro'?'ENTER THE FIELD':'BACK TO PLAY'} <ArrowUpRight size={17}/></button><div className="overlay-controls"><span>WASD MOVE</span><span>MOUSE LOOK</span><span>1–3 SELECT TEAMMATE</span></div></div></div>}
+    </div>
+    <aside className="sidebar"><div className="side-heading"><div><span className="eyebrow">YOUR SIDE</span><h2>Find the<br/>open player.</h2></div><Users size={21}/></div><p className="side-copy">Your teammates keep moving. Pick a target, turn your view toward them, then send the disc.</p><div className="roster">{MATE_NAMES.map((name,i)=><button key={name} className={`mate-card ${target===i?'selected':''}`} onClick={()=>choose(i)}><span className="mate-number">0{i+1}</span><span className="mate-avatar" style={{background:TEAM[i]}}><span/></span><span className="mate-info"><b>{name}</b><small>{['CUT LEFT','DEEP CUT','RESET'][i]}</small></span><span className="keycap">{i+1}</span></button>)}</div><div className="coach-note"><span className="note-mark">↗</span><div><b>COACH’S NOTE</b><p>Don’t throw where your teammate is. Throw where they’re going.</p></div></div><div className="side-bottom"><button className="secondary-button" onClick={()=>{const g=gameRef.current;if(g)resetDisc(g);setStatus('Disc reset. Pick a teammate and try again.');}}><RotateCcw size={15}/> RESET DISC <kbd>R</kbd></button><button className="pause-button" onClick={pause}>{screen==='playing'?'PAUSE':'RESUME'}</button></div></aside></section>
+    {help&&<div className="help-modal"><div className="help-card"><button className="close-help" onClick={()=>setHelp(false)}>×</button><span className="eyebrow">QUICK CONTROLS</span><h2>Make a clean pass.</h2><p><b>W A S D</b> — move around the field. <b>Mouse</b> — look and aim. <b>1 / 2 / 3</b> — select a teammate. <b>Hold left click</b> to build power, then release to throw. <b>R</b> resets the disc. Aim roughly toward a teammate; catch detection checks the full flight segment to reduce tunnelling.</p><button className="primary-button" onClick={()=>setHelp(false)}>GOT IT <ArrowUpRight size={17}/></button></div></div>}
+    <footer className="footer"><span>BUILT FOR THE CURIOUS, NOT JUST THE COMPETITIVE.</span><span>PLAY FAIR. KEEP IT MOVING. <b>© FIELDNOTES 2026</b></span></footer>
+  </main>;
+}
+
+function segmentDistance(point:THREE.Vector3,a:THREE.Vector3,b:THREE.Vector3){const ab=b.clone().sub(a);const denom=ab.lengthSq()||1;const t=THREE.MathUtils.clamp(point.clone().sub(a).dot(ab)/denom,0,1);return point.distanceTo(a.clone().addScaledVector(ab,t));}
+function throwDisc(game:Game){if(game.discFlying)return;const {camera,disc,scene,mates,selected}=game;const direction=new THREE.Vector3();camera.getWorldDirection(direction);const origin=camera.position.clone().addScaledVector(direction,.8);origin.y-=.16;scene.attach(disc);disc.position.copy(origin);disc.rotation.set(0,0,0);const power=.7+game.charge*1.1;game.discVelocity.copy(direction).multiplyScalar(9+power*7);game.discVelocity.y+=1.6+power*1.8;game.discFlying=true;game.discAge=0;game.passes++;game.charge=0;const mate=mates[selected];const target=mate.group.position.clone().add(new THREE.Vector3(0,1.2,0));const to=target.sub(origin);if(to.length()<.1)return; // Direction stays player-aimed; HUD target is a cue, not auto-aim.
+}
+function resetDisc(game:Game){game.discFlying=false;game.discAge=0;game.held=false;game.charge=0;game.camera.add(game.disc);game.disc.position.set(.38,-.27,-.65);game.disc.rotation.set(0,0,-.18);}
 export default App;

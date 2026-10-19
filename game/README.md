@@ -1,29 +1,26 @@
-# Fieldnotes — First-person Frisbee Prototype
+# FIELDNOTES — First-person Frisbee Playground (v0.2)
 
-A small React + Three.js browser prototype for a first-person ultimate frisbee field.
+A browser-based React + Three.js prototype for practising first-person movement and passing to moving teammates.
 
-## Included
+## What's improved in v0.2
+- Three moving teammates with selectable targets (`1`, `2`, `3`) and simple run-out patterns.
+- Disc flight with gravity and a spinning visual.
+- Segment-to-player distance checks during each flight step to reduce missed catches / tunnelling between frames.
+- Teammate catches return the disc to the player and increment the catch counter.
+- Opponent interception checks, ground hits, out-of-bounds checks, and reset flow.
+- Fixed right/left movement vector and disc world-position handoff when throwing.
+- Responsive HUD and roster, with a quick-controls panel.
 
-- Stylized outdoor field with end zones and boundary lines
-- First-person mouse-look using Three.js `PointerLockControls`
-- WASD movement constrained to the field
-- Hold left mouse button to charge, release to throw
-- Simple spinning disc flight with gravity
-- Reset disc (`R`), pause (`Esc`), HUD and responsive layout
-- Cream / cobalt / lime / coral visual direction
-
-## Run locally
-
-Requires Node.js 18+ (Node.js 20 LTS recommended).
+## Run
+Node.js 18+ (Node.js 20 LTS recommended):
 
 ```bash
 npm install
 npm run dev
 ```
+Open the local URL Vite prints, usually `http://localhost:5173`.
 
-Open the local URL printed by Vite, usually `http://localhost:5173`.
-
-Build for production:
+For a production build:
 
 ```bash
 npm run build
@@ -31,31 +28,13 @@ npm run preview
 ```
 
 ## Controls
+- Click **Enter the field** to lock the pointer.
+- `W A S D`: move; `Shift`: move faster.
+- Mouse: look / aim.
+- `1`, `2`, `3`: select the teammate you intend to pass to.
+- Hold left mouse button to charge; release to throw.
+- `R`: reset the disc after a miss or turnover.
+- `Esc`: pause / release pointer lock.
 
-- Click **Enter the field** to start and lock the mouse pointer.
-- `W A S D`: move
-- Mouse: look around
-- Hold left mouse button: charge the throw
-- Release left mouse button: throw the disc
-- `R`: reset disc
-- `Esc`: release mouse / pause
-
-Click **Back to play** to resume after pausing.
-
-## Notes / current limitations
-
-This is an MVP prototype, not a full simulation:
-- Player characters are simple procedural placeholder models.
-- Disc flight uses a lightweight approximation, not full aerodynamic simulation.
-- There is no true catch detection, defender AI, scoring logic, or mobile joystick yet.
-- The sound toggle is a UI placeholder; no audio is currently played.
-- The first-person held disc is a simple model parented to the camera; after throwing it becomes a world object.
-- Google Fonts are loaded remotely; the system sans-serif fallback works offline.
-
-## Suggested next steps
-
-1. Replace placeholder player models with lightweight GLB models.
-2. Improve disc lift / glide and add catch detection.
-3. Add touch controls for mobile.
-4. Add 2–3 rule-learning events, such as end-zone and out-of-bounds prompts.
-5. Add quality settings to lower shadows and pixel ratio on slower devices.
+## Honest limitations
+This is a more interactive prototype, not a finished sports simulator. Teammates use simple procedural movement, not sophisticated tactical AI. Catching is based on proximity to the flight segment, not hand animation or full disc aerodynamics. There is no online multiplayer, mobile joystick, complete scoring/turnover rules, or polished character animation yet. Since the scene is procedural, character and environment art are still stylized placeholders.
