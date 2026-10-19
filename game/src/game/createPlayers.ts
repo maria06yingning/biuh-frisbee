@@ -203,7 +203,13 @@ export function resetFormation(agents: Agent[], dirA: Dir, offense: TeamId): Age
     [7, zG + dirOff * 10],
   ];
   off.forEach((a, i) => a.pos.set(offSpots[i][0], 0, offSpots[i][1]));
-  def.forEach((a, i) => a.pos.set(offSpots[i][0] * 0.9, 0, offSpots[i][1] + dirOff * 3.5));
+  // 防守方站在自己的得分线上（进攻方要进攻的那条线）
+  const defSpots: [number, number][] = [
+    [0, 1.2],
+    [-7, 2.4],
+    [7, 2.4],
+  ];
+  def.forEach((a, i) => a.pos.set(defSpots[i][0], 0, dirOff * (GOAL_Z - defSpots[i][1])));
   for (const a of agents) {
     a.vel.set(0, 0, 0);
     a.yaw = yawOf(0, a.team === offense ? dirOff : -dirOff);
@@ -314,7 +320,7 @@ function defender(a: Agent, w: World, dt: number): void {
   const mark = a.markId >= 0 ? w.agents[a.markId] : null;
   if (!mark) {
     _d.set(ref.x * 0.6, 0, ref.z + dirOff * 7);
-    steer(a, _d, a.maxSpeed * 0.85, dt, 0.5);
+    steer(a, _d, a.maxSpeed * 0.85 * (w.rush > 0 ? 1.7 : 1), dt, 0.5);
     faceToward(a, ref, dt);
     return;
   }
@@ -326,7 +332,7 @@ function defender(a: Agent, w: World, dt: number): void {
   const tx = mark.pos.x + mark.vel.x * 0.3 + _d.x * 0.6;
   const tz = mark.pos.z + mark.vel.z * 0.3 + _d.z * 0.6 + dirOff * 1.5;
   _v.set(tx, 0, tz);
-  steer(a, _v, a.maxSpeed * 0.9, dt, 0.25);
+  steer(a, _v, a.maxSpeed * 0.9 * (w.rush > 0 ? 1.7 : 1), dt, 0.25);
   if (a.vel.lengthSq() < 0.6) faceToward(a, mark.pos, dt);
 }
 

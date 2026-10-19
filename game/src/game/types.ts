@@ -81,6 +81,8 @@ export interface World {
   frozen: boolean;
   loose: boolean; // 飞盘落在地上，等待 pickupTeam 的人去捡
   pickupTeam: TeamId;
+  rush: number; // 开盘后防守方回防冲刺的剩余秒数
+  readyT: number; // 新一回合开始前的"各就各位"倒计时
 }
 
 export interface AIHooks {
@@ -104,6 +106,7 @@ export interface HudState {
   curve: CurveType;
   goalAngle: number; // 进攻得分区相对视线方向的角度（弧度，顺时针为正）
   guide: boolean;
+  landing: { angle: number; dist: number; mine: boolean } | null; // 空中飞盘的落点（相对视线）
 }
 
 export interface ToastPayload {
@@ -112,9 +115,16 @@ export interface ToastPayload {
   kind: 'good' | 'bad' | 'info';
 }
 
+export interface TipPayload {
+  key: string;
+  title: string;
+  text: string;
+}
+
 export interface GameEvents {
   hud: HudState;
   toast: ToastPayload;
+  tip: TipPayload;
   pause: undefined;
   resume: undefined;
   gameover: { win: boolean; scoreA: number; scoreB: number };

@@ -100,10 +100,10 @@ export function isOutOfBounds(x: number, z: number): boolean {
   return Math.abs(x) > FIELD_HALF_W || Math.abs(z) > END_Z;
 }
 
-/** 换攻后的持盘点：出界取边线内侧；落在得分区则回到得分线 */
+/** 换攻后的持盘点：出界取边线内侧；在得分区（含底线外）失误则回到最近的得分线上 */
 export function restartSpot(x: number, z: number): { x: number; z: number } {
   const sx = Math.max(-(FIELD_HALF_W - 0.8), Math.min(FIELD_HALF_W - 0.8, x));
   let sz = z;
-  if (Math.abs(sz) > GOAL_Z) sz = Math.sign(sz) * (GOAL_Z - 0.6);
+  if (Math.abs(sz) > GOAL_Z) sz = Math.sign(sz) * GOAL_Z;
   return { x: sx, z: sz };
 }

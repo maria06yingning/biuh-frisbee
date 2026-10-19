@@ -1,8 +1,12 @@
 'use client';
 
-import type { HudState, ToastPayload } from '@/game/types';
+import type { HudState, TipPayload, ToastPayload } from '@/game/types';
 
 export interface ToastItem extends ToastPayload {
+  id: number;
+}
+
+export interface TipItem extends TipPayload {
   id: number;
 }
 
@@ -11,7 +15,9 @@ function tip(h: HudState): string {
   if (h.possession === 'mate') return '队友持盘 · 跑向空当要球，靠近落点会自动接盘';
   if (h.possession === 'opp') return '对手持盘 · 盯住人，站到传球线路上';
   if (h.possession === 'loose') return h.offense === 0 ? '飞盘落地了 · 跑过去捡盘（靠近自动拾取）' : '对手去捡盘 · 趁机回防盯人';
-  return h.offense === 0 ? '飞盘在空中 · 冲向落点接盘' : '对手传盘中 · 冲向落点拦截或封堵';
+  return h.offense === 0
+    ? '飞盘在空中 · 冲进绿圈接盘（圈内都能接）'
+    : '对手传盘中 · 红圈是落点，冲过去拦截或封堵';
 }
 
 function possessionLabel(h: HudState): string {
@@ -25,7 +31,7 @@ function possessionLabel(h: HudState): string {
 const RING_R = 26;
 const RING_C = 2 * Math.PI * RING_R;
 
-export default function GameHUD({ hud, toast }: { hud: HudState; toast: ToastItem | null }) {
+export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: ToastItem | null; tips: TipItem[] }) {
   const stallColor =
     hud.stallLeft === null ? '#fff' : hud.stallLeft > 5 ? '#3ddc84' : hud.stallLeft > 2.5 ? '#ffd23f' : '#ff4d4d';
   const stallFrac = hud.stallLeft === null ? 0 : hud.stallLeft / 10;
@@ -102,6 +108,30 @@ export default function GameHUD({ hud, toast }: { hud: HudState; toast: ToastIte
         <span className={hud.curve === 'forehand' ? 'is-on' : ''}>E 正手（右弯）</span>
       </div>
 
+      {/* 落点指示：方向 + 距离（落点在视野外时也能找到） */}
+      {hud.landing && (
+        <div className={`hud-landing${hud.landing.mine ? ' is-mine' : ' is-opp'}`}>
+          <div className="hud-landing-arrow" style={{ transform: `rotate(${hud.landing.angle}rad)` }}>
+            <svg viewBox="0 0 24 24" width="26" height="26">
+              <path d="M12 2 L20 20 L12 15 L4 20 Z" fill="currentColor" stroke="#0a190f" strokeWidth="1.2" />
+            </svg>
+          </div>
+          <span>落点 {Math.round(hud.landing.dist)}m</span>
+        </div>
+      )}
+
+      {/* 规则提醒（不暂停比赛） */}
+      {tips.length > 0 && (
+        <div className="hud-tips">
+          {tips.map((t) => (
+            <div key={t.id} className="hud-tip-card">
+              <div className="hud-tip-title">{t.title}</div>
+              <div className="hud-tip-text">{t.text}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* 底部操作提示 */}
       <div className="hud-tip">{tip(hud)}</div>
 
@@ -121,7 +151,7 @@ export default function GameHUD({ hud, toast }: { hud: HudState; toast: ToastIte
       {toast && (
         <div key={toast.id} className={`hud-toast hud-toast-${toast.kind}`}>
           <div className="hud-toast-title">{toast.title}</div>
-          <div className="hud-toast-sub">{toast.sub}</div>
+          {toast.sub && <div className="hud-toast-sub">{toast.sub}</div>}
         </div>
       )}
     </div>

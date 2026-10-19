@@ -19,6 +19,10 @@ Next.js 14 (App Router) + TypeScript + three.js。three.js 只在点击"进入�
 ## 操作
 WASD 移动 · 鼠标视角 · Shift 冲刺 · **1 / 2 直接传给队友 A / B** · 按住左键蓄力、松开自己瞄准传 · Q / E 反手 / 正手 · Esc 暂停
 
+## 规则提醒（不暂停比赛）
+左下角的小卡片：双防、盯防者、数秒开始、轴心脚、传球线路被堵、无身体接触、得分区、得分区内失误回到得分线。
+触发条件和文案在 `createGame.ts` 的 `ruleCoach()`，冷却时间是各条 `coach(...)` 的最后一个参数。
+
 ## 常用调参位置
 - 接盘半径 / 防守者拦截半径 / 争抢窗口 / 定向传球速度：`createGame.ts` 顶部 `CATCH_R` / `DEF_REACH` / `CONTEST_WINDOW` / `GUIDED_SPEED`
 - 数秒触发距离、线路被堵半径：`types.ts` 的 `STALL_RADIUS` / `LANE_BLOCK_R`

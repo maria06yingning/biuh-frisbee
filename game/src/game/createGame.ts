@@ -50,6 +50,7 @@ import {
 
 const CATCH_R = 1.15; // 进攻方接盘半径
 const DEF_REACH = 0.75; // 防守者拦截半径（明显小于接盘半径）
+const ZONE_NOTE = ' · 回到得分线发盘';
 const GUIDED_SPEED = 18; // 按键定向传球的飞行速度 m/s
 const CONTEST_WINDOW = 0.12; // 争抢窗口（秒）：窗口内取每个人最近距离再判定
 const TRAJ_N = 150;
@@ -114,6 +115,8 @@ export function createGame(container: HTMLElement): GameHandle {
     frozen: true,
     loose: false,
     pickupTeam: 0,
+    rush: 0,
+    readyT: 0,
   };
 
   let disposed = false;
@@ -131,6 +134,8 @@ export function createGame(container: HTMLElement): GameHandle {
   let contestT = 0;
   let pendingPass: 0 | 1 | 2 = 0; // 玩家按下的 1 / 2 键
   let stallNear = false; // 防守者是否在 3m 内
+  let prevStallNear = false;
+  const tipNext = new Map<string, number>(); // 规则提醒的冷却
 
   const _hp = new THREE.Vector3();
   const _dir = new THREE.Vector3();
@@ -175,6 +180,21 @@ export function createGame(container: HTMLElement): GameHandle {
   ring.visible = false;
   ctx.scene.add(ring);
 
+  // 空中飞盘的落点提示：地面圆圈（= 大致的接盘范围）+ 一根光柱
+  const landRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.88, 1, 48),
+    new THREE.MeshBasicMaterial({ color: 0x3ddc84, transparent: true, opacity: 0.9, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  landRing.rotation.x = -Math.PI / 2;
+  landRing.visible = false;
+  ctx.scene.add(landRing);
+  const landBeam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 6, 8),
+    new THREE.MeshBasicMaterial({ color: 0x3ddc84, transparent: true, opacity: 0.35, depthWrite: false }),
+  );
+  landBeam.visible = false;
+  ctx.scene.add(landBeam);
+
   const input = createInput(canvas, {
     onLockChange: onLock,
     onCurve: (c) => {
@@ -211,6 +231,16 @@ export function createGame(container: HTMLElement): GameHandle {
     const fz = -Math.cos(control.yaw);
     const rx = Math.cos(control.yaw);
     const rz = -Math.sin(control.yaw);
+    let landing: HudState['landing'] = null;
+    if (disc.mode === 'flying' && disc.guidedTarget < 0 && !disc.dead) {
+      const lx = world.landing.x - user.pos.x;
+      const lz = world.landing.z - user.pos.z;
+      landing = {
+        angle: Math.atan2(lx * rx + lz * rz, lx * fx + lz * fz),
+        dist: Math.hypot(lx, lz),
+        mine: disc.throwTeam === 0,
+      };
+    }
     return {
       phase: rules.phase,
       scoreA: rules.score[0],
@@ -227,6 +257,7 @@ export function createGame(container: HTMLElement): GameHandle {
       curve,
       goalAngle: Math.atan2(gx * rx + gz * rz, gx * fx + gz * fz),
       guide,
+      landing,
     };
   }
 
@@ -254,14 +285,14 @@ export function createGame(container: HTMLElement): GameHandle {
     contest = null;
   }
 
-  function toastTurnover(reason: TurnoverReason, to: TeamId): void {
+  function toastTurnover(reason: TurnoverReason, to: TeamId, note = ''): void {
     const gained = to === 0;
     const t = REASON_TEXT[reason][gained ? 'gain' : 'lose'];
-    bus.emit('toast', { title: t[0], sub: t[1], kind: gained ? 'good' : 'bad' });
+    bus.emit('toast', { title: t[0], sub: t[1] + note, kind: gained ? 'good' : 'bad' });
   }
 
   /** 飞盘留在 spot 处，由 to 队的人跑过去捡（不再瞬移）；捡起前不数秒 */
-  function doTurnover(reason: TurnoverReason, to: TeamId, spot: { x: number; z: number }): void {
+  function doTurnover(reason: TurnoverReason, to: TeamId, spot: { x: number; z: number }, note = ''): void {
     disc.mode = 'grounded';
     disc.pos.set(spot.x, 0.03, spot.z);
     disc.vel.set(0, 0, 0);
@@ -280,13 +311,18 @@ export function createGame(container: HTMLElement): GameHandle {
     contest = null;
     charging = false;
     charge = 0;
-    toastTurnover(reason, to);
+    toastTurnover(reason, to, note);
+    if (note) {
+      coach('zoneTO', '得分区内失误', '在得分区里丢盘，飞盘会回到最近的得分线上，由对方的人在线上捡盘重新开始。', 30);
+    }
   }
 
-  function setupPoint(offense: TeamId): void {
+  function setupPoint(offense: TeamId, delay = 0): void {
     const starter = resetFormation(agents, rules.dirA, offense);
     world.dirA = rules.dirA;
-    world.frozen = false;
+    world.frozen = delay > 0; // 新一回合先"各就各位"
+    world.readyT = delay;
+    world.rush = 10; // 防守方从自己的得分线冲回来
     field.setAttackZone(rules.dirA);
     contest = null;
     charge = 0;
@@ -320,7 +356,7 @@ export function createGame(container: HTMLElement): GameHandle {
       const mine = a.team === disc.throwTeam;
       const sprint = a.vel.lengthSq() > 20;
       // 接盘手够得远，防守者的拦截范围小得多
-      const r = mine ? CATCH_R + (sprint ? 0.3 : 0) : DEF_REACH + (sprint ? 0.15 : 0);
+      const r = mine ? CATCH_R + (a.isUser ? 0.5 : 0) + (sprint ? 0.3 : 0) : DEF_REACH + (sprint ? 0.15 : 0);
       const yMin = mine ? 0.15 : 0.25;
       const yMax = mine ? 2.4 : 2.1;
       if (disc.pos.y < yMin || disc.pos.y > yMax) continue;
@@ -399,7 +435,8 @@ export function createGame(container: HTMLElement): GameHandle {
   function onLanded(): void {
     const reason: TurnoverReason =
       disc.deadReason ?? (isOutOfBounds(disc.pos.x, disc.pos.z) ? 'out' : 'ground');
-    doTurnover(reason, otherTeam(disc.throwTeam), restartSpot(disc.pos.x, disc.pos.z));
+    const inZone = Math.abs(disc.pos.z) > GOAL_Z;
+    doTurnover(reason, otherTeam(disc.throwTeam), restartSpot(disc.pos.x, disc.pos.z), inZone ? ZONE_NOTE : '');
   }
 
   /* ───────── AI 传盘 ───────── */
@@ -415,7 +452,7 @@ export function createGame(container: HTMLElement): GameHandle {
         clamp(to.pos.z + to.vel.z * lead, -(END_Z - 1), END_Z - 1),
       );
       solveAim(_hp, _tg, 0, aim);
-      const flub = Math.random() < 0.15; // 约 15% 的失误传球
+      const flub = Math.random() < (to.isUser ? 0.05 : 0.15); // 传给玩家时更稳
       launchDisc(disc, _hp, from, aim.dir, aim.speed, 0, flub ? 0.09 : 0.012);
       afterThrow(from);
     },
@@ -515,7 +552,9 @@ export function createGame(container: HTMLElement): GameHandle {
     switch (e.type) {
       case 'stall': {
         const h = world.holder;
-        if (h && disc.mode === 'held') doTurnover('stall', otherTeam(h.team), { x: h.pos.x, z: h.pos.z });
+        if (h && disc.mode === 'held') {
+          doTurnover('stall', otherTeam(h.team), restartSpot(h.pos.x, h.pos.z), Math.abs(h.pos.z) > GOAL_Z ? ZONE_NOTE : '');
+        }
         break;
       }
       case 'score': {
@@ -530,9 +569,8 @@ export function createGame(container: HTMLElement): GameHandle {
         break;
       }
       case 'nextPoint': {
-        setupPoint(e.offense);
-        pickupReadyAt = world.time + 0.4;
-        bus.emit('toast', { title: '新一回合', sub: '双方换边 · 金色区域是你们的进攻方向', kind: 'info' });
+        setupPoint(e.offense, 2.0);
+        bus.emit('toast', { title: '新一回合', sub: '双方换边，各回自己的得分线 · 金色区域是你们的进攻方向', kind: 'info' });
         break;
       }
       case 'gameover': {
@@ -561,10 +599,97 @@ export function createGame(container: HTMLElement): GameHandle {
     }
   }
 
+  /* ───────── 规则提醒：只弹小卡片，不暂停、不影响比赛 ───────── */
+  function coach(key: string, title: string, text: string, cool = 15): void {
+    if ((tipNext.get(key) ?? 0) > world.time) return;
+    tipNext.set(key, world.time + cool);
+    bus.emit('tip', { key, title, text });
+  }
+
+  function ruleCoach(userHolding: boolean): void {
+    if (world.frozen || rules.phase !== 'playing') return;
+    const h = world.holder;
+    if (h && disc.mode === 'held') {
+      const near: { o: Agent; d: number }[] = [];
+      for (const o of agents) {
+        if (o.team === h.team) continue;
+        const d = Math.hypot(o.pos.x - h.pos.x, o.pos.z - h.pos.z);
+        if (d < STALL_RADIUS) near.push({ o, d });
+      }
+      near.sort((a, b) => a.d - b.d);
+      // 双防：除盯防者外，另一名防守者在持盘者 3m 内，且没在盯别的进攻者
+      if (near.length >= 2) {
+        let doubled = false;
+        for (let i = 1; i < near.length; i++) {
+          const o = near[i].o;
+          let guarding = false;
+          for (const t of agents) {
+            if (t.team === h.team && t !== h && Math.hypot(t.pos.x - o.pos.x, t.pos.z - o.pos.z) < STALL_RADIUS) {
+              guarding = true;
+              break;
+            }
+          }
+          if (!guarding) {
+            doubled = true;
+            break;
+          }
+        }
+        if (doubled) {
+          if (h.team === 0) {
+            coach('double-opp', '对手双防（Double Team）', '持盘者 3 米内只能有 1 名防守者（盯防者）。另一名防守者如果没在盯别的进攻者，就算双防——正式比赛里持盘者可以喊 "Double Team"，多出来的人要退开。这里只是提醒，不影响比赛。', 20);
+          } else {
+            coach('double-mine', '你们双防了', '对手持盘时，3 米内只该有 1 个盯防者。现在有两个人贴着持盘者、又没在盯别人——别扎堆，去盯其他进攻者或堵传球线路。', 20);
+          }
+        }
+      }
+      if (h.team === 1 && near.length > 0 && near[0].o.isUser) {
+        coach('marker', '你是盯防者', '每个持盘者只有 1 名盯防者，由他来数秒。保持约 1 米距离，别碰到对方——极限飞盘没有身体接触。', 30);
+      }
+      if (userHolding && stallNear && !prevStallNear && rules.stallActive) {
+        coach('stall', '开始数秒', '防守者贴到 3 米内就开始数秒：10 秒内必须传出，否则数秒超时、攻防转换。', 30);
+      }
+    }
+    prevStallNear = stallNear;
+
+    if (userHolding) {
+      const k = input.state.keys;
+      if (k.has('KeyW') || k.has('KeyA') || k.has('KeyS') || k.has('KeyD')) {
+        coach('pivot', '轴心脚', '接盘后必须停下，只能以一只脚为轴转身，不能带盘跑。想摆脱防守，靠转身和假动作传盘。', 25);
+      }
+      for (const m of [agents[1], agents[2]]) {
+        if (laneClearance(world, user.pos.x, user.pos.z, m.pos.x, m.pos.z, 0) < LANE_BLOCK_R) {
+          coach('lane', '传球线路被堵', '红线上有防守者站在你和队友的连线上，传过去会被截。换另一个队友，或先转身等队友跑开。', 30);
+          break;
+        }
+      }
+    }
+    for (const o of agents) {
+      if (o === user) continue;
+      if (Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z) < 0.7) {
+        coach('contact', '无身体接触', '极限飞盘不允许推、撞、抢；防守靠站位和手上的功夫。（本游戏没有碰撞推挤，但现实中要保持距离。）', 20);
+        break;
+      }
+    }
+    if (!userHolding && world.offense === 0 && inAttackZone(user.pos.z, rules.dirA)) {
+      coach('zone', '得分区', '只有在对方得分区内接到盘才得分；在区里跑动、没接到盘不算。', 40);
+    }
+  }
+
   /* ───────── 主更新 ───────── */
   function update(dt: number): void {
     if (rules.phase !== 'playing' && rules.phase !== 'scored') return;
     world.time += dt;
+
+    // 新一回合：先各就各位，再开盘；防守方回防冲刺
+    if (world.readyT > 0) {
+      world.readyT -= dt;
+      if (world.readyT <= 0) {
+        world.frozen = false;
+        pickupReadyAt = world.time + 0.2;
+        bus.emit('toast', { title: '开盘！', sub: '', kind: 'info' });
+      }
+    }
+    if (world.rush > 0 && !world.frozen) world.rush -= dt;
 
     // 数秒只在防守者贴近（3m 内）持盘者时才计时
     const holder = world.holder;
@@ -577,7 +702,7 @@ export function createGame(container: HTMLElement): GameHandle {
         }
       }
     }
-    rules.update(dt, stallNear); // 数秒 / 得分后倒计时（可能触发换攻或下一回合）
+    rules.update(dt, stallNear && !world.frozen); // 数秒 / 得分后倒计时（可能触发换攻或下一回合）
     world.stallElapsed = rules.stallElapsed;
 
     const userHolding = world.holder === user && disc.mode === 'held';
@@ -598,6 +723,8 @@ export function createGame(container: HTMLElement): GameHandle {
         }
       }
     }
+
+    ruleCoach(world.holder === user && disc.mode === 'held');
 
     if (disc.mode === 'held' && world.holder) {
       const h = world.holder;
@@ -664,6 +791,21 @@ export function createGame(container: HTMLElement): GameHandle {
       (trajGeo.attributes.position as THREE.BufferAttribute).needsUpdate = true;
       ring.position.set(_land.x, 0.06, _land.z);
     }
+
+    const inAir = disc.mode === 'flying' && disc.guidedTarget < 0 && !disc.dead;
+    landRing.visible = inAir;
+    landBeam.visible = inAir;
+    if (inAir) {
+      const out = Math.abs(world.landing.x) > FIELD_HALF_W || Math.abs(world.landing.z) > END_Z;
+      const color = out ? 0xb0b0b0 : disc.throwTeam === 0 ? 0x3ddc84 : 0xff4d4d;
+      (landRing.material as THREE.MeshBasicMaterial).color.setHex(color);
+      (landBeam.material as THREE.MeshBasicMaterial).color.setHex(color);
+      const base = disc.throwTeam === 0 ? CATCH_R + 0.5 : DEF_REACH + 0.25;
+      const pulse = base * (1 + 0.07 * Math.sin(world.time * 9));
+      landRing.scale.set(pulse, pulse, 1);
+      landRing.position.set(world.landing.x, 0.07, world.landing.z);
+      landBeam.position.set(world.landing.x, 3, world.landing.z);
+    }
   }
 
   function frame(now: number): void {
@@ -710,6 +852,7 @@ export function createGame(container: HTMLElement): GameHandle {
     },
     restart() {
       rules.reset();
+      tipNext.clear();
       guide = true;
       setupPoint(0);
       paused = true;

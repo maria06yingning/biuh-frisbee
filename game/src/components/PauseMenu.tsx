@@ -56,7 +56,7 @@ export default function PauseMenu({ mode, result, onResume, onRestart, onExit }:
 
         <p className="pause-rules">
           极限飞盘规则速览：持盘者不能跑动（只能转身）· 防守者贴近后开始数秒，10 秒内必须传出 · 在对方得分区内接到盘得 1 分 ·
-          飞盘落地、被截、出界就换攻 · 全程无身体接触
+          飞盘落地、被截、出界就换攻 · 全程无身体接触 · 持盘者 3 米内只能有 1 名盯防者（多了叫双防）
         </p>
       </div>
     </div>
