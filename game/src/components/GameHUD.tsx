@@ -11,6 +11,15 @@ export interface TipItem extends TipPayload {
 }
 
 function tip(h: HudState): string {
+  if (h.pullPending) {
+    if (h.userHasDisc) return '开盘！按住左键蓄力，把盘踢向对面（越久越远）· 或按 1 / 2 让队友开盘';
+    // 开盘等待期间 offense = 开盘一方
+    return h.offense === 0 ? '队友开盘 · 踢出后立刻冲回去盯人' : '对手开盘 · 看落点圈，准备接盘';
+  }
+  if (h.pulling) {
+    // 开盘飞行中 offense = 接盘方
+    return h.offense === 0 ? '开盘飞来了 · 冲进青色圈接盘（或等它落地再捡）' : '开盘踢出了 · 立刻冲回去盯人';
+  }
   if (h.userHasDisc) return '按 1 / 2 传给队友（线红 = 会被截）· 或按住左键蓄力自己瞄准 · 持盘不能移动';
   if (h.possession === 'mate') return '队友持盘 · 跑向空当要球，靠近落点会自动接盘';
   if (h.possession === 'opp') return '对手持盘 · 盯住人，站到传球线路上';
@@ -19,6 +28,7 @@ function tip(h: HudState): string {
 }
 
 function possessionLabel(h: HudState): string {
+  if (h.pullPending) return h.userHasDisc ? '你开盘' : '开盘中';
   if (h.possession === 'user') return '你持盘';
   if (h.possession === 'mate') return '队友持盘';
   if (h.possession === 'opp') return '对手持盘';
@@ -167,9 +177,9 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
         <div className="hud-guide">
           <div className="hud-guide-title">三步上手</div>
           <ol>
-            <li>持盘时不能跑，只能转身看场上形势</li>
-            <li>按 <b>1</b> / <b>2</b> 传给头顶对应编号的队友：线绿 = 稳，线红 = 有人站在线上，会被截</li>
-            <li>在金色得分区里接到盘就得 1 分（也可以按住左键蓄力，自己瞄准传）</li>
+            <li>每一分从<b>开盘</b>开始：防守方把盘踢给进攻方。开盘时按住左键蓄力自己踢，或按 <b>1</b> / <b>2</b> 让队友开</li>
+            <li>持盘时不能跑，只能转身。按 <b>1</b> / <b>2</b> 传给对应编号的队友：线<b>绿</b> = 稳，<b>黄</b> = 盯防者可能碰到，<b>红</b> = 有人站在线上必被截</li>
+            <li>在金色得分区里接到盘就得 1 分</li>
           </ol>
         </div>
       )}

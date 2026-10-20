@@ -38,6 +38,7 @@ import {
   HAND_HEIGHT,
   EYE_HEIGHT,
   LANE_BLOCK_R,
+  MARKER_ZONE,
   STALL_RADIUS,
   WIN_SCORE,
   ZONE_DEPTH,
@@ -54,7 +55,8 @@ import {
 } from './types';
 
 const CATCH_R = 1.15; // 进攻方接盘半径
-const DEF_REACH = 0.75; // 防守者拦截半径（明显小于接盘半径）
+const DEF_REACH = 0.75; // 玩家当防守者时的拦截半径（明显小于接盘半径）
+const DEF_REACH_AI = 0.5; // 机器人防守者的拦截半径（更小）
 const ZONE_NOTE = ' · 回到得分线发盘';
 const GUIDED_SPEED = 18; // 按键定向传球的飞行速度 m/s
 const CONTEST_WINDOW = 0.12; // 争抢窗口（秒）：窗口内取每个人最近距离再判定
@@ -120,6 +122,8 @@ export function createGame(container: HTMLElement): GameHandle {
     frozen: true,
     loose: false,
     pickupTeam: 0,
+    pullPending: false,
+    pulling: false,
     rush: 0,
     readyT: 0,
   };
@@ -140,6 +144,7 @@ export function createGame(container: HTMLElement): GameHandle {
   let pendingPass: 0 | 1 | 2 = 0; // 玩家按下的 1 / 2 键
   let stallNear = false; // 防守者是否在 3m 内
   let prevStallNear = false;
+  const ignoreDef = new Set<number>(); // 本次传球中"没碰到盘"的盯防者
   // 手感 / 反馈状态
   let chain = 0; // 连续传球次数
   let chainTeam: TeamId = 0;
@@ -267,7 +272,7 @@ export function createGame(container: HTMLElement): GameHandle {
       landing = {
         angle: Math.atan2(lx * rx + lz * rz, lx * fx + lz * fz),
         dist: Math.hypot(lx, lz),
-        mine: disc.throwTeam === 0,
+        mine: (world.pulling ? otherTeam(disc.throwTeam) : disc.throwTeam) === 0,
       };
     }
     return {
@@ -278,8 +283,11 @@ export function createGame(container: HTMLElement): GameHandle {
       possession,
       offense: world.offense,
       userHasDisc: possession === 'user',
+      pullPending: world.pullPending,
+      pulling: world.pulling,
       charge: charging ? charge : 0,
-      stallLeft: rules.stallActive && disc.mode === 'held' ? Math.max(0, 10 - rules.stallElapsed) : null,
+      stallLeft:
+        rules.stallActive && disc.mode === 'held' && !world.pullPending ? Math.max(0, 10 - rules.stallElapsed) : null,
       stallRunning: stallNear,
       stamina: control.stamina,
       exhausted: control.exhausted,
@@ -297,6 +305,7 @@ export function createGame(container: HTMLElement): GameHandle {
   function giveDisc(a: Agent): void {
     world.holder = a;
     world.loose = false;
+    world.pulling = false;
     disc.guidedTarget = -1;
     disc.mode = 'held';
     disc.vel.set(0, 0, 0);
@@ -324,7 +333,7 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   /** 飞盘留在 spot 处，由 to 队的人跑过去捡（不再瞬移）；捡起前不数秒 */
-  function doTurnover(reason: TurnoverReason, to: TeamId, spot: { x: number; z: number }, note = ''): void {
+  function makeLoose(to: TeamId, spot: { x: number; z: number }): void {
     disc.mode = 'grounded';
     disc.pos.set(spot.x, 0.03, spot.z);
     disc.vel.set(0, 0, 0);
@@ -332,8 +341,8 @@ export function createGame(container: HTMLElement): GameHandle {
     disc.deadReason = null;
     disc.guidedTarget = -1;
     world.holder = null;
-    chain = 0;
     world.loose = true;
+    world.pulling = false;
     world.pickupTeam = to;
     world.offense = to;
     rules.offense = to;
@@ -344,19 +353,37 @@ export function createGame(container: HTMLElement): GameHandle {
     contest = null;
     charging = false;
     charge = 0;
+  }
+
+  function doTurnover(reason: TurnoverReason, to: TeamId, spot: { x: number; z: number }, note = ''): void {
+    chain = 0;
+    makeLoose(to, spot);
     toastTurnover(reason, to, note);
     if (note) {
       coach('zoneTO', '得分区内失误', '在得分区里丢盘，飞盘会回到最近的得分线上，由对方的人在线上捡盘重新开始。', 30);
     }
   }
 
-  function setupPoint(offense: TeamId, delay = 0): void {
-    const starter = resetFormation(agents, rules.dirA, offense);
+  /** 开盘的盘落地：接盘方去捡（出界也一样，取边线内侧） */
+  function pullLanded(): void {
+    const out = isOutOfBounds(disc.pos.x, disc.pos.z);
+    makeLoose(otherTeam(disc.throwTeam), restartSpot(disc.pos.x, disc.pos.z));
+    bus.emit('toast', {
+      title: out ? '开盘出界' : '开盘落地',
+      sub: '进攻方去捡盘，防守方趁机冲回来盯人',
+      kind: 'info',
+    });
+  }
+
+  /** 每一分都从开盘（pull）开始：receiving 是接盘方（进攻方），另一方站在自己得分线上开盘 */
+  function setupPoint(receiving: TeamId, delay = 0): void {
+    resetFormation(agents, rules.dirA, receiving);
+    const puller = agents.find((a) => a.team === otherTeam(receiving)) as Agent; // 玩家方开盘时默认是玩家本人
     world.dirA = rules.dirA;
     chain = 0;
     world.frozen = delay > 0; // 新一回合先"各就各位"
     world.readyT = delay;
-    world.rush = 10; // 防守方从自己的得分线冲回来
+    world.rush = 0; // 开盘踢出后，防守方才开始冲回来
     field.setAttackZone(rules.dirA);
     contest = null;
     charge = 0;
@@ -365,10 +392,50 @@ export function createGame(container: HTMLElement): GameHandle {
     control.yaw = user.yaw;
     control.pitch = 0;
     disc.mode = 'grounded';
-    giveDisc(starter);
+    giveDisc(puller);
+    world.pullPending = true;
+    rules.stopStall();
+    puller.throwT = 1.0;
+  }
+
+  /** 盯防者（持盘者身前 2m 内）：只有概率碰到盘——正对着盯防者传最危险，绕开 45° 以外基本安全 */
+  function rollMarkers(thrower: Agent, dx: number, dz: number): void {
+    ignoreDef.clear();
+    const len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len;
+    const uz = dz / len;
+    for (const o of agents) {
+      if (o.team === thrower.team || o.isUser) continue; // 玩家当盯防者时，靠自己站位
+      const rx = o.pos.x - thrower.pos.x;
+      const rz = o.pos.z - thrower.pos.z;
+      const along = rx * ux + rz * uz;
+      if (along < -0.3 || along > MARKER_ZONE) continue;
+      const perp = Math.abs(rx * uz - rz * ux);
+      const p = perp < 0.35 ? 0.6 : perp < 0.65 ? 0.25 : 0;
+      if (Math.random() >= p) ignoreDef.add(o.id);
+    }
   }
 
   function afterThrow(thrower: Agent): void {
+    if (world.pullPending) {
+      // 开盘踢出：另一方成为进攻方，踢盘方开始冲回来盯人
+      world.pullPending = false;
+      world.pulling = true;
+      const receiving = otherTeam(thrower.team);
+      world.offense = receiving;
+      rules.offense = receiving;
+      assignMarks(agents, receiving);
+      world.rush = 10;
+      ignoreDef.clear();
+    } else {
+      let dx = disc.vel.x;
+      let dz = disc.vel.z;
+      if (disc.guidedTarget >= 0) {
+        dx = agents[disc.guidedTarget].pos.x - thrower.pos.x;
+        dz = agents[disc.guidedTarget].pos.z - thrower.pos.z;
+      }
+      rollMarkers(thrower, dx, dz);
+    }
     world.holder = null;
     rules.stopStall();
     world.throwTime = world.time;
@@ -385,14 +452,18 @@ export function createGame(container: HTMLElement): GameHandle {
 
   /* ───────── 接盘 / 拦截 / 封堵判定 ───────── */
   function trackContest(): void {
+    const receiverTeam = world.pulling ? otherTeam(disc.throwTeam) : disc.throwTeam;
     for (const a of agents) {
+      if (world.pulling && a.team === disc.throwTeam) continue; // 开盘：踢盘的一方不能碰
       if (a.id === disc.throwerId && disc.flightTime < 0.35) continue;
-      const mine = a.team === disc.throwTeam;
+      if (ignoreDef.has(a.id) && disc.flightTime < 0.35) continue; // 盯防者这次没碰到
+      const mine = a.team === receiverTeam;
       const sprint = a.vel.lengthSq() > 20;
-      // 接盘手够得远，防守者的拦截范围小得多
-      const r = mine ? CATCH_R + (a.isUser ? 0.5 : 0) + (sprint ? 0.3 : 0) : DEF_REACH + (sprint ? 0.15 : 0);
+      // 接盘手够得远，防守者的拦截范围小得多（机器人比玩家更小）
+      const reach = a.isUser ? DEF_REACH : DEF_REACH_AI;
+      const r = mine ? CATCH_R + (a.isUser ? 0.5 : 0) + (sprint ? 0.3 : 0) : reach + (sprint ? 0.15 : 0);
       const yMin = mine ? 0.15 : 0.25;
-      const yMax = mine ? 2.4 : 2.1;
+      const yMax = mine ? 2.4 : a.isUser ? 2.1 : 1.9;
       if (disc.pos.y < yMin || disc.pos.y > yMax) continue;
       const d = Math.hypot(a.pos.x - disc.pos.x, a.pos.z - disc.pos.z);
       if (d > r) continue;
@@ -411,6 +482,7 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   function knockDown(reason: TurnoverReason): void {
+    disc.guidedTarget = -1; // 定向传球被拍落后改走物理下落
     chain = 0;
     hitStop(0.1, 0.2);
     disc.dead = true;
@@ -448,6 +520,24 @@ export function createGame(container: HTMLElement): GameHandle {
     }
     if (!winner) return;
 
+    if (world.pulling) {
+      // 开盘：只有接盘方能碰盘，小概率没接稳
+      if (Math.random() < 0.04 + 0.1 * wq) {
+        knockDown('drop');
+        return;
+      }
+      giveDisc(winner);
+      chain = 0;
+      hitStop(0.05, 0.06);
+      pickupReadyAt = world.time + 0.25;
+      bus.emit('toast', {
+        title: '接到开盘',
+        sub: '进攻开始：看清盯防者，再传球找空当',
+        kind: winner.team === 0 ? 'good' : 'info',
+      });
+      return;
+    }
+
     if (winner.team === disc.throwTeam) {
       // 进攻方接盘：防守者越近、盘越偏，掉盘概率越高
       let near = 99;
@@ -474,6 +564,10 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   function onLanded(): void {
+    if (world.pulling) {
+      pullLanded();
+      return;
+    }
     const reason: TurnoverReason =
       disc.deadReason ?? (isOutOfBounds(disc.pos.x, disc.pos.z) ? 'out' : 'ground');
     const inZone = Math.abs(disc.pos.z) > GOAL_Z;
@@ -495,6 +589,16 @@ export function createGame(container: HTMLElement): GameHandle {
       solveAim(_hp, _tg, 0, aim);
       const flub = Math.random() < (to.isUser ? 0.05 : 0.15); // 传给玩家时更稳
       launchDisc(disc, _hp, from, aim.dir, aim.speed, 0, flub ? 0.09 : 0.012);
+      afterThrow(from);
+    },
+    pull(from) {
+      if (world.holder !== from || disc.mode !== 'held' || !world.pullPending || rules.phase !== 'playing') return;
+      handPos(from, _hp);
+      // 接盘方站在自己的得分线上；把盘落在他们身前 4–9 米
+      const dirRecv = teamDir(rules.dirA, otherTeam(from.team));
+      _tg.set((Math.random() * 2 - 1) * 5, 0, -dirRecv * GOAL_Z + dirRecv * (4 + Math.random() * 5));
+      solveAim(_hp, _tg, 0, aim);
+      launchDisc(disc, _hp, from, aim.dir, aim.speed, 0, 0.02);
       afterThrow(from);
     },
   };
@@ -544,19 +648,25 @@ export function createGame(container: HTMLElement): GameHandle {
     const t = agents[disc.guidedTarget];
     disc.flightTime += dt;
     world.landing.set(t.pos.x, 0, t.pos.z);
-    // 防守者贴近盘的航线（= 站在传球人与队友的连线上）→ 判定截获
-    if (disc.flightTime > 0.12) {
-      for (const o of agents) {
-        if (o.team === disc.throwTeam) continue;
-        if (Math.hypot(o.pos.x - disc.pos.x, o.pos.z - disc.pos.z) < LANE_BLOCK_R) {
-          toastTurnover('intercept', o.team);
-          chain = 0;
-          hitStop(0.12, 0.3);
-          giveDisc(o);
-          pickupReadyAt = world.time + 0.25;
-          return;
-        }
+    // 防守者贴近盘的航线（= 站在传球人与队友的连线上）：
+    //  · 离传球人 2m 内的是盯防者——只有概率碰到（见 rollMarkers），碰到后一半截获、一半拍落
+    //  · 2m 以外站在线上的——必定截获
+    const thrower = agents[disc.throwerId];
+    for (const o of agents) {
+      if (o.team === disc.throwTeam) continue;
+      if (ignoreDef.has(o.id) && disc.flightTime < 0.35) continue;
+      if (Math.hypot(o.pos.x - disc.pos.x, o.pos.z - disc.pos.z) >= LANE_BLOCK_R) continue;
+      const isMarker = Math.hypot(o.pos.x - thrower.pos.x, o.pos.z - thrower.pos.z) < MARKER_ZONE;
+      if (isMarker && Math.random() < 0.5) {
+        knockDown('block');
+        return;
       }
+      toastTurnover('intercept', o.team);
+      chain = 0;
+      hitStop(0.12, 0.3);
+      giveDisc(o);
+      pickupReadyAt = world.time + 0.25;
+      return;
     }
     _tg.set(t.pos.x, 1.3, t.pos.z);
     _dir.copy(_tg).sub(disc.pos);
@@ -570,6 +680,17 @@ export function createGame(container: HTMLElement): GameHandle {
     disc.pos.addScaledVector(_dir, step);
   }
 
+  /** 开盘时按 1 / 2：交给队友 A / B 来开盘 */
+  function delegatePull(slot: 1 | 2): void {
+    const mate = agents[slot];
+    charging = false;
+    charge = 0;
+    giveDisc(mate);
+    rules.stopStall();
+    mate.throwT = 0.8;
+    bus.emit('toast', { title: `${mate.name}开盘`, sub: '', kind: 'info' });
+  }
+
   function handleUserThrow(dt: number, holding: boolean): void {
     const inp = input.state;
     const slot = pendingPass;
@@ -580,7 +701,8 @@ export function createGame(container: HTMLElement): GameHandle {
     } else if (slot && world.time >= pickupReadyAt) {
       charging = false;
       charge = 0;
-      guidedPass(slot);
+      if (world.pullPending) delegatePull(slot);
+      else guidedPass(slot);
     } else {
       if (inp.pressed && world.time >= pickupReadyAt) {
         charging = true;
@@ -641,7 +763,7 @@ export function createGame(container: HTMLElement): GameHandle {
       last = performance.now();
       if (rules.phase === 'ready') {
         rules.begin();
-        rules.startStall();
+        if (!world.pullPending) rules.startStall();
         pickupReadyAt = world.time + 0.3;
       }
       bus.emit('resume', undefined);
@@ -649,6 +771,29 @@ export function createGame(container: HTMLElement): GameHandle {
       paused = true;
       bus.emit('pause', undefined);
     }
+  }
+
+  /** 传球线路：0 = 干净，1 = 盯防者在线路附近（有概率被碰到），2 = 有人站在线上（必被截） */
+  function laneState(from: Agent, to: Agent): 0 | 1 | 2 {
+    const dx = to.pos.x - from.pos.x;
+    const dz = to.pos.z - from.pos.z;
+    const len = Math.hypot(dx, dz) || 1;
+    const ux = dx / len;
+    const uz = dz / len;
+    let state: 0 | 1 | 2 = 0;
+    for (const o of agents) {
+      if (o.team === from.team) continue;
+      const rx = o.pos.x - from.pos.x;
+      const rz = o.pos.z - from.pos.z;
+      const along = rx * ux + rz * uz;
+      const perp = Math.abs(rx * uz - rz * ux);
+      if (along > -0.3 && along <= MARKER_ZONE) {
+        if (perp < 0.65 && state < 1) state = 1;
+      } else if (along > MARKER_ZONE && along < len + 0.5 && perp < LANE_BLOCK_R) {
+        state = 2;
+      }
+    }
+    return state;
   }
 
   /* ───────── 规则提醒：只弹小卡片，不暂停、不影响比赛 ───────── */
@@ -660,6 +805,16 @@ export function createGame(container: HTMLElement): GameHandle {
 
   function ruleCoach(userHolding: boolean): void {
     if (world.frozen || rules.phase !== 'playing') return;
+    if (world.pullPending) {
+      if (userHolding) {
+        coach('pull', '开盘（Pull）', '每一分都从开盘开始：防守方站在自己的得分线上，把盘远远踢向进攻方，然后立刻冲上去盯人。你可以自己开（按住左键蓄力），也可以按 1 / 2 交给队友。', 40);
+      } else if (world.offense === 0) {
+        coach('pull-team', '队友开盘', '队友会替你们开盘。开盘一踢出去，就冲回去盯住对方的人。', 40);
+      } else {
+        coach('receive', '接开盘', '对方开盘后，落点圈会告诉你盘落在哪：冲进圈里接盘，或者等它落地再去捡。', 40);
+      }
+      return;
+    }
     const h = world.holder;
     if (h && disc.mode === 'held') {
       const near: { o: Agent; d: number }[] = [];
@@ -709,9 +864,13 @@ export function createGame(container: HTMLElement): GameHandle {
         coach('pivot', '轴心脚', '接盘后必须停下，只能以一只脚为轴转身，不能带盘跑。想摆脱防守，靠转身和假动作传盘。', 25);
       }
       for (const m of [agents[1], agents[2]]) {
-        if (laneClearance(world, user.pos.x, user.pos.z, m.pos.x, m.pos.z, 0) < LANE_BLOCK_R) {
-          coach('lane', '传球线路被堵', '红线上有防守者站在你和队友的连线上，传过去会被截。换另一个队友，或先转身等队友跑开。', 30);
+        const st = laneState(user, m);
+        if (st === 2) {
+          coach('lane', '传球线路被堵', '红线上有防守者站在你和队友的连线上，传过去必被截。换另一个队友，或先转身等队友跑开。', 30);
           break;
+        }
+        if (st === 1) {
+          coach('lane-marker', '盯防者挡着', '黄线：盯防者站在你和队友的连线附近，有被碰到的风险。盯防者会"逼"你往一边传——绕开他 45° 以外传（侧传、回传）更安全。', 30);
         }
       }
     }
@@ -804,16 +963,18 @@ export function createGame(container: HTMLElement): GameHandle {
   /* ───────── 画面更新 ───────── */
   const LANE_OK = 0x9dff4a;
   const LANE_BAD = 0xff4d4d;
+  const LANE_RISK = 0xffd23f;
 
   function updateGuides(): void {
     const userHolding =
       world.holder === user && disc.mode === 'held' && !world.frozen && rules.phase === 'playing';
     laneLines.forEach((line, i) => {
       const mate = agents[i + 1];
-      line.visible = userHolding;
-      if (!userHolding) return;
-      const clr = laneClearance(world, user.pos.x, user.pos.z, mate.pos.x, mate.pos.z, 0);
-      (line.material as THREE.MeshBasicMaterial).color.setHex(clr < LANE_BLOCK_R ? LANE_BAD : LANE_OK);
+      const showLane = userHolding && !world.pullPending;
+      line.visible = showLane;
+      if (!showLane) return;
+      const st = laneState(user, mate);
+      (line.material as THREE.MeshBasicMaterial).color.setHex(st === 2 ? LANE_BAD : st === 1 ? LANE_RISK : LANE_OK);
       _hp.set(user.pos.x, 1.0, user.pos.z);
       _lp.set(mate.pos.x, 1.2, mate.pos.z);
       line.position.copy(_hp).add(_lp).multiplyScalar(0.5);
@@ -849,10 +1010,13 @@ export function createGame(container: HTMLElement): GameHandle {
     landBeam.visible = inAir;
     if (inAir) {
       const out = Math.abs(world.landing.x) > FIELD_HALF_W || Math.abs(world.landing.z) > END_Z;
-      const color = out ? 0xb0b0b0 : disc.throwTeam === 0 ? PALETTE.teamA : PALETTE.teamB;
+      const catchTeam = world.pulling ? otherTeam(disc.throwTeam) : disc.throwTeam;
+      const color = out ? 0xb0b0b0 : catchTeam === 0 ? PALETTE.teamA : PALETTE.teamB;
       (landRing.material as THREE.MeshBasicMaterial).color.setHex(color);
       (landBeam.material as THREE.MeshBasicMaterial).color.setHex(color);
-      const base = disc.throwTeam === 0 ? CATCH_R + 0.5 : DEF_REACH + 0.25;
+      const base = world.pulling
+        ? catchTeam === 0 ? CATCH_R + 0.5 : CATCH_R
+        : disc.throwTeam === 0 ? CATCH_R + 0.5 : DEF_REACH_AI + 0.3;
       const pulse = base * (1 + 0.07 * Math.sin(world.time * 9));
       landRing.scale.set(pulse, pulse, 1);
       landRing.position.set(world.landing.x, 0.07, world.landing.z);
@@ -960,7 +1124,7 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   /* ───────── 对外接口 ───────── */
-  setupPoint(0);
+  setupPoint(1); // 对手先接盘，所以第一分由你们开盘
   emitHud();
   raf = requestAnimationFrame(frame);
 
@@ -974,7 +1138,7 @@ export function createGame(container: HTMLElement): GameHandle {
       rules.reset();
       tipNext.clear();
       guide = true;
-      setupPoint(0);
+      setupPoint(1);
       paused = true;
       emitHud();
     },

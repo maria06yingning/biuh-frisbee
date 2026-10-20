@@ -452,6 +452,12 @@ function evalTargets(a: Agent, w: World): void {
 
 function holderAI(a: Agent, w: World, dt: number, hooks: AIHooks): void {
   a.vel.multiplyScalar(Math.max(0, 1 - 12 * dt)); // 轴心脚：不移动
+  if (w.pullPending) {
+    // 开盘：站着等一会儿，然后把盘远远踢向对方
+    a.throwT -= dt;
+    if (a.throwT <= 0) hooks.pull(a);
+    return;
+  }
   a.throwT -= dt;
   a.evalT -= dt;
   if (a.evalT <= 0) {
@@ -492,6 +498,7 @@ export function updateAI(w: World, dt: number, hooks: AIHooks): void {
     const best = [Infinity, Infinity];
     const since = w.time - w.throwTime;
     for (const a of w.agents) {
+      if (w.pulling && a.team === disc.throwTeam) continue; // 开盘方不去追自己踢出的盘
       if (a.id === disc.throwerId && disc.flightTime < 0.8) continue;
       const spd = a.isUser ? 6.5 : a.maxSpeed * (a.team === disc.throwTeam ? 1 : 0.92);
       let eta = Math.hypot(a.pos.x - w.landing.x, a.pos.z - w.landing.z) / spd;
@@ -523,6 +530,10 @@ export function updateAI(w: World, dt: number, hooks: AIHooks): void {
       a.vel.multiplyScalar(Math.max(0, 1 - 6 * dt));
       continue;
     }
+    if (w.pullPending && w.holder !== a) {
+      a.vel.multiplyScalar(Math.max(0, 1 - 6 * dt)); // 开盘前大家站在自己的得分线上
+      continue;
+    }
     if (w.holder === a && disc.mode === 'held') {
       holderAI(a, w, dt, hooks);
       continue;
@@ -533,6 +544,10 @@ export function updateAI(w: World, dt: number, hooks: AIHooks): void {
     }
     if (flying && chaser[a.team] === a) {
       steer(a, w.landing, a.maxSpeed * (a.team === disc.throwTeam ? 1 : 0.92), dt, 0.2);
+      continue;
+    }
+    if (w.pulling && a.team === w.offense) {
+      a.vel.multiplyScalar(Math.max(0, 1 - 6 * dt)); // 接盘方：除了去接盘的人，其余原地等
       continue;
     }
     if (a.team === w.offense) cutter(a, w, dt);

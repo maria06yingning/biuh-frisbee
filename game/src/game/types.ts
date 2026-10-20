@@ -12,6 +12,7 @@ export const HAND_HEIGHT = 1.25;
 export const NEXT_POINT_DELAY = 2.6;
 export const STALL_RADIUS = 3; // 防守者在 3m 内才开始数秒
 export const LANE_BLOCK_R = 1.0; // 防守者离传球线路 1m 内 = 线路被堵
+export const MARKER_ZONE = 2.0; // 持盘者身前 2m 内的防守者算"盯防者"，只有概率碰到盘
 
 export type TeamId = 0 | 1; // 0 = 你的队伍，1 = 对手
 export type Dir = 1 | -1; // 进攻方向（沿 z 轴）
@@ -82,12 +83,15 @@ export interface World {
   frozen: boolean;
   loose: boolean; // 飞盘落在地上，等待 pickupTeam 的人去捡
   pickupTeam: TeamId;
+  pullPending: boolean; // 本回合的开盘（pull）还没踢出
+  pulling: boolean; // 开盘的盘在空中
   rush: number; // 开盘后防守方回防冲刺的剩余秒数
   readyT: number; // 新一回合开始前的"各就各位"倒计时
 }
 
 export interface AIHooks {
   throwTo(from: Agent, to: Agent): void;
+  pull(from: Agent): void;
 }
 
 /* ───────── 游戏 → UI 事件总线 ───────── */
@@ -99,6 +103,8 @@ export interface HudState {
   possession: 'user' | 'mate' | 'opp' | 'air' | 'loose';
   offense: TeamId;
   userHasDisc: boolean;
+  pullPending: boolean; // 正在等待开盘
+  pulling: boolean; // 开盘的盘在空中
   charge: number; // 0..1
   stallLeft: number | null; // 剩余秒数
   stallRunning: boolean; // 防守者是否贴近（不贴近时暂停计时）
