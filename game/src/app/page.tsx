@@ -2,13 +2,15 @@
 
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
+import CodexPanel from '@/components/CodexPanel';
+import { useI18n } from '@/i18n/I18nProvider';
 
 // three.js 只在浏览器里加载
 const FieldExperience = dynamic(() => import('@/components/FieldExperience'), {
   ssr: false,
   loading: () => (
     <div className="exp-root">
-      <div className="exp-card">正在铺草坪…</div>
+      <div className="exp-card">…</div>
     </div>
   ),
 });
@@ -28,51 +30,63 @@ function DiscArt() {
   );
 }
 
+function readUnlocked(): string[] {
+  try {
+    const raw = localStorage.getItem('ufo-codex-v1');
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function Home() {
+  const { t, lang, setLang } = useI18n();
   const [playing, setPlaying] = useState(false);
+  const [codex, setCodex] = useState<string[] | null>(null);
   if (playing) return <FieldExperience onExit={() => setPlaying(false)} />;
 
   return (
     <main className="home">
+      <nav className="home-nav">
+        <button className="btn" onClick={() => setCodex(readUnlocked())}>
+          {t('home.codex')}
+        </button>
+        <button className="btn" onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
+          {t('lang.toggle')}
+        </button>
+      </nav>
+
       <section className="home-hero">
         <div className="home-hero-text">
-          <span className="home-tag">第一人称 · 3 对 3</span>
+          <span className="home-tag">{t('home.tag')}</span>
           <h1>
-            没碰过飞盘？<br />
-            <mark>先上场传几次。</mark>
+            {t('home.h1a')}
+            <br />
+            <mark>{t('home.h1b')}</mark>
           </h1>
-          <p>
-            对手会盯人、会拦截，队友会跑位——每一次传球都要自己判断：传给谁，什么时候传，传多远。
-          </p>
+          <p>{t('home.p')}</p>
           <button className="btn btn-primary btn-big" onClick={() => setPlaying(true)}>
-            进入体验
+            {t('home.enter')}
           </button>
-          <p className="home-note">需要电脑 + 鼠标 · 约 5 分钟一局</p>
+          <p className="home-note">{t('home.note')}</p>
         </div>
         <DiscArt />
       </section>
 
       <section className="home-rules">
-        <h2>三分钟看懂规则</h2>
+        <h2>{t('home.rulesTitle')}</h2>
         <dl>
-          <div className="c1">
-            <dt>目标</dt>
-            <dd>把盘传到对方得分区，并在区内接到它，得 1 分。</dd>
-          </div>
-          <div className="c2">
-            <dt>持盘不能跑</dt>
-            <dd>接到盘必须停下，只能转身；防守者贴上来后开始数秒，10 秒内必须传出去。</dd>
-          </div>
-          <div className="c3">
-            <dt>什么时候换攻</dt>
-            <dd>飞盘落地、被对手截走、飞出边线、持盘超时。</dd>
-          </div>
-          <div className="c4">
-            <dt>没有身体接触</dt>
-            <dd>防守靠站位和手上的功夫，不能推人、抢人。</dd>
-          </div>
+          {(['r1', 'r2', 'r3', 'r4', 'r5'] as const).map((k, i) => (
+            <div key={k} className={`c${(i % 4) + 1}`}>
+              <dt>{t(`home.${k}.t`)}</dt>
+              <dd>{t(`home.${k}.d`)}</dd>
+            </div>
+          ))}
         </dl>
       </section>
+
+      {codex && <CodexPanel unlocked={codex} onClose={() => setCodex(null)} />}
     </main>
   );
 }

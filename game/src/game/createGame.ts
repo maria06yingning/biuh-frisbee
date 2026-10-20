@@ -4,6 +4,7 @@ import { createField } from './createField';
 import {
   animateAgents,
   assignMarks,
+  clampToField,
   createPlayers,
   createViewArm,
   laneClearance,
@@ -29,6 +30,7 @@ import {
   updateTrail,
 } from './disc';
 import { PALETTE } from './toon';
+import { biteProb, markerBlockProb, releaseNoise } from './prob';
 import { Rules, inAttackZone, isOutOfBounds, restartSpot, type RuleEvent } from './rules';
 import {
   Emitter,
@@ -51,13 +53,14 @@ import {
   type HudState,
   type TeamId,
   type TurnoverReason,
+  type ViolationType,
   type World,
 } from './types';
 
 const CATCH_R = 1.15; // 进攻方接盘半径
 const DEF_REACH = 0.75; // 玩家当防守者时的拦截半径（明显小于接盘半径）
 const DEF_REACH_AI = 0.5; // 机器人防守者的拦截半径（更小）
-const ZONE_NOTE = ' · 回到得分线发盘';
+const ZONE_NOTE = 'note.zone';
 const GUIDED_SPEED = 18; // 按键定向传球的飞行速度 m/s
 const CONTEST_WINDOW = 0.12; // 争抢窗口（秒）：窗口内取每个人最近距离再判定
 const TRAJ_N = 150;
@@ -69,34 +72,12 @@ export interface GameHandle {
   requestLock(): void;
   restart(): void;
   dispose(): void;
+  /** 调试入口：网址加 ?debug 时挂到 window.__ufo，用来摆好场景测试跨步 / 假动作 / 喊违规 */
+  debug: {
+    scenario(): void;
+    violate(type: ViolationType): void;
+  };
 }
-
-const REASON_TEXT: Record<TurnoverReason, { lose: [string, string]; gain: [string, string] }> = {
-  intercept: {
-    lose: ['被拦截！', '传球被对手半路截获，攻防转换'],
-    gain: ['拦截成功！', '半路截获了对手的传球，现在轮到你们进攻'],
-  },
-  block: {
-    lose: ['被封堵！', '传球被防守者拍落，飞盘落地换攻'],
-    gain: ['封堵成功！', '防守者拍落了飞盘，换你们进攻'],
-  },
-  ground: {
-    lose: ['落地失误！', '飞盘没人接住落地，对方去落点捡盘'],
-    gain: ['对手失误！', '飞盘落地没人接，你们去落点捡盘进攻'],
-  },
-  out: {
-    lose: ['出界！', '飞盘飞出边界，对方去边线内侧捡盘'],
-    gain: ['对手传球出界！', '飞盘出界，你们去边线内侧捡盘'],
-  },
-  stall: {
-    lose: ['数秒超时！', '持盘超过 10 秒没传出，攻防转换'],
-    gain: ['对手数秒超时！', '对手持盘超过 10 秒，换你们进攻'],
-  },
-  drop: {
-    lose: ['掉盘！', '接盘失误，飞盘落地，攻防转换'],
-    gain: ['对手掉盘！', '对手没接稳，飞盘落地，换你们进攻'],
-  },
-};
 
 export function createGame(container: HTMLElement): GameHandle {
   const bus = new Emitter<GameEvents>();
@@ -124,6 +105,7 @@ export function createGame(container: HTMLElement): GameHandle {
     pickupTeam: 0,
     pullPending: false,
     pulling: false,
+    force: [-1, -1],
     rush: 0,
     readyT: 0,
   };
@@ -145,6 +127,18 @@ export function createGame(container: HTMLElement): GameHandle {
   let stallNear = false; // 防守者是否在 3m 内
   let prevStallNear = false;
   const ignoreDef = new Set<number>(); // 本次传球中"没碰到盘"的盯防者
+  // 跨步 / 假动作 / 自裁判
+  let stepDir = 0;
+  let stepT = 0;
+  let stepOff = 0; // 跨步的侧向位移（-1 左 … +1 右）
+  let fakeT = 0;
+  let fakeCD = 0;
+  const fakeLog: number[] = [];
+  let callCD = 0;
+  const viols: { type: ViolationType; id: number; at: number; done: boolean }[] = [];
+  const spirit = { correct: 0, wrong: 0, self: 0, missed: 0 };
+  let selfContactT = 0;
+  let selfContactNext = 0;
   // 手感 / 反馈状态
   let chain = 0; // 连续传球次数
   let chainTeam: TeamId = 0;
@@ -227,10 +221,14 @@ export function createGame(container: HTMLElement): GameHandle {
     onLockChange: onLock,
     onCurve: (c) => {
       curve = c;
+      coach('throws', 90);
     },
     onPass: (slot) => {
       pendingPass = slot;
     },
+    onFake: () => doFake(),
+    onCall: () => callFoul(),
+    onStep: (dir) => doStep(dir),
   });
 
   /* ───────── 命中停顿 / 屏幕震动（Windjammers 式的打击感） ───────── */
@@ -242,11 +240,31 @@ export function createGame(container: HTMLElement): GameHandle {
   /* ───────── 工具 ───────── */
   function handPos(a: Agent, out: THREE.Vector3): THREE.Vector3 {
     const yaw = a.isUser ? control.yaw : a.yaw;
+    const side = 0.2 + (a.isUser ? stepOff * 0.6 : 0); // 跨步：出手点向侧面移动
     return out.set(
-      a.pos.x - Math.sin(yaw) * 0.5 + Math.cos(yaw) * 0.2,
+      a.pos.x - Math.sin(yaw) * 0.5 + Math.cos(yaw) * side,
       HAND_HEIGHT,
-      a.pos.z - Math.cos(yaw) * 0.5 - Math.sin(yaw) * 0.2,
+      a.pos.z - Math.cos(yaw) * 0.5 - Math.sin(yaw) * side,
     );
+  }
+
+  /** 盯防者当前"逼"你用哪只手：他站在你左侧 → 逼正手（空位在右），站在右侧 → 逼反手 */
+  function currentForce(): HudState['force'] {
+    if (world.holder !== user || disc.mode !== 'held' || world.pullPending) return null;
+    const rx = Math.cos(control.yaw);
+    const rz = -Math.sin(control.yaw);
+    let best = 3;
+    let lat = 0;
+    for (const o of agents) {
+      if (o.team === 0) continue;
+      const d = Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z);
+      if (d < best) {
+        best = d;
+        lat = (o.pos.x - user.pos.x) * rx + (o.pos.z - user.pos.z) * rz;
+      }
+    }
+    if (best >= 3 || Math.abs(lat) < 0.12) return null;
+    return lat < 0 ? 'forehand' : 'backhand';
   }
 
   function emitHud(): void {
@@ -290,6 +308,8 @@ export function createGame(container: HTMLElement): GameHandle {
         rules.stallActive && disc.mode === 'held' && !world.pullPending ? Math.max(0, 10 - rules.stallElapsed) : null,
       stallRunning: stallNear,
       stamina: control.stamina,
+      force: currentForce(),
+      spirit: spiritScore(),
       exhausted: control.exhausted,
       curve,
       goalAngle: Math.atan2(gx * rx + gz * rz, gx * fx + gz * fz),
@@ -324,12 +344,57 @@ export function createGame(container: HTMLElement): GameHandle {
     charge = 0;
     charging = false;
     contest = null;
+    rollCheats(a);
+  }
+
+  /** 每次换手，机器人有一定概率犯规——玩家要靠观察自己发现 */
+  function rollCheats(a: Agent): void {
+    for (const x of agents) {
+      x.cheat = 0;
+      x.cheatT = 0;
+      x.cheatDelay = 0;
+    }
+    if (world.pullPending) return;
+    const r = Math.random();
+    if (a.team === 0) {
+      const opp = agents.filter((o) => o.team === 1);
+      if (r < 0.14) {
+        // 双防：一个本来盯别人的防守者跑过来
+        let best: Agent | null = null;
+        let bd = Infinity;
+        for (const o of opp) {
+          if (o.markId === a.id) continue;
+          const d = Math.hypot(o.pos.x - a.pos.x, o.pos.z - a.pos.z);
+          if (d < bd) {
+            bd = d;
+            best = o;
+          }
+        }
+        if (best) {
+          best.cheat = 1;
+          best.cheatT = 5;
+        }
+      } else if (r < 0.24) {
+        const mk = opp.find((o) => o.markId === a.id);
+        if (mk) {
+          mk.cheat = 3;
+          mk.cheatT = 3;
+        }
+      }
+    } else if (!a.isUser && r < 0.2) {
+      a.cheat = 2; // 带盘走
+      a.cheatDelay = 1.2 + Math.random() * 1.5;
+      a.cheatT = 0.6;
+      a.ox = a.pos.x;
+      a.oz = a.pos.z;
+    }
   }
 
   function toastTurnover(reason: TurnoverReason, to: TeamId, note = ''): void {
     const gained = to === 0;
-    const t = REASON_TEXT[reason][gained ? 'gain' : 'lose'];
-    bus.emit('toast', { title: t[0], sub: t[1] + note, kind: gained ? 'good' : 'bad' });
+    bus.emit('codex', { id: 'turnover' });
+    const base = `turnover.${reason}.${gained ? 'gain' : 'lose'}`;
+    bus.emit('toast', { title: `${base}.t`, sub: `${base}.s`, note: note || undefined, kind: gained ? 'good' : 'bad' });
   }
 
   /** 飞盘留在 spot 处，由 to 队的人跑过去捡（不再瞬移）；捡起前不数秒 */
@@ -360,7 +425,7 @@ export function createGame(container: HTMLElement): GameHandle {
     makeLoose(to, spot);
     toastTurnover(reason, to, note);
     if (note) {
-      coach('zoneTO', '得分区内失误', '在得分区里丢盘，飞盘会回到最近的得分线上，由对方的人在线上捡盘重新开始。', 30);
+      coach('zoneTO', 30);
     }
   }
 
@@ -368,11 +433,7 @@ export function createGame(container: HTMLElement): GameHandle {
   function pullLanded(): void {
     const out = isOutOfBounds(disc.pos.x, disc.pos.z);
     makeLoose(otherTeam(disc.throwTeam), restartSpot(disc.pos.x, disc.pos.z));
-    bus.emit('toast', {
-      title: out ? '开盘出界' : '开盘落地',
-      sub: '进攻方去捡盘，防守方趁机冲回来盯人',
-      kind: 'info',
-    });
+    bus.emit('toast', { title: out ? 'toast.pull.out.t' : 'toast.pull.land.t', sub: 'toast.pull.s', kind: 'info' });
   }
 
   /** 每一分都从开盘（pull）开始：receiving 是接盘方（进攻方），另一方站在自己得分线上开盘 */
@@ -384,6 +445,7 @@ export function createGame(container: HTMLElement): GameHandle {
     world.frozen = delay > 0; // 新一回合先"各就各位"
     world.readyT = delay;
     world.rush = 0; // 开盘踢出后，防守方才开始冲回来
+    world.force = [Math.random() < 0.7 ? -1 : 1, Math.random() < 0.7 ? -1 : 1]; // 多数队伍逼正手
     field.setAttackZone(rules.dirA);
     contest = null;
     charge = 0;
@@ -398,20 +460,32 @@ export function createGame(container: HTMLElement): GameHandle {
     puller.throwT = 1.0;
   }
 
-  /** 盯防者（持盘者身前 2m 内）：只有概率碰到盘——正对着盯防者传最危险，绕开 45° 以外基本安全 */
-  function rollMarkers(thrower: Agent, dx: number, dz: number): void {
+  /** 盯防者（持盘者身前 2m 内）只有概率碰到盘，概率见 prob.ts：
+   *  正对他传最危险；偏开越多越安全；跨步改变出手点；假动作骗到他后短时间很安全；
+   *  出手方式背向他（他在左侧时用正手，在右侧时用反手）更难被碰到。
+   *  typeSide：-1 反手 / +1 正手 / 0 机器人（随机，70% 选背向盯防者的出手方式） */
+  function rollMarkers(thrower: Agent, dx: number, dz: number, typeSide: -1 | 0 | 1): void {
     ignoreDef.clear();
     const len = Math.hypot(dx, dz) || 1;
     const ux = dx / len;
     const uz = dz / len;
+    const yaw = thrower.isUser ? control.yaw : thrower.yaw;
+    const rxv = Math.cos(yaw); // 持盘者的右手方向
+    const rzv = -Math.sin(yaw);
+    const off = thrower.isUser ? stepOff * 0.6 : 0;
+    const ox = thrower.pos.x + rxv * off;
+    const oz = thrower.pos.z + rzv * off;
     for (const o of agents) {
       if (o.team === thrower.team || o.isUser) continue; // 玩家当盯防者时，靠自己站位
-      const rx = o.pos.x - thrower.pos.x;
-      const rz = o.pos.z - thrower.pos.z;
+      const rx = o.pos.x - ox;
+      const rz = o.pos.z - oz;
       const along = rx * ux + rz * uz;
       if (along < -0.3 || along > MARKER_ZONE) continue;
       const perp = Math.abs(rx * uz - rz * ux);
-      const p = perp < 0.35 ? 0.6 : perp < 0.65 ? 0.25 : 0;
+      const lat = (o.pos.x - thrower.pos.x) * rxv + (o.pos.z - thrower.pos.z) * rzv;
+      const markerSide = lat < 0 ? -1 : 1;
+      const prot = typeSide === 0 ? Math.random() < 0.7 : typeSide === -markerSide;
+      const p = markerBlockProb({ perp, bite: o.biteUntil > world.time, skill: o.skill, protectedType: prot });
       if (Math.random() >= p) ignoreDef.add(o.id);
     }
   }
@@ -434,7 +508,7 @@ export function createGame(container: HTMLElement): GameHandle {
         dx = agents[disc.guidedTarget].pos.x - thrower.pos.x;
         dz = agents[disc.guidedTarget].pos.z - thrower.pos.z;
       }
-      rollMarkers(thrower, dx, dz);
+      rollMarkers(thrower, dx, dz, thrower.isUser ? (curve === 'backhand' ? -1 : 1) : 0);
     }
     world.holder = null;
     rules.stopStall();
@@ -531,8 +605,8 @@ export function createGame(container: HTMLElement): GameHandle {
       hitStop(0.05, 0.06);
       pickupReadyAt = world.time + 0.25;
       bus.emit('toast', {
-        title: '接到开盘',
-        sub: '进攻开始：看清盯防者，再传球找空当',
+        title: 'toast.pull.caught.t',
+        sub: 'toast.pull.caught.s',
         kind: winner.team === 0 ? 'good' : 'info',
       });
       return;
@@ -591,6 +665,9 @@ export function createGame(container: HTMLElement): GameHandle {
       launchDisc(disc, _hp, from, aim.dir, aim.speed, 0, flub ? 0.09 : 0.012);
       afterThrow(from);
     },
+    violation(type, who) {
+      logViolation(type, who);
+    },
     pull(from) {
       if (world.holder !== from || disc.mode !== 'held' || !world.pullPending || rules.phase !== 'playing') return;
       handPos(from, _hp);
@@ -608,11 +685,7 @@ export function createGame(container: HTMLElement): GameHandle {
     const power = Math.max(0.12, charge);
     const cp = Math.cos(control.pitch);
     _dir.set(-Math.sin(control.yaw) * cp, Math.sin(control.pitch), -Math.cos(control.yaw) * cp);
-    let noise = 0.012;
-    noise += 0.07 * Math.max(0, (world.stallElapsed - 7) / 3); // 快数秒了手会抖
-    if (power > 0.95) noise += 0.03; // 过度用力
-    if (power < 0.15) noise += 0.02; // 软绵绵
-    if (control.pitch > 0.6 || control.pitch < -0.12) noise += 0.03; // 仰角失当
+    const noise = releaseNoise({ type: curve, stall: world.stallElapsed, power, pitch: control.pitch, stepOff });
     handPos(user, _hp);
     throwDisc(disc, _hp, user, power, _dir, curve === 'backhand' ? -1 : 1, noise);
     afterThrow(user);
@@ -688,7 +761,7 @@ export function createGame(container: HTMLElement): GameHandle {
     giveDisc(mate);
     rules.stopStall();
     mate.throwT = 0.8;
-    bus.emit('toast', { title: `${mate.name}开盘`, sub: '', kind: 'info' });
+    bus.emit('toast', { title: 'toast.pullby.t', sub: '', params: { who: slot === 1 ? '@name.mateA' : '@name.mateB' }, kind: 'info' });
   }
 
   function handleUserThrow(dt: number, holding: boolean): void {
@@ -735,8 +808,8 @@ export function createGame(container: HTMLElement): GameHandle {
         hitStop(0.35, 0.7);
         const mine = e.team === 0;
         bus.emit('toast', {
-          title: mine ? '达阵得分！' : '对手得分',
-          sub: mine ? '你们在得分区内接到了盘，+1 分' : '对手在得分区接到盘得分',
+          title: mine ? 'toast.score.me.t' : 'toast.score.opp.t',
+          sub: mine ? 'toast.score.me.s' : 'toast.score.opp.s',
           kind: mine ? 'score' : 'bad',
         });
         emitHud();
@@ -744,13 +817,19 @@ export function createGame(container: HTMLElement): GameHandle {
       }
       case 'nextPoint': {
         setupPoint(e.offense, 2.0);
-        bus.emit('toast', { title: '新一回合', sub: '双方换边，各回自己的得分线 · 金色区域是你们的进攻方向', kind: 'info' });
+        bus.emit('toast', { title: 'toast.next.t', sub: 'toast.next.s', kind: 'info' });
         break;
       }
       case 'gameover': {
         world.frozen = true;
         if (document.pointerLockElement === canvas) document.exitPointerLock();
-        bus.emit('gameover', { win: e.winner === 0, scoreA: rules.score[0], scoreB: rules.score[1] });
+        bus.emit('gameover', {
+          win: e.winner === 0,
+          scoreA: rules.score[0],
+          scoreB: rules.score[1],
+          spirit: spiritScore(),
+          calls: { ...spirit },
+        });
         break;
       }
     }
@@ -771,6 +850,116 @@ export function createGame(container: HTMLElement): GameHandle {
       paused = true;
       bus.emit('pause', undefined);
     }
+  }
+
+  /* ───────── 跨步 / 假动作 ───────── */
+  function userCanMove(): boolean {
+    return world.holder === user && disc.mode === 'held' && !world.pullPending && !world.frozen && rules.phase === 'playing';
+  }
+
+  /** A / D：轴心脚不动，另一只脚向侧面跨一步，绕开盯防者 */
+  function doStep(dir: -1 | 1): void {
+    if (!userCanMove()) return;
+    stepDir = dir;
+    stepT = 0.8;
+    coach('stepout', 40);
+  }
+
+  /** V：假动作。盯防者可能上当（概率见 prob.ts），上当后约 0.9 秒内更难碰到盘 */
+  function doFake(): void {
+    if (!userCanMove() || world.time < fakeCD) return;
+    fakeCD = world.time + 0.7;
+    fakeT = 0.35;
+    while (fakeLog.length && world.time - fakeLog[0] > 4) fakeLog.shift();
+    const recent = fakeLog.length;
+    fakeLog.push(world.time);
+    let any = false;
+    let bit = false;
+    for (const o of agents) {
+      if (o.team === 0 || o.isUser) continue;
+      if (Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z) > MARKER_ZONE + 0.8) continue;
+      any = true;
+      if (Math.random() < biteProb(o.skill, recent)) {
+        bit = true;
+        o.biteUntil = world.time + 0.9;
+        const s = Math.random() < 0.5 ? -2.4 : 2.4; // 被骗得往一侧一晃
+        o.vel.x += Math.cos(control.yaw) * s;
+        o.vel.z += -Math.sin(control.yaw) * s;
+      }
+    }
+    coach('fake', 40);
+    if (any) {
+      bus.emit('toast', {
+        title: bit ? 'fake.bite.t' : 'fake.nobite.t',
+        sub: bit ? 'fake.bite.s' : 'fake.nobite.s',
+        kind: bit ? 'good' : 'info',
+      });
+    }
+  }
+
+  /* ───────── 自裁判：看见违规，自己喊 ───────── */
+  const spiritScore = () => clamp(6 + spirit.correct + 2 * spirit.self - spirit.wrong - spirit.missed, 0, 10);
+
+  function logViolation(type: ViolationType, who: Agent): void {
+    viols.push({ type, id: who.id, at: world.time, done: false });
+    bus.emit('codex', { id: type === 'double' ? 'double' : type === 'travel' ? 'travel' : 'contact' });
+    if (type === 'self-contact') coach('self-contact-now', 10);
+  }
+
+  function pushAway(a: Agent, from: { x: number; z: number }, dist: number): void {
+    const dx = a.pos.x - from.x;
+    const dz = a.pos.z - from.z;
+    const l = Math.hypot(dx, dz) || 1;
+    a.pos.x += (dx / l) * dist;
+    a.pos.z += (dz / l) * dist;
+    clampToField(a.pos);
+    a.vel.set(0, 0, 0);
+  }
+
+  /** F：喊违规。喊对加分并让违规方退开；没有违规就是乱喊，扣分 */
+  function callFoul(): void {
+    if (rules.phase !== 'playing' || world.frozen || world.time < callCD) return;
+    bus.emit('codex', { id: 'spirit' });
+    const v = viols.find((x) => !x.done && world.time - x.at <= 3.5);
+    if (!v) {
+      spirit.wrong++;
+      callCD = world.time + 4;
+      bus.emit('toast', { title: 'call.wrong.t', sub: 'call.wrong.s', kind: 'bad' });
+      emitHud();
+      return;
+    }
+    v.done = true;
+    callCD = world.time + 1.5;
+    hitStop(0.08, 0.15);
+    rules.stallElapsed = 0; // 数秒重来
+    if (v.type === 'self-contact') {
+      spirit.self++;
+      let near: Agent | null = null;
+      let nd = Infinity;
+      for (const o of agents) {
+        if (o.team === 0) continue;
+        const d = Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z);
+        if (d < nd) {
+          nd = d;
+          near = o;
+        }
+      }
+      if (near) pushAway(user, near.pos, 2);
+      bus.emit('toast', { title: 'call.ok.selfContact.t', sub: 'call.ok.selfContact.s', kind: 'good' });
+    } else {
+      spirit.correct++;
+      const culprit = agents[v.id];
+      if (v.type === 'travel') {
+        culprit.pos.set(culprit.ox, 0, culprit.oz); // 回到原地
+      } else {
+        const from = world.holder ? world.holder.pos : user.pos; // 多出来的人退开
+        pushAway(culprit, from, 3.5);
+      }
+      culprit.cheat = 0;
+      const key = v.type === 'double' ? 'double' : v.type === 'travel' ? 'travel' : 'contact';
+      bus.emit('toast', { title: `call.ok.${key}.t`, sub: `call.ok.${key}.s`, kind: 'good' });
+    }
+    emitHud();
   }
 
   /** 传球线路：0 = 干净，1 = 盯防者在线路附近（有概率被碰到），2 = 有人站在线上（必被截） */
@@ -797,21 +986,21 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   /* ───────── 规则提醒：只弹小卡片，不暂停、不影响比赛 ───────── */
-  function coach(key: string, title: string, text: string, cool = 15): void {
+  function coach(key: string, cool = 15): void {
     if ((tipNext.get(key) ?? 0) > world.time) return;
     tipNext.set(key, world.time + cool);
-    bus.emit('tip', { key, title, text });
+    bus.emit('tip', { key });
   }
 
   function ruleCoach(userHolding: boolean): void {
     if (world.frozen || rules.phase !== 'playing') return;
     if (world.pullPending) {
       if (userHolding) {
-        coach('pull', '开盘（Pull）', '每一分都从开盘开始：防守方站在自己的得分线上，把盘远远踢向进攻方，然后立刻冲上去盯人。你可以自己开（按住左键蓄力），也可以按 1 / 2 交给队友。', 40);
+        coach('pull', 40);
       } else if (world.offense === 0) {
-        coach('pull-team', '队友开盘', '队友会替你们开盘。开盘一踢出去，就冲回去盯住对方的人。', 40);
+        coach('pull-team', 40);
       } else {
-        coach('receive', '接开盘', '对方开盘后，落点圈会告诉你盘落在哪：冲进圈里接盘，或者等它落地再去捡。', 40);
+        coach('receive', 40);
       }
       return;
     }
@@ -843,46 +1032,47 @@ export function createGame(container: HTMLElement): GameHandle {
         }
         if (doubled) {
           if (h.team === 0) {
-            coach('double-opp', '对手双防（Double Team）', '持盘者 3 米内只能有 1 名防守者（盯防者）。另一名防守者如果没在盯别的进攻者，就算双防——正式比赛里持盘者可以喊 "Double Team"，多出来的人要退开。这里只是提醒，不影响比赛。', 20);
+            coach('double-opp', 20);
           } else {
-            coach('double-mine', '你们双防了', '对手持盘时，3 米内只该有 1 个盯防者。现在有两个人贴着持盘者、又没在盯别人——别扎堆，去盯其他进攻者或堵传球线路。', 20);
+            coach('double-mine', 20);
           }
         }
       }
       if (h.team === 1 && near.length > 0 && near[0].o.isUser) {
-        coach('marker', '你是盯防者', '每个持盘者只有 1 名盯防者，由他来数秒。保持约 1 米距离，别碰到对方——极限飞盘没有身体接触。', 30);
+        coach('marker', 30);
       }
       if (userHolding && stallNear && !prevStallNear && rules.stallActive) {
-        coach('stall', '开始数秒', '防守者贴到 3 米内就开始数秒：10 秒内必须传出，否则数秒超时、攻防转换。', 30);
+        coach('stall', 30);
       }
     }
     prevStallNear = stallNear;
 
     if (userHolding) {
       const k = input.state.keys;
-      if (k.has('KeyW') || k.has('KeyA') || k.has('KeyS') || k.has('KeyD')) {
-        coach('pivot', '轴心脚', '接盘后必须停下，只能以一只脚为轴转身，不能带盘跑。想摆脱防守，靠转身和假动作传盘。', 25);
+      if (k.has('KeyW') || k.has('KeyS')) {
+        coach('pivot', 25);
       }
+      if (currentForce()) coach('force', 60);
       for (const m of [agents[1], agents[2]]) {
         const st = laneState(user, m);
         if (st === 2) {
-          coach('lane', '传球线路被堵', '红线上有防守者站在你和队友的连线上，传过去必被截。换另一个队友，或先转身等队友跑开。', 30);
+          coach('lane', 30);
           break;
         }
         if (st === 1) {
-          coach('lane-marker', '盯防者挡着', '黄线：盯防者站在你和队友的连线附近，有被碰到的风险。盯防者会"逼"你往一边传——绕开他 45° 以外传（侧传、回传）更安全。', 30);
+          coach('lane-marker', 30);
         }
       }
     }
     for (const o of agents) {
       if (o === user) continue;
       if (Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z) < 0.7) {
-        coach('contact', '无身体接触', '极限飞盘不允许推、撞、抢；防守靠站位和手上的功夫。（本游戏没有碰撞推挤，但现实中要保持距离。）', 20);
+        coach('contact', 20);
         break;
       }
     }
     if (!userHolding && world.offense === 0 && inAttackZone(user.pos.z, rules.dirA)) {
-      coach('zone', '得分区', '只有在对方得分区内接到盘才得分；在区里跑动、没接到盘不算。', 40);
+      coach('zone', 40);
     }
   }
 
@@ -897,7 +1087,7 @@ export function createGame(container: HTMLElement): GameHandle {
       if (world.readyT <= 0) {
         world.frozen = false;
         pickupReadyAt = world.time + 0.2;
-        bus.emit('toast', { title: '开盘！', sub: '', kind: 'info' });
+        bus.emit('toast', { title: 'toast.go.t', sub: '', kind: 'info' });
       }
     }
     if (world.rush > 0 && !world.frozen) world.rush -= dt;
@@ -936,6 +1126,27 @@ export function createGame(container: HTMLElement): GameHandle {
     }
 
     ruleCoach(world.holder === user && disc.mode === 'held');
+
+    // 违规的喊停窗口 3.5 秒：过期没喊就教学提示；玩家自己撞人没自喊 = 扣分
+    for (const v of viols) {
+      if (v.done || world.time - v.at <= 3.5) continue;
+      v.done = true;
+      if (v.type === 'self-contact') spirit.missed++;
+      coach(`miss-${v.type}`, 25);
+    }
+    if (viols.length > 40) viols.splice(0, 20);
+    if (!world.frozen && rules.phase === 'playing' && !world.pullPending) {
+      let touching = false;
+      for (const o of agents) {
+        if (o.team === 1 && Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z) < 0.5) touching = true;
+      }
+      selfContactT = touching ? selfContactT + dt : 0;
+      if (selfContactT > 0.4 && world.time > selfContactNext) {
+        selfContactNext = world.time + 8;
+        selfContactT = 0;
+        logViolation('self-contact', user);
+      }
+    }
 
     if (disc.mode === 'held' && world.holder) {
       if (!world.holder.isUser) handPos(world.holder, disc.pos);
@@ -1040,6 +1251,10 @@ export function createGame(container: HTMLElement): GameHandle {
     }
     const live = !paused && freezeT <= 0;
     const adt = live ? dt : 0;
+    if (!userCanMove()) stepT = 0;
+    if (stepT > 0) stepT = Math.max(0, stepT - adt);
+    stepOff += ((stepT > 0 ? stepDir : 0) - stepOff) * Math.min(1, 10 * Math.max(adt, 0.001));
+    if (fakeT > 0) fakeT = Math.max(0, fakeT - adt);
     if (live) animateAgents(agents, dt);
     syncAgents(agents);
     updateMarkers(world, world.time);
@@ -1065,8 +1280,9 @@ export function createGame(container: HTMLElement): GameHandle {
     const sx = (Math.random() - 0.5) * shake * 0.18;
     const sy = (Math.random() - 0.5) * shake * 0.18;
     const sr = (Math.random() - 0.5) * shake * 0.03;
-    cam.position.set(user.pos.x + rx * bobX + sx, EYE_HEIGHT + bobY + sy, user.pos.z + rz * bobX);
-    cam.rotation.set(control.pitch + Math.sin(bobPhase * 2) * 0.004 * sp, yaw, roll + sr);
+    const lean = bobX + stepOff * 0.35; // 跨步时身体向侧面探出去
+    cam.position.set(user.pos.x + rx * lean + sx, EYE_HEIGHT + bobY + sy, user.pos.z + rz * lean);
+    cam.rotation.set(control.pitch + Math.sin(bobPhase * 2) * 0.004 * sp, yaw, roll + sr - stepOff * 0.03);
     const targetFov = 75 + sp * 9 + fovPunch;
     if (Math.abs(cam.fov - targetFov) > 0.02) {
       cam.fov += (targetFov - cam.fov) * Math.min(1, 10 * dt);
@@ -1092,6 +1308,11 @@ export function createGame(container: HTMLElement): GameHandle {
         hx = swingSign > 0 ? 0.45 - 0.7 * p : -0.15 + 0.7 * p;
         hy = -0.28;
         hz = -0.62 - 0.25 * Math.sin(p * Math.PI);
+      }
+      if (fakeT > 0 && swingT <= 0) {
+        const k = Math.sin((1 - fakeT / 0.35) * Math.PI); // 假动作：手臂做出传球的样子再收回
+        hx += (curve === 'backhand' ? -0.25 : 0.25) * k;
+        hz -= 0.22 * k;
       }
       viewArm.group.position.set(hx, hy, hz);
     }
@@ -1133,6 +1354,32 @@ export function createGame(container: HTMLElement): GameHandle {
     requestLock() {
       const p: unknown = canvas.requestPointerLock();
       if (p && typeof (p as Promise<void>).catch === 'function') (p as Promise<void>).catch(() => undefined);
+    },
+    debug: {
+      scenario() {
+        // 玩家持盘，盯防者站在面前，两个队友在前方跑位
+        rules.begin();
+        world.frozen = false;
+        world.readyT = 0;
+        world.pullPending = false;
+        user.pos.set(0, 0, 0);
+        user.yaw = Math.PI;
+        control.yaw = Math.PI;
+        control.pitch = 0;
+        agents[1].pos.set(-7, 0, 8);
+        agents[2].pos.set(7, 0, 10);
+        agents[3].pos.set(0.5, 0, 0.95);
+        agents[4].pos.set(-7, 0, 9);
+        agents[5].pos.set(7, 0, 11);
+        for (const a of agents) a.vel.set(0, 0, 0);
+        giveDisc(user);
+        for (const a of agents) a.cheat = 0; // 测试时别随机犯规
+        pickupReadyAt = world.time;
+        emitHud();
+      },
+      violate(type) {
+        logViolation(type, type === 'self-contact' ? user : agents[4]);
+      },
     },
     restart() {
       rules.reset();

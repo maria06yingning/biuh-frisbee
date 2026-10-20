@@ -29,7 +29,14 @@ export function createUserControl(): UserControl {
 
 export function createInput(
   canvas: HTMLElement,
-  cb: { onLockChange(locked: boolean): void; onCurve(c: CurveType): void; onPass(slot: 1 | 2): void },
+  cb: {
+    onLockChange(locked: boolean): void;
+    onCurve(c: CurveType): void;
+    onPass(slot: 1 | 2): void;
+    onFake(): void;
+    onCall(): void;
+    onStep(dir: -1 | 1): void;
+  },
 ) {
   const state: InputState = {
     keys: new Set(),
@@ -48,6 +55,12 @@ export function createInput(
     if (e.code === 'KeyE') cb.onCurve('forehand');
     if (e.code === 'Digit1' || e.code === 'Numpad1') cb.onPass(1);
     if (e.code === 'Digit2' || e.code === 'Numpad2') cb.onPass(2);
+    if (!e.repeat) {
+      if (e.code === 'KeyV') cb.onFake();
+      if (e.code === 'KeyF') cb.onCall();
+      if (e.code === 'KeyA') cb.onStep(-1);
+      if (e.code === 'KeyD') cb.onStep(1);
+    }
     if (e.code === 'Space' || e.code === 'Tab') e.preventDefault();
   };
   const onKeyUp = (e: KeyboardEvent) => state.keys.delete(e.code);

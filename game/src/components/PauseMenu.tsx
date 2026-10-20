@@ -1,63 +1,86 @@
 'use client';
 
+import { useI18n } from '@/i18n/I18nProvider';
+
+export interface PauseResult {
+  win: boolean;
+  scoreA: number;
+  scoreB: number;
+  spirit: number;
+  calls: { correct: number; wrong: number; self: number; missed: number };
+}
+
 export interface PauseMenuProps {
   mode: 'start' | 'paused' | 'over';
-  result?: { win: boolean; scoreA: number; scoreB: number } | null;
+  result?: PauseResult | null;
   onResume: () => void;
   onRestart: () => void;
   onExit: () => void;
+  onCodex: () => void;
 }
 
-export default function PauseMenu({ mode, result, onResume, onRestart, onExit }: PauseMenuProps) {
-  const title =
-    mode === 'start'
-      ? '准备上场'
-      : mode === 'paused'
-        ? '已暂停'
-        : result?.win
-          ? '你们赢了！'
-          : '这场惜败';
+export default function PauseMenu({ mode, result, onResume, onRestart, onExit, onCodex }: PauseMenuProps) {
+  const { t, lang, setLang } = useI18n();
+  const title = mode === 'start' ? t('menu.start') : mode === 'paused' ? t('menu.paused') : result?.win ? t('menu.win') : t('menu.lose');
 
   return (
     <div className="pause">
       <div className="pause-card">
+        <button className="btn lang-btn" onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
+          {t('lang.toggle')}
+        </button>
         <h2>{title}</h2>
         {mode === 'over' && result && (
-          <p className="pause-final">
-            最终比分 {result.scoreA} : {result.scoreB}
-          </p>
+          <>
+            <p className="pause-final">{t('menu.final', { a: result.scoreA, b: result.scoreB })}</p>
+            <p className="pause-spirit">
+              <b>{t('menu.spirit', { n: result.spirit })}</b>
+              <br />
+              <span>
+                {t('menu.spiritDetail', {
+                  c: result.calls.correct,
+                  w: result.calls.wrong,
+                  s: result.calls.self,
+                  m: result.calls.missed,
+                })}
+              </span>
+            </p>
+          </>
         )}
 
         <div className="pause-actions">
           {mode !== 'over' && (
             <button className="btn btn-primary" onClick={onResume}>
-              {mode === 'start' ? '点击开始（鼠标将被锁定）' : '继续比赛'}
+              {mode === 'start' ? t('menu.startBtn') : t('menu.resume')}
             </button>
           )}
           {mode !== 'start' && (
             <button className={mode === 'over' ? 'btn btn-primary' : 'btn'} onClick={onRestart}>
-              {mode === 'over' ? '再来一场' : '重新开始'}
+              {mode === 'over' ? t('menu.again') : t('menu.restart')}
             </button>
           )}
+          <button className="btn" onClick={onCodex}>
+            {t('menu.codex')}
+          </button>
           <button className="btn btn-ghost" onClick={onExit}>
-            退出
+            {t('menu.exit')}
           </button>
         </div>
 
         <div className="pause-controls">
-          <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> 移动</span>
-          <span>鼠标 视角</span>
-          <span><kbd>Shift</kbd> 冲刺</span>
-          <span><kbd>1</kbd><kbd>2</kbd> 传给队友 A / B</span>
-          <span>按住左键 蓄力瞄准传盘</span>
-          <span><kbd>Q</kbd> 反手 / <kbd>E</kbd> 正手</span>
-          <span><kbd>Esc</kbd> 暂停</span>
+          <span><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> {t('ctl.move')}</span>
+          <span>{t('ctl.look')}</span>
+          <span><kbd>Shift</kbd> {t('ctl.sprint')}</span>
+          <span><kbd>1</kbd><kbd>2</kbd> {t('ctl.pass')}</span>
+          <span>{t('ctl.charge')}</span>
+          <span><kbd>Q</kbd> / <kbd>E</kbd> {t('ctl.curve')}</span>
+          <span><kbd>A</kbd><kbd>D</kbd> {t('ctl.step')}</span>
+          <span><kbd>V</kbd> {t('ctl.fake')}</span>
+          <span><kbd>F</kbd> {t('ctl.call')}</span>
+          <span><kbd>Esc</kbd> {t('ctl.pause')}</span>
         </div>
 
-        <p className="pause-rules">
-          极限飞盘规则速览：持盘者不能跑动（只能转身）· 防守者贴近后开始数秒，10 秒内必须传出 · 在对方得分区内接到盘得 1 分 ·
-          飞盘落地、被截、出界就换攻 · 全程无身体接触 · 持盘者 3 米内只能有 1 名盯防者（多了叫双防）
-        </p>
+        <p className="pause-rules">{t('menu.rules')}</p>
       </div>
     </div>
   );

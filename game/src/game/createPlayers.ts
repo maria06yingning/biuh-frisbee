@@ -209,6 +209,12 @@ export function createPlayers(scene: THREE.Scene): Agent[] {
       bestTarget: -1,
       bestScore: 0,
       openness: 6,
+      cheat: 0,
+      cheatT: 0,
+      cheatDelay: 0,
+      ox: 0,
+      oz: 0,
+      biteUntil: 0,
     } satisfies Agent;
   });
 }
@@ -403,10 +409,53 @@ function cutter(a: Agent, w: World, dt: number): void {
 }
 
 /* ───────── 防守：盯人 + 站在得分区一侧 ───────── */
-function defender(a: Agent, w: World, dt: number): void {
+function defender(a: Agent, w: World, dt: number, hooks: AIHooks): void {
   const dirOff = teamDir(w.dirA, w.offense);
   const ref = w.refPos;
   const mark = a.markId >= 0 ? w.agents[a.markId] : null;
+
+  // 违规（机器人偶尔犯规——玩家要自己发现并喊出来）
+  if (a.cheat === 1 && a.cheatT > 0 && w.holder && w.disc.mode === 'held') {
+    // 双防：离开自己的人，贴到持盘者身边
+    a.cheatT -= dt;
+    const h = w.holder;
+    const hy = h.yaw;
+    const side = -w.force[a.team];
+    _v.set(h.pos.x + Math.cos(hy) * side * 1.5 - Math.sin(hy) * 0.4, 0, h.pos.z - Math.sin(hy) * side * 1.5 - Math.cos(hy) * 0.4);
+    steer(a, _v, a.maxSpeed, dt, 0.2);
+    faceToward(a, h.pos, dt);
+    if (a.cheatDelay === 0 && Math.hypot(a.pos.x - h.pos.x, a.pos.z - h.pos.z) < 2.4) {
+      a.cheatDelay = 1;
+      hooks.violation('double', a);
+    }
+    return;
+  }
+  if (a.cheat === 3 && a.cheatT > 0 && w.holder && w.disc.mode === 'held' && w.holder.id === a.markId) {
+    // 贴身犯规：挤到持盘者身上
+    a.cheatT -= dt;
+    const h = w.holder;
+    _v.set(h.pos.x - Math.sin(h.yaw) * 0.38, 0, h.pos.z - Math.cos(h.yaw) * 0.38);
+    steer(a, _v, a.maxSpeed, dt, 0.1);
+    if (a.cheatDelay === 0 && Math.hypot(a.pos.x - h.pos.x, a.pos.z - h.pos.z) < 0.6) {
+      a.cheatDelay = 1;
+      hooks.violation('contact', a);
+    }
+    return;
+  }
+
+  if (mark && w.holder === mark && w.disc.mode === 'held') {
+    // 盯防者：站在持盘者面前约 1m，并偏向一侧"逼"他往另一侧传；持盘者转身时他跟着绕
+    const hy = mark.yaw;
+    const side = w.force[a.team]; // -1 站在持盘者左侧（逼正手），+1 站在右侧（逼反手）
+    _v.set(
+      mark.pos.x - Math.sin(hy) * 0.95 + Math.cos(hy) * side * 0.5,
+      0,
+      mark.pos.z - Math.cos(hy) * 0.95 - Math.sin(hy) * side * 0.5,
+    );
+    steer(a, _v, a.maxSpeed * 0.9 * (w.rush > 0 ? 1.7 : 1), dt, 0.15);
+    if (a.vel.lengthSq() < 0.6) faceToward(a, mark.pos, dt);
+    return;
+  }
   if (!mark) {
     _d.set(ref.x * 0.6, 0, ref.z + dirOff * 7);
     steer(a, _d, a.maxSpeed * 0.85 * (w.rush > 0 ? 1.7 : 1), dt, 0.5);
@@ -452,6 +501,19 @@ function evalTargets(a: Agent, w: World): void {
 
 function holderAI(a: Agent, w: World, dt: number, hooks: AIHooks): void {
   a.vel.multiplyScalar(Math.max(0, 1 - 12 * dt)); // 轴心脚：不移动
+  if (a.cheat === 2) {
+    // 带盘走：先等一会儿，然后偷偷往前挪 1.8m
+    a.cheatDelay -= dt;
+    if (a.cheatDelay <= 0) {
+      a.cheat = 4;
+      hooks.violation('travel', a);
+    }
+  } else if (a.cheat === 4) {
+    a.cheatT -= dt;
+    a.pos.z += teamDir(w.dirA, a.team) * 3 * dt;
+    clampToField(a.pos);
+    if (a.cheatT <= 0) a.cheat = 0;
+  }
   if (w.pullPending) {
     // 开盘：站着等一会儿，然后把盘远远踢向对方
     a.throwT -= dt;
@@ -551,7 +613,7 @@ export function updateAI(w: World, dt: number, hooks: AIHooks): void {
       continue;
     }
     if (a.team === w.offense) cutter(a, w, dt);
-    else defender(a, w, dt);
+    else defender(a, w, dt, hooks);
   }
 }
 

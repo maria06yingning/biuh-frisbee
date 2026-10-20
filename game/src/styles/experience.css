@@ -209,3 +209,44 @@ button { font-family: inherit; }
   .hud-toast, .hud-tip-card, .hud-chain { animation: none; }
   .hud-speed { display: none; }
 }
+
+/* ───────── 第五轮：语言切换 / 图鉴 / 自裁判 / 盯防逼向 ───────── */
+.home-nav { position: absolute; top: 16px; right: 20px; display: flex; gap: 12px; z-index: 2; }
+.home { position: relative; }
+.lang-btn { position: absolute; top: 14px; right: 16px; padding: 4px 12px; font-size: 13px; }
+.pause-card { position: relative; }
+.pause-spirit { margin: 8px 0 0; font-size: 15px; line-height: 1.7; }
+.pause-spirit b { background: var(--a); border: 2px solid var(--ink); padding: 0 8px; }
+.pause-spirit span { font-size: 13px; font-weight: 600; }
+
+.hud-force {
+  position: absolute; top: 106px; left: 50%; transform: translateX(-50%); padding: 3px 14px;
+  background: var(--yellow); color: var(--ink); border: var(--line); box-shadow: var(--shadow); font-size: 13px; white-space: nowrap;
+}
+.hud-curve span.is-call { background: var(--hot); color: var(--paper); border-color: var(--ink); opacity: 1; }
+.hud-curve span.is-spirit { background: transparent; border-color: transparent; color: var(--cream); text-shadow: -1.5px 0 var(--ink), 1.5px 0 var(--ink), 0 -1.5px var(--ink), 0 1.5px var(--ink); }
+
+.exp-unlock {
+  position: absolute; left: 50%; bottom: 84px; transform: translateX(-50%); padding: 6px 18px;
+  background: var(--yellow); color: var(--ink); border: var(--line); box-shadow: var(--shadow);
+  font-weight: 800; font-size: 14px; animation: slide-up 0.3s ease-out; z-index: 3; white-space: nowrap;
+}
+@keyframes slide-up { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
+
+.codex { position: fixed; inset: 0; z-index: 20; background: rgba(27,26,46,0.78); display: flex; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+.codex-card { width: min(920px, 100%); max-height: 100%; overflow: auto; background: var(--paper); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 18px 22px 22px; color: var(--ink); }
+.codex-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.codex-head h2 { margin: 0; font-size: 26px; background: var(--yellow); border: var(--line); padding: 0 12px; transform: rotate(-1deg); box-shadow: 3px 3px 0 var(--ink); }
+.codex-count { flex: 1; font-weight: 800; }
+.codex-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.codex-item { border: var(--line); box-shadow: 3px 3px 0 var(--ink); background: #fff; padding: 10px 12px 12px; }
+.codex-item h3 { margin: 0 0 4px; font-size: 16px; }
+.codex-item p { margin: 0; font-size: 13px; line-height: 1.55; font-weight: 600; }
+.codex-item.is-locked { background: #e3d9bd; opacity: 0.75; box-shadow: none; }
+.codex-item.is-locked h3 { letter-spacing: 0.3em; }
+@media (prefers-reduced-motion: reduce) { .exp-unlock { animation: none; } }
+
+@media (max-height: 700px) {
+  .hud-guide { display: none; }
+  .hud-tips { width: 260px; }
+}

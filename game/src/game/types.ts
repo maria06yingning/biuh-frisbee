@@ -21,6 +21,8 @@ export type DiscMode = 'held' | 'flying' | 'grounded';
 export type CurveType = 'backhand' | 'forehand';
 export type TurnoverReason = 'intercept' | 'block' | 'ground' | 'out' | 'stall' | 'drop';
 
+export type ViolationType = 'double' | 'travel' | 'contact' | 'self-contact';
+
 export const otherTeam = (t: TeamId): TeamId => (t === 0 ? 1 : 0);
 export const teamDir = (dirA: Dir, team: TeamId): Dir => (team === 0 ? dirA : ((-dirA) as Dir));
 
@@ -50,6 +52,13 @@ export interface Agent {
   bestTarget: number;
   bestScore: number;
   openness: number; // 与最近防守者的距离
+  // —— 违规 / 假动作 ——
+  cheat: number; // 0 无，1 双防，2 带盘走，3 贴身犯规（机器人偶尔犯规，玩家要自己喊）
+  cheatT: number;
+  cheatDelay: number;
+  ox: number; // 带盘走前的原地
+  oz: number;
+  biteUntil: number; // 被假动作骗到，直到这个时间点
 }
 
 export interface DiscState {
@@ -85,6 +94,7 @@ export interface World {
   pickupTeam: TeamId;
   pullPending: boolean; // 本回合的开盘（pull）还没踢出
   pulling: boolean; // 开盘的盘在空中
+  force: [number, number]; // 各队盯防者的"逼向"：-1 站在持盘者左侧（逼正手），+1 站在右侧（逼反手）
   rush: number; // 开盘后防守方回防冲刺的剩余秒数
   readyT: number; // 新一回合开始前的"各就各位"倒计时
 }
@@ -92,6 +102,7 @@ export interface World {
 export interface AIHooks {
   throwTo(from: Agent, to: Agent): void;
   pull(from: Agent): void;
+  violation(type: ViolationType, who: Agent): void;
 }
 
 /* ───────── 游戏 → UI 事件总线 ───────── */
@@ -110,6 +121,8 @@ export interface HudState {
   stallRunning: boolean; // 防守者是否贴近（不贴近时暂停计时）
   stamina: number; // 0..1
   exhausted: boolean;
+  force: 'forehand' | 'backhand' | null; // 盯防者当前逼你用哪只手（只在你持盘且盯防者贴近时有值）
+  spirit: number; // 体育精神分 0..10
   curve: CurveType;
   goalAngle: number; // 进攻得分区相对视线方向的角度（弧度，顺时针为正）
   guide: boolean;
@@ -120,15 +133,15 @@ export interface HudState {
 }
 
 export interface ToastPayload {
-  title: string;
-  sub: string;
+  title: string; // i18n key
+  sub: string; // i18n key（可为空）
+  note?: string; // 追加在 sub 后面的 i18n key
+  params?: Record<string, string | number>;
   kind: 'good' | 'bad' | 'info' | 'score';
 }
 
 export interface TipPayload {
-  key: string;
-  title: string;
-  text: string;
+  key: string; // 文案在 i18n 的 tip.<key>.t / tip.<key>.x
 }
 
 export interface GameEvents {
@@ -137,7 +150,14 @@ export interface GameEvents {
   tip: TipPayload;
   pause: undefined;
   resume: undefined;
-  gameover: { win: boolean; scoreA: number; scoreB: number };
+  codex: { id: string };
+  gameover: {
+    win: boolean;
+    scoreA: number;
+    scoreB: number;
+    spirit: number;
+    calls: { correct: number; wrong: number; self: number; missed: number };
+  };
 }
 
 export class Emitter<E> {

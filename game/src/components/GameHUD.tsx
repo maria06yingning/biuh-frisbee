@@ -1,6 +1,7 @@
 'use client';
 
 import type { HudState, TipPayload, ToastPayload } from '@/game/types';
+import { useI18n } from '@/i18n/I18nProvider';
 
 export interface ToastItem extends ToastPayload {
   id: number;
@@ -10,30 +11,22 @@ export interface TipItem extends TipPayload {
   id: number;
 }
 
-function tip(h: HudState): string {
+function tipKey(h: HudState): string {
   if (h.pullPending) {
-    if (h.userHasDisc) return '开盘！按住左键蓄力，把盘踢向对面（越久越远）· 或按 1 / 2 让队友开盘';
-    // 开盘等待期间 offense = 开盘一方
-    return h.offense === 0 ? '队友开盘 · 踢出后立刻冲回去盯人' : '对手开盘 · 看落点圈，准备接盘';
+    if (h.userHasDisc) return 'tip.pull.you';
+    return h.offense === 0 ? 'tip.pull.mate' : 'tip.pull.opp'; // 开盘等待期间 offense = 开盘一方
   }
-  if (h.pulling) {
-    // 开盘飞行中 offense = 接盘方
-    return h.offense === 0 ? '开盘飞来了 · 冲进青色圈接盘（或等它落地再捡）' : '开盘踢出了 · 立刻冲回去盯人';
-  }
-  if (h.userHasDisc) return '按 1 / 2 传给队友（线红 = 会被截）· 或按住左键蓄力自己瞄准 · 持盘不能移动';
-  if (h.possession === 'mate') return '队友持盘 · 跑向空当要球，靠近落点会自动接盘';
-  if (h.possession === 'opp') return '对手持盘 · 盯住人，站到传球线路上';
-  if (h.possession === 'loose') return h.offense === 0 ? '飞盘落地了 · 跑过去捡盘' : '对手去捡盘 · 趁机回防盯人';
-  return h.offense === 0 ? '飞盘在空中 · 冲进青色圈接盘' : '对手传盘中 · 红圈是落点，冲过去拦截';
+  if (h.pulling) return h.offense === 0 ? 'tip.pulling.me' : 'tip.pulling.them'; // 开盘飞行中 offense = 接盘方
+  if (h.userHasDisc) return 'tip.hold';
+  if (h.possession === 'mate') return 'tip.mate';
+  if (h.possession === 'opp') return 'tip.opp';
+  if (h.possession === 'loose') return h.offense === 0 ? 'tip.looseMe' : 'tip.looseOpp';
+  return h.offense === 0 ? 'tip.airMe' : 'tip.airOpp';
 }
 
-function possessionLabel(h: HudState): string {
-  if (h.pullPending) return h.userHasDisc ? '你开盘' : '开盘中';
-  if (h.possession === 'user') return '你持盘';
-  if (h.possession === 'mate') return '队友持盘';
-  if (h.possession === 'opp') return '对手持盘';
-  if (h.possession === 'loose') return '飞盘落地';
-  return '飞盘在空中';
+function possessionKey(h: HudState): string {
+  if (h.pullPending) return h.userHasDisc ? 'hud.poss.pullYou' : 'hud.poss.pullOn';
+  return `hud.poss.${h.possession}`;
 }
 
 const STALL_R = 26;
@@ -42,6 +35,7 @@ const STAM_R = 27;
 const STAM_C = 2 * Math.PI * STAM_R;
 
 export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: ToastItem | null; tips: TipItem[] }) {
+  const { t } = useI18n();
   const stallColor =
     hud.stallLeft === null ? '#f6ecd2' : hud.stallLeft > 5 ? '#14c2d8' : hud.stallLeft > 2.5 ? '#ffd23f' : '#ff5a4a';
   const stallFrac = hud.stallLeft === null ? 0 : hud.stallLeft / 10;
@@ -52,7 +46,7 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
 
   return (
     <div className="hud">
-      {/* 速度线：冲刺时画面边缘的放射线（The Pathless 式的速度感） */}
+      {/* 速度线：冲刺时画面边缘的放射线 */}
       <div className="hud-speed" style={{ opacity: speedOp * 0.75 }} />
 
       {/* 准星 + 体力环 */}
@@ -76,7 +70,7 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
 
       {/* 蓄力条（分段） */}
       {hud.charge > 0 && (
-        <div className="hud-charge" aria-label="蓄力">
+        <div className="hud-charge">
           {Array.from({ length: segs }, (_, i) => (
             <i key={i} className={i < lit ? `on s${i < 5 ? 1 : i < 9 ? 2 : 3}` : ''} />
           ))}
@@ -86,27 +80,30 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
       {/* 比分 */}
       <div className="hud-score">
         <div className="hud-score-a">
-          <span className="hud-score-name">我方</span>
+          <span className="hud-score-name">{t('hud.us')}</span>
           <span className="hud-score-num">{hud.scoreA}</span>
         </div>
-        <div className="hud-score-mid">先到 {hud.winScore}</div>
+        <div className="hud-score-mid">{t('hud.first', { n: hud.winScore })}</div>
         <div className="hud-score-b">
           <span className="hud-score-num">{hud.scoreB}</span>
-          <span className="hud-score-name">对手</span>
+          <span className="hud-score-name">{t('hud.them')}</span>
         </div>
       </div>
-      <div className="hud-poss">{possessionLabel(hud)}</div>
+      <div className="hud-poss">{t(possessionKey(hud))}</div>
+
+      {/* 盯防者"逼向"：空位在哪一侧 */}
+      {hud.force && <div className="hud-force">{t(hud.force === 'forehand' ? 'hud.force.fh' : 'hud.force.bh')}</div>}
 
       {/* 连传计数 */}
       {hud.chain >= 2 && (
         <div key={`${hud.chainTeam}-${hud.chain}`} className={`hud-chain ${hud.chainTeam === 0 ? 'is-a' : 'is-b'}`}>
-          连传 ×{hud.chain}
+          {t('hud.chain', { n: hud.chain })}
         </div>
       )}
 
       {/* 数秒 */}
       {hud.stallLeft !== null && (
-        <div className={`hud-stall${hud.stallRunning ? '' : ' is-idle'}`} aria-label="数秒">
+        <div className={`hud-stall${hud.stallRunning ? '' : ' is-idle'}`}>
           <svg viewBox="0 0 64 64" width="76" height="76">
             <circle cx="32" cy="32" r="30" className="hud-stall-face" />
             <circle cx="32" cy="32" r={STALL_R} className="hud-stall-bg" />
@@ -122,7 +119,7 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
             />
           </svg>
           <span className="hud-stall-num">{Math.ceil(hud.stallLeft)}</span>
-          <span className="hud-stall-label">{hud.stallRunning ? '数秒中' : '无人贴防'}</span>
+          <span className="hud-stall-label">{t(hud.stallRunning ? 'hud.stall.on' : 'hud.stall.idle')}</span>
         </div>
       )}
 
@@ -135,14 +132,18 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
             </svg>
           </div>
         </div>
-        <span>进攻方向</span>
+        <span>{t('hud.goal')}</span>
       </div>
 
-      {/* 反手 / 正手 + 冲刺提示 */}
+      {/* 按键提示：正反手 + 技巧 + 喊违规 + 精神分 */}
       <div className="hud-curve">
-        <span className={hud.curve === 'backhand' ? 'is-on' : ''}>Q 反手</span>
-        <span className={hud.curve === 'forehand' ? 'is-on' : ''}>E 正手</span>
-        <span className="is-plain">Shift 冲刺</span>
+        <span className={hud.curve === 'backhand' ? 'is-on' : ''}>{t('hud.curve.back')}</span>
+        <span className={hud.curve === 'forehand' ? 'is-on' : ''}>{t('hud.curve.fore')}</span>
+        <span className="is-plain">{t('hud.fake')}</span>
+        <span className="is-plain">{t('hud.step')}</span>
+        <span className="is-plain">{t('hud.sprint')}</span>
+        <span className="is-call">{t('hud.call')}</span>
+        <span className="is-spirit">{t('hud.spirit', { n: hud.spirit })}</span>
       </div>
 
       {/* 落点指示 */}
@@ -153,33 +154,34 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
               <path d="M12 2 L21 21 L12 16 L3 21 Z" fill="currentColor" stroke="#1b1a2e" strokeWidth="2" strokeLinejoin="round" />
             </svg>
           </div>
-          <span>落点 {Math.round(hud.landing.dist)}m</span>
+          <span>{t('hud.landing', { d: Math.round(hud.landing.dist) })}</span>
         </div>
       )}
 
       {/* 规则提醒（不暂停比赛） */}
       {tips.length > 0 && (
         <div className="hud-tips">
-          {tips.map((t) => (
-            <div key={t.id} className="hud-tip-card">
-              <div className="hud-tip-title">{t.title}</div>
-              <div className="hud-tip-text">{t.text}</div>
+          {tips.map((tp) => (
+            <div key={tp.id} className="hud-tip-card">
+              <div className="hud-tip-title">{t(`tip.${tp.key}.t`)}</div>
+              <div className="hud-tip-text">{t(`tip.${tp.key}.x`)}</div>
             </div>
           ))}
         </div>
       )}
 
       {/* 底部操作提示 */}
-      <div className="hud-tip">{tip(hud)}</div>
+      <div className="hud-tip">{t(tipKey(hud))}</div>
 
       {/* 新手引导 */}
       {hud.guide && (
         <div className="hud-guide">
-          <div className="hud-guide-title">三步上手</div>
+          <div className="hud-guide-title">{t('guide.title')}</div>
           <ol>
-            <li>每一分从<b>开盘</b>开始：防守方把盘踢给进攻方。开盘时按住左键蓄力自己踢，或按 <b>1</b> / <b>2</b> 让队友开</li>
-            <li>持盘时不能跑，只能转身。按 <b>1</b> / <b>2</b> 传给对应编号的队友：线<b>绿</b> = 稳，<b>黄</b> = 盯防者可能碰到，<b>红</b> = 有人站在线上必被截</li>
-            <li>在金色得分区里接到盘就得 1 分</li>
+            <li>{t('guide.1')}</li>
+            <li>{t('guide.2')}</li>
+            <li>{t('guide.3')}</li>
+            <li>{t('guide.4')}</li>
           </ol>
         </div>
       )}
@@ -187,8 +189,13 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
       {/* 攻防转换 / 得分：漫画贴纸 */}
       {toast && (
         <div key={toast.id} className={`hud-toast hud-toast-${toast.kind}`}>
-          <div className="hud-toast-title">{toast.title}</div>
-          {toast.sub && <div className="hud-toast-sub">{toast.sub}</div>}
+          <div className="hud-toast-title">{t(toast.title, toast.params)}</div>
+          {toast.sub && (
+            <div className="hud-toast-sub">
+              {t(toast.sub, toast.params)}
+              {toast.note ? t(toast.note) : ''}
+            </div>
+          )}
         </div>
       )}
     </div>
