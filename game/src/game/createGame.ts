@@ -71,6 +71,7 @@ export interface GameHandle {
   /** 必须在用户点击事件里调用（浏览器要求手势才能锁定鼠标） */
   requestLock(): void;
   restart(): void;
+  startTutorial(): void;
   dispose(): void;
   /** 调试入口：网址加 ?debug 时挂到 window.__ufo，用来摆好场景测试跨步 / 假动作 / 喊违规 */
   debug: {
@@ -103,6 +104,7 @@ export function createGame(container: HTMLElement): GameHandle {
     frozen: true,
     loose: false,
     pickupTeam: 0,
+    passive: false,
     pullPending: false,
     pulling: false,
     force: [-1, -1],
@@ -139,6 +141,24 @@ export function createGame(container: HTMLElement): GameHandle {
   const spirit = { correct: 0, wrong: 0, self: 0, missed: 0 };
   let selfContactT = 0;
   let selfContactNext = 0;
+  // 新手教程
+  const TUT_TOTAL = 7;
+  let tut: {
+    step: number;
+    stepDone: boolean;
+    advanceT: number;
+    retryT: number;
+    resetIn: number;
+    timer: number;
+    moved: number;
+    yawSum: number;
+    thrown: boolean;
+    staged: boolean;
+  } | null = null;
+  let tutSkillAt = -99; // 最近一次用跨步 / 假动作的时间
+  let tutLastX = 0;
+  let tutLastZ = 0;
+  let tutLastYaw = 0;
   // 手感 / 反馈状态
   let chain = 0; // 连续传球次数
   let chainTeam: TeamId = 0;
@@ -228,6 +248,7 @@ export function createGame(container: HTMLElement): GameHandle {
     },
     onFake: () => doFake(),
     onCall: () => callFoul(),
+    onSkip: () => tutSkip(),
     onStep: (dir) => doStep(dir),
   });
 
@@ -310,10 +331,11 @@ export function createGame(container: HTMLElement): GameHandle {
       stamina: control.stamina,
       force: currentForce(),
       spirit: spiritScore(),
+      tutorial: tut ? { step: tut.step, total: TUT_TOTAL, done: tut.stepDone } : null,
       exhausted: control.exhausted,
       curve,
       goalAngle: Math.atan2(gx * rx + gz * rz, gx * fx + gz * fz),
-      guide,
+      guide: guide && !tut,
       landing,
       speed: Math.min(1, Math.hypot(user.vel.x, user.vel.z) / 7.6),
       chain,
@@ -345,6 +367,10 @@ export function createGame(container: HTMLElement): GameHandle {
     charging = false;
     contest = null;
     rollCheats(a);
+    if (tut) {
+      for (const x of agents) x.cheat = 0;
+      rules.stopStall();
+    }
   }
 
   /** 每次换手，机器人有一定概率犯规——玩家要靠观察自己发现 */
@@ -392,6 +418,10 @@ export function createGame(container: HTMLElement): GameHandle {
 
   function toastTurnover(reason: TurnoverReason, to: TeamId, note = ''): void {
     const gained = to === 0;
+    if (tut) {
+      bus.emit('toast', { title: 'tut.retry.t', sub: 'tut.retry.s', kind: 'info' });
+      return;
+    }
     bus.emit('codex', { id: 'turnover' });
     const base = `turnover.${reason}.${gained ? 'gain' : 'lose'}`;
     bus.emit('toast', { title: `${base}.t`, sub: `${base}.s`, note: note || undefined, kind: gained ? 'good' : 'bad' });
@@ -567,12 +597,19 @@ export function createGame(container: HTMLElement): GameHandle {
 
   /** 进攻方接到盘：转移控制权；在对方得分区内 = 得分 */
   function completeCatch(a: Agent): void {
+    const wasGuided = disc.guidedTarget >= 0; // giveDisc 会清掉，先记下来
+    const thrower = disc.throwerId;
     chain = chainTeam === a.team && chain > 0 ? chain + 1 : 1;
     chainTeam = a.team;
     hitStop(0.05, 0.06);
     giveDisc(a);
     pickupReadyAt = world.time + 0.25;
-    if (inAttackZone(a.pos.z, teamDir(rules.dirA, a.team))) rules.scorePoint(a.team);
+    const scoring = inAttackZone(a.pos.z, teamDir(rules.dirA, a.team));
+    if (tut) {
+      tutOnCatch(a, thrower, wasGuided, scoring);
+      return;
+    }
+    if (scoring) rules.scorePoint(a.team);
   }
 
   function resolveContest(): void {
@@ -661,7 +698,7 @@ export function createGame(container: HTMLElement): GameHandle {
         clamp(to.pos.z + to.vel.z * lead, -(END_Z - 1), END_Z - 1),
       );
       solveAim(_hp, _tg, 0, aim);
-      const flub = Math.random() < (to.isUser ? 0.05 : 0.15); // 传给玩家时更稳
+      const flub = !tut && Math.random() < (to.isUser ? 0.05 : 0.15); // 传给玩家时更稳
       launchDisc(disc, _hp, from, aim.dir, aim.speed, 0, flub ? 0.09 : 0.012);
       afterThrow(from);
     },
@@ -862,6 +899,7 @@ export function createGame(container: HTMLElement): GameHandle {
     if (!userCanMove()) return;
     stepDir = dir;
     stepT = 0.8;
+    tutSkillAt = world.time;
     coach('stepout', 40);
   }
 
@@ -870,6 +908,7 @@ export function createGame(container: HTMLElement): GameHandle {
     if (!userCanMove() || world.time < fakeCD) return;
     fakeCD = world.time + 0.7;
     fakeT = 0.35;
+    tutSkillAt = world.time;
     while (fakeLog.length && world.time - fakeLog[0] > 4) fakeLog.shift();
     const recent = fakeLog.length;
     fakeLog.push(world.time);
@@ -894,6 +933,197 @@ export function createGame(container: HTMLElement): GameHandle {
         sub: bit ? 'fake.bite.s' : 'fake.nobite.s',
         kind: bit ? 'good' : 'info',
       });
+    }
+  }
+
+  /* ───────── 新手教程：7 步，每步一个目标，失败自动重来 ───────── */
+  function setupTutStep(n: number): void {
+    if (!tut) return;
+    tut.step = n;
+    tut.stepDone = false;
+    tut.advanceT = 0;
+    tut.retryT = 0;
+    tut.resetIn = 0;
+    tut.timer = 0;
+    tut.moved = 0;
+    tut.yawSum = 0;
+    tut.thrown = false;
+    tut.staged = false;
+    tutSkillAt = -99;
+    rules.begin();
+    world.frozen = false;
+    world.readyT = 0;
+    world.pullPending = false;
+    world.pulling = false;
+    world.loose = false;
+    world.passive = true;
+    world.force = [-1, -1];
+    disc.dead = false;
+    disc.deadReason = null;
+    disc.guidedTarget = -1;
+    contest = null;
+    charging = false;
+    charge = 0;
+    stepT = 0;
+    ignoreDef.clear();
+    viols.length = 0;
+    for (const a of agents) {
+      a.vel.set(0, 0, 0);
+      a.cheat = 0;
+      a.biteUntil = 0;
+    }
+    // 默认站位：玩家在己方半场面朝对方得分区，对手远远站在对面
+    user.pos.set(0, 0, -15);
+    user.yaw = Math.PI;
+    control.yaw = Math.PI;
+    control.pitch = 0;
+    agents[1].pos.set(-7, 0, -6);
+    agents[2].pos.set(7, 0, -4);
+    agents[3].pos.set(-6, 0, 36);
+    agents[4].pos.set(0, 0, 37);
+    agents[5].pos.set(6, 0, 36);
+    let holder: Agent = user;
+    switch (n) {
+      case 1:
+        holder = agents[1];
+        break;
+      case 2:
+        holder = agents[1];
+        agents[1].pos.set(-6, 0, -8);
+        user.pos.set(2, 0, -16);
+        break;
+      case 3:
+        user.pos.set(0, 0, -10);
+        agents[1].pos.set(-7, 0, -2);
+        agents[2].pos.set(7, 0, 0);
+        break;
+      case 4:
+        user.pos.set(0, 0, -10);
+        agents[1].pos.set(-8, 0, 4);
+        agents[2].pos.set(8, 0, 6);
+        break;
+      case 5:
+        user.pos.set(0, 0, -5);
+        agents[1].pos.set(-8, 0, 3);
+        agents[2].pos.set(8, 0, 5);
+        agents[3].pos.set(0.4, 0, -4.05); // 盯防者就站在面前
+        agents[4].pos.set(-6, 0, 40);
+        agents[5].pos.set(6, 0, 40);
+        break;
+      case 6:
+        user.pos.set(0, 0, 12);
+        agents[1].pos.set(3, 0, 33); // 队友 A 已经站在得分区里
+        agents[2].pos.set(-6, 0, 22);
+        break;
+      default:
+        user.pos.set(0, 0, -8);
+        agents[1].pos.set(-7, 0, 0);
+        agents[2].pos.set(7, 0, 2);
+        agents[3].pos.set(0.4, 0, -7.05);
+        break;
+    }
+    giveDisc(holder);
+    for (const a of agents) a.cheat = 0;
+    pickupReadyAt = world.time;
+    tutLastX = user.pos.x;
+    tutLastZ = user.pos.z;
+    tutLastYaw = control.yaw;
+    emitHud();
+  }
+
+  function tutDone(): void {
+    if (!tut || tut.stepDone) return;
+    tut.stepDone = true;
+    tut.advanceT = 1.6;
+    bus.emit('toast', { title: 'tut.ok.t', sub: '', kind: 'good' });
+  }
+
+  function tutFinish(): void {
+    tut = null;
+    world.passive = false;
+    for (const id of ['pivot', 'stepout', 'fake', 'marker', 'force', 'throws', 'zone', 'spirit']) bus.emit('codex', { id });
+    bus.emit('tutorialDone', undefined);
+    if (document.pointerLockElement === canvas) document.exitPointerLock();
+  }
+
+  function tutSkip(): void {
+    if (!tut) return;
+    if (tut.step >= TUT_TOTAL) tutFinish();
+    else setupTutStep(tut.step + 1);
+  }
+
+  function tutOnCatch(a: Agent, thrower: number, wasGuided: boolean, scoring: boolean): void {
+    if (!tut || tut.stepDone) return;
+    const mate = a.id === 1 || a.id === 2;
+    switch (tut.step) {
+      case 2:
+        if (a === user) tutDone();
+        break;
+      case 3:
+        if (thrower === 0 && wasGuided && mate) tutDone();
+        break;
+      case 4:
+        if (thrower === 0 && !wasGuided && mate) tutDone();
+        break;
+      case 5:
+        if (thrower === 0 && mate) {
+          if (world.time - tutSkillAt < 6) tutDone();
+          else {
+            bus.emit('toast', { title: 'tut.hint.t', sub: 'tut.hint.s', kind: 'info' });
+            tut.resetIn = 1.6; // 没用技巧就传成了：重来一次，这次练跨步 / 假动作
+          }
+        }
+        break;
+      case 6:
+        if (scoring) tutDone();
+        break;
+    }
+  }
+
+  function tutUpdate(dt: number): void {
+    if (!tut) return;
+    tut.timer += dt;
+    if (tut.resetIn > 0) {
+      tut.resetIn -= dt;
+      if (tut.resetIn <= 0) setupTutStep(tut.step);
+      return;
+    }
+    if (tut.stepDone) {
+      tut.advanceT -= dt;
+      if (tut.advanceT <= 0) {
+        if (tut.step >= TUT_TOTAL) tutFinish();
+        else setupTutStep(tut.step + 1);
+      }
+      return;
+    }
+    if (tut.step === 1) {
+      tut.moved += Math.hypot(user.pos.x - tutLastX, user.pos.z - tutLastZ);
+      tut.yawSum += Math.abs(control.yaw - tutLastYaw);
+      tutLastX = user.pos.x;
+      tutLastZ = user.pos.z;
+      tutLastYaw = control.yaw;
+      if (tut.moved > 6 && tut.yawSum > 2.5) tutDone();
+    } else if (tut.step === 2) {
+      if (!tut.thrown && tut.timer > 1.5 && world.holder === agents[1] && disc.mode === 'held') {
+        tut.thrown = true;
+        hooks.throwTo(agents[1], user); // 队友把盘传给你：看落点圈
+      }
+    } else if (tut.step === 7) {
+      if (!tut.staged && tut.timer > 1.5) {
+        tut.staged = true;
+        tut.timer = 0;
+        agents[4].pos.set(user.pos.x + 1.6, 0, user.pos.z + 0.8); // 第二个防守者贴上来：双防
+        logViolation('double', agents[4]);
+      } else if (tut.staged && viols.every((v) => v.done) && tut.timer > 5) {
+        tut.staged = false; // 没喊：再来一次
+        tut.timer = 0;
+        agents[4].pos.set(-3, 0, -2);
+      }
+    }
+    // 失败重来：盘落地 / 被拦截
+    if (tut.step !== 1 && (world.loose || (world.holder && world.holder.team === 1))) {
+      tut.retryT += dt;
+      if (tut.retryT > 1.3) setupTutStep(tut.step);
     }
   }
 
@@ -959,6 +1189,7 @@ export function createGame(container: HTMLElement): GameHandle {
       const key = v.type === 'double' ? 'double' : v.type === 'travel' ? 'travel' : 'contact';
       bus.emit('toast', { title: `call.ok.${key}.t`, sub: `call.ok.${key}.s`, kind: 'good' });
     }
+    if (tut && tut.step === 7 && !tut.stepDone) tutDone();
     emitHud();
   }
 
@@ -987,6 +1218,7 @@ export function createGame(container: HTMLElement): GameHandle {
 
   /* ───────── 规则提醒：只弹小卡片，不暂停、不影响比赛 ───────── */
   function coach(key: string, cool = 15): void {
+    if (tut) return; // 教程有自己的提示卡
     if ((tipNext.get(key) ?? 0) > world.time) return;
     tipNext.set(key, world.time + cool);
     bus.emit('tip', { key });
@@ -1080,6 +1312,10 @@ export function createGame(container: HTMLElement): GameHandle {
   function update(dt: number): void {
     if (rules.phase !== 'playing' && rules.phase !== 'scored') return;
     world.time += dt;
+    if (tut) {
+      rules.stopStall();
+      tutUpdate(dt);
+    }
 
     // 新一回合：先各就各位，再开盘；防守方回防冲刺
     if (world.readyT > 0) {
@@ -1381,7 +1617,22 @@ export function createGame(container: HTMLElement): GameHandle {
         logViolation(type, type === 'self-contact' ? user : agents[4]);
       },
     },
+    startTutorial() {
+      rules.reset();
+      tipNext.clear();
+      guide = false;
+      spirit.correct = spirit.wrong = spirit.self = spirit.missed = 0;
+      tut = { step: 1, stepDone: false, advanceT: 0, retryT: 0, resetIn: 0, timer: 0, moved: 0, yawSum: 0, thrown: false, staged: false };
+      setupTutStep(1);
+      paused = true;
+      emitHud();
+    },
     restart() {
+      tut = null;
+      world.passive = false;
+      spirit.correct = spirit.wrong = spirit.self = spirit.missed = 0;
+      viols.length = 0;
+      callCD = 0;
       rules.reset();
       tipNext.clear();
       guide = true;

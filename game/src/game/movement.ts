@@ -36,6 +36,7 @@ export function createInput(
     onFake(): void;
     onCall(): void;
     onStep(dir: -1 | 1): void;
+    onSkip(): void;
   },
 ) {
   const state: InputState = {
@@ -58,6 +59,7 @@ export function createInput(
     if (!e.repeat) {
       if (e.code === 'KeyV') cb.onFake();
       if (e.code === 'KeyF') cb.onCall();
+      if (e.code === 'KeyN') cb.onSkip();
       if (e.code === 'KeyA') cb.onStep(-1);
       if (e.code === 'KeyD') cb.onStep(1);
     }

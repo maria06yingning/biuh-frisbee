@@ -17,11 +17,14 @@ export interface PauseMenuProps {
   onRestart: () => void;
   onExit: () => void;
   onCodex: () => void;
+  onTutorial: () => void;
+  tutorialSeen: boolean;
+  tutDone: boolean;
 }
 
-export default function PauseMenu({ mode, result, onResume, onRestart, onExit, onCodex }: PauseMenuProps) {
+export default function PauseMenu({ mode, result, onResume, onRestart, onExit, onCodex, onTutorial, tutorialSeen, tutDone }: PauseMenuProps) {
   const { t, lang, setLang } = useI18n();
-  const title = mode === 'start' ? t('menu.start') : mode === 'paused' ? t('menu.paused') : result?.win ? t('menu.win') : t('menu.lose');
+  const title = tutDone ? t('tut.doneTitle') : mode === 'start' ? t('menu.start') : mode === 'paused' ? t('menu.paused') : result?.win ? t('menu.win') : t('menu.lose');
 
   return (
     <div className="pause">
@@ -30,6 +33,7 @@ export default function PauseMenu({ mode, result, onResume, onRestart, onExit, o
           {t('lang.toggle')}
         </button>
         <h2>{title}</h2>
+        {tutDone && <p className="pause-final">{t('tut.doneText')}</p>}
         {mode === 'over' && result && (
           <>
             <p className="pause-final">{t('menu.final', { a: result.scoreA, b: result.scoreB })}</p>
@@ -49,15 +53,28 @@ export default function PauseMenu({ mode, result, onResume, onRestart, onExit, o
         )}
 
         <div className="pause-actions">
-          {mode !== 'over' && (
-            <button className="btn btn-primary" onClick={onResume}>
-              {mode === 'start' ? t('menu.startBtn') : t('menu.resume')}
+          {tutDone ? (
+            <button className="btn btn-primary" onClick={onRestart}>
+              {t('menu.startMatch')}
             </button>
-          )}
-          {mode !== 'start' && (
-            <button className={mode === 'over' ? 'btn btn-primary' : 'btn'} onClick={onRestart}>
-              {mode === 'over' ? t('menu.again') : t('menu.restart')}
-            </button>
+          ) : (
+            <>
+              {mode === 'start' && (
+                <button className={tutorialSeen ? 'btn' : 'btn btn-primary'} onClick={onTutorial}>
+                  {t('menu.tutorial')}
+                </button>
+              )}
+              {mode !== 'over' && (
+                <button className={mode === 'start' && !tutorialSeen ? 'btn' : 'btn btn-primary'} onClick={onResume}>
+                  {mode === 'start' ? t('menu.startBtn') : t('menu.resume')}
+                </button>
+              )}
+              {mode !== 'start' && (
+                <button className={mode === 'over' ? 'btn btn-primary' : 'btn'} onClick={onRestart}>
+                  {mode === 'over' ? t('menu.again') : t('menu.restart')}
+                </button>
+              )}
+            </>
           )}
           <button className="btn" onClick={onCodex}>
             {t('menu.codex')}

@@ -173,6 +173,26 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
       {/* 底部操作提示 */}
       <div className="hud-tip">{t(tipKey(hud))}</div>
 
+      {/* 新手教程卡 */}
+      {hud.tutorial && (
+        <div className={`hud-tut${hud.tutorial.done ? ' is-done' : ''}`}>
+          <div className="hud-tut-head">
+            {t('tut.head', { n: hud.tutorial.step, m: hud.tutorial.total })}
+            {hud.tutorial.done ? ' ✓' : ''}
+          </div>
+          <div className="hud-tut-body">
+            <div className="hud-tut-title">{t(`tut.${hud.tutorial.step}.t`)}</div>
+            <p>{t(`tut.${hud.tutorial.step}.x`)}</p>
+            <div className="hud-tut-dots">
+              {Array.from({ length: hud.tutorial.total }, (_, i) => (
+                <i key={i} className={i + 1 < hud.tutorial!.step || (i + 1 === hud.tutorial!.step && hud.tutorial!.done) ? 'on' : i + 1 === hud.tutorial!.step ? 'cur' : ''} />
+              ))}
+            </div>
+            <div className="hud-tut-skip">{t('tut.skip')}</div>
+          </div>
+        </div>
+      )}
+
       {/* 新手引导 */}
       {hud.guide && (
         <div className="hud-guide">

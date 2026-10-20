@@ -41,6 +41,8 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
   const [unlocked, setUnlocked] = useState<string[]>([]);
   const [banner, setBanner] = useState<string | null>(null); // 刚解锁的图鉴条目 id
   const [showCodex, setShowCodex] = useState(false);
+  const [tutDone, setTutDone] = useState(false);
+  const [tutorialSeen, setTutorialSeen] = useState(true);
 
   const unlock = useCallback((id: string | undefined) => {
     if (!id || unlockedRef.current.includes(id)) return;
@@ -59,6 +61,11 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
   useEffect(() => {
     unlockedRef.current = loadUnlocked();
     setUnlocked(unlockedRef.current);
+    try {
+      setTutorialSeen(localStorage.getItem('ufo-tut-done') === '1');
+    } catch {
+      /* ignore */
+    }
 
     // 触屏设备：提示换电脑
     if (window.matchMedia('(pointer: coarse)').matches && !window.matchMedia('(pointer: fine)').matches) {
@@ -96,6 +103,15 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
             unlock(codexIdForTip(tp.key));
           }),
           game.bus.on('codex', (c) => unlock(c.id)),
+          game.bus.on('tutorialDone', () => {
+            setTutDone(true);
+            setTutorialSeen(true);
+            try {
+              localStorage.setItem('ufo-tut-done', '1');
+            } catch {
+              /* ignore */
+            }
+          }),
           game.bus.on('pause', () => setUi('paused')),
           game.bus.on('resume', () => setUi('playing')),
           game.bus.on('gameover', (r) => {
@@ -123,7 +139,16 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
   }, [unlock]);
 
   const handleStart = useCallback(() => gameRef.current?.requestLock(), []);
+  const handleTutorial = useCallback(() => {
+    setResult(null);
+    setToast(null);
+    setTips([]);
+    setTutDone(false);
+    gameRef.current?.startTutorial();
+    gameRef.current?.requestLock();
+  }, []);
   const handleRestart = useCallback(() => {
+    setTutDone(false);
     setResult(null);
     setToast(null);
     setTips([]);
@@ -172,6 +197,9 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
           onRestart={handleRestart}
           onExit={onExit}
           onCodex={() => setShowCodex(true)}
+          onTutorial={handleTutorial}
+          tutorialSeen={tutorialSeen}
+          tutDone={tutDone}
         />
       )}
       {showCodex && <CodexPanel unlocked={unlocked} onClose={() => setShowCodex(false)} />}

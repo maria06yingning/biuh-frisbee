@@ -592,6 +592,17 @@ export function updateAI(w: World, dt: number, hooks: AIHooks): void {
       a.vel.multiplyScalar(Math.max(0, 1 - 6 * dt));
       continue;
     }
+    if (w.passive) {
+      // 教程：玩家的盯防者照常盯人，追盘的队友照常追，其余人原地等
+      if (a.team === 1 && w.holder?.isUser && a.markId === w.holder.id) {
+        defender(a, w, dt, hooks);
+        continue;
+      }
+      if (!(flying && chaser[a.team] === a && a.team === 0)) {
+        a.vel.multiplyScalar(Math.max(0, 1 - 6 * dt));
+        continue;
+      }
+    }
     if (w.pullPending && w.holder !== a) {
       a.vel.multiplyScalar(Math.max(0, 1 - 6 * dt)); // 开盘前大家站在自己的得分线上
       continue;

@@ -92,6 +92,7 @@ export interface World {
   frozen: boolean;
   loose: boolean; // 飞盘落在地上，等待 pickupTeam 的人去捡
   pickupTeam: TeamId;
+  passive: boolean; // 教程模式：除了玩家的盯防者和追盘的队友，其余人原地不动
   pullPending: boolean; // 本回合的开盘（pull）还没踢出
   pulling: boolean; // 开盘的盘在空中
   force: [number, number]; // 各队盯防者的"逼向"：-1 站在持盘者左侧（逼正手），+1 站在右侧（逼反手）
@@ -123,6 +124,7 @@ export interface HudState {
   exhausted: boolean;
   force: 'forehand' | 'backhand' | null; // 盯防者当前逼你用哪只手（只在你持盘且盯防者贴近时有值）
   spirit: number; // 体育精神分 0..10
+  tutorial: { step: number; total: number; done: boolean } | null;
   curve: CurveType;
   goalAngle: number; // 进攻得分区相对视线方向的角度（弧度，顺时针为正）
   guide: boolean;
@@ -151,6 +153,7 @@ export interface GameEvents {
   pause: undefined;
   resume: undefined;
   codex: { id: string };
+  tutorialDone: undefined;
   gameover: {
     win: boolean;
     scoreA: number;
