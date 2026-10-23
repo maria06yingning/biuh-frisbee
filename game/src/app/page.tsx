@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 import { useState } from 'react';
 import CodexPanel from '@/components/CodexPanel';
+import TacticsLab from '@/components/TacticsLab';
 import { useI18n } from '@/i18n/I18nProvider';
 
 // three.js 只在浏览器里加载
@@ -44,11 +45,16 @@ export default function Home() {
   const { t, lang, setLang } = useI18n();
   const [playing, setPlaying] = useState(false);
   const [codex, setCodex] = useState<string[] | null>(null);
+  const [lab, setLab] = useState(false);
+  if (lab) return <TacticsLab onExit={() => setLab(false)} />;
   if (playing) return <FieldExperience onExit={() => setPlaying(false)} />;
 
   return (
     <main className="home">
       <nav className="home-nav">
+        <button className="btn" onClick={() => setLab(true)}>
+          {t('home.lab')}
+        </button>
         <button className="btn" onClick={() => setCodex(readUnlocked())}>
           {t('home.codex')}
         </button>

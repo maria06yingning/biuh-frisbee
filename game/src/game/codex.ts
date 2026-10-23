@@ -2,7 +2,11 @@
 export interface CodexEntry {
   id: string;
   tipKey: string; // 对应 dict 里的 tip.<tipKey>.t / .x
+  lab?: string; // 战术实验室条目：标题 / 正文来自 lab.<lab>.name / lab.<lab>.use
 }
+
+export const titleKey = (e: CodexEntry): string => (e.lab ? `lab.${e.lab}.name` : `tip.${e.tipKey}.t`);
+export const textKey = (e: CodexEntry): string => (e.lab ? `lab.${e.lab}.use` : `tip.${e.tipKey}.x`);
 
 export const CODEX: CodexEntry[] = [
   { id: 'pull', tipKey: 'pull' },
@@ -19,7 +23,36 @@ export const CODEX: CodexEntry[] = [
   { id: 'zone', tipKey: 'zone' },
   { id: 'turnover', tipKey: 'turnover' },
   { id: 'spirit', tipKey: 'spirit' },
+  { id: 'vstack', tipKey: '', lab: 'vstack' },
+  { id: 'hstack', tipKey: '', lab: 'hstack' },
+  { id: 'man', tipKey: '', lab: 'man' },
+  { id: 'zone-d', tipKey: '', lab: 'zone' },
+  { id: 'cup', tipKey: '', lab: 'cup' },
 ];
+
+const STORE_KEY = 'ufo-codex-v1';
+
+export function loadUnlocked(): string[] {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    const arr = raw ? (JSON.parse(raw) as unknown) : [];
+    return Array.isArray(arr) ? arr.filter((x): x is string => typeof x === 'string') : [];
+  } catch {
+    return [];
+  }
+}
+
+/** 解锁一条；如果是新解锁的返回 true */
+export function addUnlocked(id: string): boolean {
+  const cur = loadUnlocked();
+  if (cur.includes(id)) return false;
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify([...cur, id]));
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
 
 /** 规则提示卡 key → 它解锁的图鉴条目 */
 const TIP_TO_CODEX: Record<string, string> = {

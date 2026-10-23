@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GameHandle } from '@/game/createGame';
 import type { HudState } from '@/game/types';
-import { CODEX, codexIdForTip } from '@/game/codex';
+import { CODEX, codexIdForTip, titleKey } from '@/game/codex';
 import { useI18n } from '@/i18n/I18nProvider';
 import CodexPanel from './CodexPanel';
 import GameHUD, { type TipItem, type ToastItem } from './GameHUD';
@@ -166,7 +166,7 @@ export default function FieldExperience({ onExit }: { onExit: () => void }) {
       {hud && (ui === 'playing' || ui === 'paused' || ui === 'over') && <GameHUD hud={hud} toast={toast} tips={tips} />}
 
       {bannerEntry && (ui === 'playing' || ui === 'paused') && (
-        <div className="exp-unlock">{t('exp.unlocked', { name: t(`tip.${bannerEntry.tipKey}.t`) })}</div>
+        <div className="exp-unlock">{t('exp.unlocked', { name: t(titleKey(bannerEntry)) })}</div>
       )}
 
       {ui === 'loading' && <div className="exp-card">{t('exp.loading')}</div>}

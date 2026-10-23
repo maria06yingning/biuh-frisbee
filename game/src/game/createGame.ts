@@ -154,6 +154,8 @@ export function createGame(container: HTMLElement): GameHandle {
     yawSum: number;
     thrown: boolean;
     staged: boolean;
+    warned: boolean;
+    hinted: boolean;
   } | null = null;
   let tutSkillAt = -99; // 最近一次用跨步 / 假动作的时间
   let tutLastX = 0;
@@ -949,6 +951,8 @@ export function createGame(container: HTMLElement): GameHandle {
     tut.yawSum = 0;
     tut.thrown = false;
     tut.staged = false;
+    tut.warned = false;
+    tut.hinted = false;
     tutSkillAt = -99;
     rules.begin();
     world.frozen = false;
@@ -1109,13 +1113,28 @@ export function createGame(container: HTMLElement): GameHandle {
         hooks.throwTo(agents[1], user); // 队友把盘传给你：看落点圈
       }
     } else if (tut.step === 7) {
-      if (!tut.staged && tut.timer > 1.5) {
+      if (world.holder !== user) {
+        // 把盘传走了：这一步要拿着盘等对手违规。提示一下，然后重来
+        if (!tut.warned) {
+          tut.warned = true;
+          bus.emit('toast', { title: 'tut.hold.t', sub: 'tut.hold.s', kind: 'info' });
+        }
+        tut.retryT += dt;
+        if (tut.retryT > 1.8) setupTutStep(7);
+        return;
+      }
+      if (tut.staged && !tut.hinted && tut.timer > 3.5) {
+        tut.hinted = true; // 一直没喊：给个明确的提示
+        bus.emit('toast', { title: 'tut.hint7.t', sub: 'tut.hint7.s', kind: 'info' });
+      }
+      if (!tut.staged && tut.timer > 1.2) {
         tut.staged = true;
         tut.timer = 0;
         agents[4].pos.set(user.pos.x + 1.6, 0, user.pos.z + 0.8); // 第二个防守者贴上来：双防
         logViolation('double', agents[4]);
-      } else if (tut.staged && viols.every((v) => v.done) && tut.timer > 5) {
+      } else if (tut.staged && viols.every((v) => v.done) && tut.timer > 9) {
         tut.staged = false; // 没喊：再来一次
+        tut.hinted = false;
         tut.timer = 0;
         agents[4].pos.set(-3, 0, -2);
       }
@@ -1128,6 +1147,7 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   /* ───────── 自裁判：看见违规，自己喊 ───────── */
+  const violWindow = () => (tut ? 8 : 3.5); // 教程里给更长的时间去发现违规
   const spiritScore = () => clamp(6 + spirit.correct + 2 * spirit.self - spirit.wrong - spirit.missed, 0, 10);
 
   function logViolation(type: ViolationType, who: Agent): void {
@@ -1150,8 +1170,12 @@ export function createGame(container: HTMLElement): GameHandle {
   function callFoul(): void {
     if (rules.phase !== 'playing' || world.frozen || world.time < callCD) return;
     bus.emit('codex', { id: 'spirit' });
-    const v = viols.find((x) => !x.done && world.time - x.at <= 3.5);
+    const v = viols.find((x) => !x.done && world.time - x.at <= violWindow());
     if (!v) {
+      if (tut) {
+        bus.emit('toast', { title: 'tut.early.t', sub: 'tut.early.s', kind: 'info' });
+        return;
+      }
       spirit.wrong++;
       callCD = world.time + 4;
       bus.emit('toast', { title: 'call.wrong.t', sub: 'call.wrong.s', kind: 'bad' });
@@ -1365,7 +1389,7 @@ export function createGame(container: HTMLElement): GameHandle {
 
     // 违规的喊停窗口 3.5 秒：过期没喊就教学提示；玩家自己撞人没自喊 = 扣分
     for (const v of viols) {
-      if (v.done || world.time - v.at <= 3.5) continue;
+      if (v.done || world.time - v.at <= violWindow()) continue;
       v.done = true;
       if (v.type === 'self-contact') spirit.missed++;
       coach(`miss-${v.type}`, 25);
@@ -1622,7 +1646,7 @@ export function createGame(container: HTMLElement): GameHandle {
       tipNext.clear();
       guide = false;
       spirit.correct = spirit.wrong = spirit.self = spirit.missed = 0;
-      tut = { step: 1, stepDone: false, advanceT: 0, retryT: 0, resetIn: 0, timer: 0, moved: 0, yawSum: 0, thrown: false, staged: false };
+      tut = { step: 1, stepDone: false, advanceT: 0, retryT: 0, resetIn: 0, timer: 0, moved: 0, yawSum: 0, thrown: false, staged: false, warned: false, hinted: false };
       setupTutStep(1);
       paused = true;
       emitHud();

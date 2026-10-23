@@ -1,6 +1,6 @@
 'use client';
 
-import { CODEX } from '@/game/codex';
+import { CODEX, textKey, titleKey } from '@/game/codex';
 import { useI18n } from '@/i18n/I18nProvider';
 
 export default function CodexPanel({ unlocked, onClose }: { unlocked: string[]; onClose: () => void }) {
@@ -21,8 +21,8 @@ export default function CodexPanel({ unlocked, onClose }: { unlocked: string[]; 
             const open = unlocked.includes(e.id);
             return (
               <article key={e.id} className={`codex-item${open ? '' : ' is-locked'}`}>
-                <h3>{open ? t(`tip.${e.tipKey}.t`) : '???'}</h3>
-                <p>{open ? t(`tip.${e.tipKey}.x`) : t('codex.locked')}</p>
+                <h3>{open ? t(titleKey(e)) : '???'}</h3>
+                <p>{open ? t(textKey(e)) : t('codex.locked')}</p>
               </article>
             );
           })}

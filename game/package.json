@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "calibrate": "tsx scripts/calibrate.ts"
+    "calibrate": "tsx scripts/calibrate.ts",
+    "check-lab": "tsx scripts/check-lab.ts"
   },
   "dependencies": {
     "next": "^14.2.15",
