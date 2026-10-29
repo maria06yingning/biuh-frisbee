@@ -15,17 +15,26 @@
 .aero-brand span{font-size:22px;color:var(--aero-accent)}
 .aero-header nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .aero-home .aero-primary{background:var(--aero-accent);color:white;border-radius:var(--aero-radius);padding:12px 22px;min-height:44px}
-.aero-hero{height:calc(100svh - var(--aero-header));min-height:540px;max-height:1100px;position:relative;isolation:isolate;max-width:var(--aero-max);margin:auto}
-.aero-eyebrow{display:flex;justify-content:space-between;position:absolute;top:30px;left:var(--aero-space);right:var(--aero-space);font-size:10px;letter-spacing:.14em;z-index:2;color:var(--aero-soft);pointer-events:none}
-.aero-object{position:absolute;inset:15px 0 72px;overflow:hidden}
+.aero-hero{height:calc(100svh - var(--aero-header));min-height:540px;max-height:1100px;position:relative;isolation:isolate;overflow:clip;max-width:var(--aero-max);margin:auto;background:#6b7d3d}
+.aero-hero::after{content:"";position:absolute;inset:55% 0 0;z-index:2;pointer-events:none;background:linear-gradient(transparent,rgba(13,30,14,.42))}
+.aero-eyebrow{display:flex;justify-content:space-between;position:absolute;top:30px;left:var(--aero-space);right:var(--aero-space);font-size:10px;letter-spacing:.14em;z-index:4;color:#20382c;pointer-events:none;text-shadow:0 1px 12px rgba(255,255,255,.8)}
+.aero-field{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#6b7d3d}
+.aero-field img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
+.aero-object{position:absolute;inset:0;z-index:3;overflow:hidden;touch-action:pan-y}
+.aero-object[data-interactive=true]{cursor:grab}
+.aero-object[data-interactive=true]:active{cursor:grabbing}
 .aero-object canvas{width:100%;height:100%;display:block;position:absolute;inset:0}
-.aero-fallback{position:absolute;inset:0;width:100%;height:100%}
+.aero-fallback{position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none}
+.aero-object[data-fallback=true] .aero-fallback{opacity:1}
 .aero-object[data-ready=true] .aero-fallback{display:none}
-.aero-hero-footer{position:absolute;bottom:12px;left:var(--aero-space);right:var(--aero-space);display:flex;justify-content:space-between;gap:20px;align-items:center}
+.aero-disc-hint{position:absolute;left:50%;bottom:98px;transform:translateX(-50%);padding:8px 14px;max-width:90%;white-space:nowrap;border:1px solid rgba(255,255,255,.24);border-radius:20px;background:rgba(19,40,23,.32);color:#fff;font-size:12px;letter-spacing:.025em;opacity:0;pointer-events:none;transition:opacity .45s ease}
+.aero-object[data-interactive=true] .aero-disc-hint{opacity:1}
+.aero-hint-touch{display:none}
+.aero-hero-footer{position:absolute;bottom:16px;left:var(--aero-space);right:var(--aero-space);z-index:4;display:flex;justify-content:space-between;gap:20px;align-items:center;color:#fff;text-shadow:0 1px 8px rgba(0,0,0,.25)}
 .aero-hero-footer p{font-size:clamp(16px,2vw,25px);margin:0;letter-spacing:-.035em}
 .aero-hero-footer>div{display:flex;align-items:center;gap:16px}
 .aero-hero-footer a{min-width:44px;font-size:24px}
-.aero-home .aero-motion{font-size:12px;color:var(--aero-soft);border:1px solid var(--aero-line);border-radius:var(--aero-radius)}
+.aero-home .aero-motion{font-size:12px;color:#fff;background:rgba(23,42,24,.28);border:1px solid rgba(255,255,255,.45);border-radius:var(--aero-radius);text-shadow:none;white-space:nowrap}
 .aero-intro{max-width:var(--aero-max);margin:0 auto;display:grid;grid-template-columns:repeat(12,minmax(0,1fr));gap:var(--aero-space);padding:96px var(--aero-space) 120px;border-top:1px solid var(--aero-line);scroll-margin-top:24px}
 .aero-label{grid-column:1/-1;font-size:12px;letter-spacing:.12em;color:var(--aero-soft)}
 .aero-intro h1{grid-column:1/8;font-size:var(--aero-title);font-weight:500;line-height:1.08;letter-spacing:-.065em;margin:24px 0}
@@ -34,5 +43,6 @@
 .aero-intro-side small{font-size:12px;line-height:1.7;color:var(--aero-soft);margin-top:12px}
 .aero-home .aero-text-link{padding-left:0}
 .aero-footer{padding:24px;max-width:var(--aero-max);margin:auto;border-top:1px solid var(--aero-line);display:flex;justify-content:space-between;gap:24px;font-size:12px;color:var(--aero-soft)}
-@media(max-width:768px){.aero-home{--aero-space:20px;--aero-header:116px}.aero-header{flex-direction:column;align-items:stretch;justify-content:center;gap:4px}.aero-header .aero-brand{justify-content:flex-start;align-self:flex-start}.aero-header nav{justify-content:space-between;gap:0}.aero-header button{font-size:12px;padding:8px}.aero-home .aero-header .aero-primary{padding:8px 14px}.aero-hero{min-height:470px}.aero-eyebrow{font-size:9px;gap:24px;line-height:1.5}.aero-object{inset:30px -5% 66px}.aero-intro{padding:64px 20px;grid-template-columns:1fr}.aero-intro h1,.aero-intro-side,.aero-label{grid-column:1}.aero-intro-side{max-width:480px}.aero-hero-footer{gap:8px}.aero-hero-footer>div{gap:4px}.aero-hero-footer p{max-width:45%}.aero-footer{flex-wrap:wrap}}
-@media(prefers-reduced-motion:reduce){.aero-home a,.aero-home button{transition:none}}
+@media(max-width:768px){.aero-home{--aero-space:20px;--aero-header:116px}.aero-header{flex-direction:column;align-items:stretch;justify-content:center;gap:4px}.aero-header .aero-brand{justify-content:flex-start;align-self:flex-start}.aero-header nav{justify-content:space-between;gap:0}.aero-header button{font-size:12px;padding:8px}.aero-home .aero-header .aero-primary{padding:8px 14px}.aero-hero{min-height:470px}.aero-eyebrow{font-size:9px;gap:24px;line-height:1.5}.aero-object{inset:0}.aero-intro{padding:64px 20px;grid-template-columns:1fr}.aero-intro h1,.aero-intro-side,.aero-label{grid-column:1}.aero-intro-side{max-width:480px}.aero-hero-footer{gap:8px;flex-wrap:wrap;bottom:16px}.aero-hero-footer>div{gap:6px}.aero-hero-footer p{max-width:100%;font-size:17px}.aero-home .aero-motion{padding:8px 10px}.aero-disc-hint{bottom:130px;font-size:11px}.aero-footer{flex-wrap:wrap}}
+@media(pointer:coarse){.aero-hint-desktop{display:none}.aero-hint-touch{display:inline}}
+@media(prefers-reduced-motion:reduce){.aero-home a,.aero-home button,.aero-disc-hint{transition:none}}

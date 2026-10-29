@@ -141,6 +141,9 @@ export function createGame(container: HTMLElement): GameHandle {
   const spirit = { correct: 0, wrong: 0, self: 0, missed: 0 };
   let selfContactT = 0;
   let selfContactNext = 0;
+  // 严重犯规回盘：持盘者在被贴身犯规（throwing foul）的状态下传出、且传球被换攻时，
+  // 喊对犯规可以把盘判回原持盘者（WFDF 17.6「传球犯规且影响了结果」）
+  let throwFoul: { spot: { x: number; z: number }; at: number; called: boolean } | null = null;
   // 新手教程
   const TUT_TOTAL = 7;
   let tut: {
@@ -474,6 +477,7 @@ export function createGame(container: HTMLElement): GameHandle {
     const puller = agents.find((a) => a.team === otherTeam(receiving)) as Agent; // 玩家方开盘时默认是玩家本人
     world.dirA = rules.dirA;
     chain = 0;
+    throwFoul = null;
     world.frozen = delay > 0; // 新一回合先"各就各位"
     world.readyT = delay;
     world.rush = 0; // 开盘踢出后，防守方才开始冲回来
@@ -523,6 +527,7 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   function afterThrow(thrower: Agent): void {
+    const wasPull = world.pullPending;
     if (world.pullPending) {
       // 开盘踢出：另一方成为进攻方，踢盘方开始冲回来盯人
       world.pullPending = false;
@@ -554,6 +559,11 @@ export function createGame(container: HTMLElement): GameHandle {
       charging = false;
       guide = false;
     }
+    // 出手瞬间若正被贴身犯规（防守方），记下出手点，供换攻后喊对回盘
+    throwFoul =
+      thrower.isUser && !wasPull && activeContactFoulOnUser()
+        ? { spot: { x: thrower.pos.x, z: thrower.pos.z }, at: world.time, called: false }
+        : null;
   }
 
   /* ───────── 接盘 / 拦截 / 封堵判定 ───────── */
@@ -1166,11 +1176,47 @@ export function createGame(container: HTMLElement): GameHandle {
     a.vel.set(0, 0, 0);
   }
 
-  /** F：喊违规。喊对加分并让违规方退开；没有违规就是乱喊，扣分 */
+  /** 持盘者（玩家）身上还没被喊出的防守方贴身犯规：犯规者此刻必须还贴在玩家身边（犯规影响了出手） */
+  function activeContactFoulOnUser(): (typeof viols)[number] | undefined {
+    return viols.find((v) => {
+      if (v.done || v.type !== 'contact' || world.time - v.at > violWindow()) return false;
+      const o = agents[v.id];
+      return o.team === 1 && Math.hypot(o.pos.x - user.pos.x, o.pos.z - user.pos.z) < 0.8;
+    });
+  }
+
+  /** 传球已经或必定换攻：盘落地 / 被对手拿到 / 被拍落正在掉下来 */
+  const turnoverNow = (): boolean =>
+    !world.pullPending &&
+    (world.loose || (world.holder !== null && world.holder.team === 1) || (disc.mode === 'flying' && disc.dead));
+
+  /** 回盘：撤销这次换攻，把盘判回原持盘者的出手点，数秒从 1 重数 */
+  function returnDiscToThrower(spot: { x: number; z: number }): void {
+    user.pos.set(spot.x, 0, spot.z);
+    clampToField(user.pos);
+    giveDisc(user);
+    for (const a of agents) a.cheat = 0; // 刚回盘别立刻又来一次随机犯规
+    rules.stallElapsed = 0;
+    world.stallElapsed = 0;
+    chain = 0;
+    pickupReadyAt = world.time + 0.3;
+    throwFoul = null;
+  }
+
+  /** F：喊违规。喊对加分并让违规方退开；没有违规就是乱喊，扣分
+   *  数秒怎么恢复按 WFDF 规则，不是一律重数：
+   *  · 双防（盯防违例 18.1.3）：数秒减 2 秒继续
+   *  · 带盘走（18.2.5）：回到原地，数秒从暂停处继续
+   *  · 防守方贴身犯规（17.6）：数秒从 1 重数；若犯规时传出的球被换攻 → 盘回到传球者
+   *  · 自己的犯规（进攻方，9.5.2）：数秒最多回到 9，不会因为犯规反而多出时间 */
   function callFoul(): void {
     if (rules.phase !== 'playing' || world.frozen || world.time < callCD) return;
     bus.emit('codex', { id: 'spirit' });
-    const v = viols.find((x) => !x.done && world.time - x.at <= violWindow());
+    const open = (x: (typeof viols)[number]) => !x.done && world.time - x.at <= violWindow();
+    // 有「被犯规时出手」的传球时，优先处理那次贴身犯规
+    const v =
+      (throwFoul ? viols.find((x) => open(x) && x.type === 'contact' && agents[x.id].team === 1) : undefined) ??
+      viols.find(open);
     if (!v) {
       if (tut) {
         bus.emit('toast', { title: 'tut.early.t', sub: 'tut.early.s', kind: 'info' });
@@ -1185,9 +1231,38 @@ export function createGame(container: HTMLElement): GameHandle {
     v.done = true;
     callCD = world.time + 1.5;
     hitStop(0.08, 0.15);
-    rules.stallElapsed = 0; // 数秒重来
+
+    // 严重犯规回盘（WFDF 17.6）：被贴身犯规时出手的传球
+    //  · 已经被断 / 拍落 / 掉地 → 撤销换攻，盘回到传球者，数秒从 1 重数
+    //  · 盘还在空中 → 等结果：失误就回盘，传成了结果成立
+    //  · 已经传成 → 结果成立
+    if (
+      !tut &&
+      v.type === 'contact' &&
+      throwFoul &&
+      v.at <= throwFoul.at && // 犯规发生在出手之前，才算影响了这次传球
+      world.holder !== user &&
+      world.time - throwFoul.at <= violWindow()
+    ) {
+      spirit.correct++;
+      agents[v.id].cheat = 0;
+      if (turnoverNow()) {
+        returnDiscToThrower(throwFoul.spot);
+        bus.emit('toast', { title: 'call.ok.contactReturn.t', sub: 'call.ok.contactReturn.s', kind: 'good' });
+      } else if (disc.mode === 'flying') {
+        throwFoul.called = true;
+        bus.emit('toast', { title: 'call.ok.contactReturn.t', sub: 'call.ok.contactAir.s', kind: 'info' });
+      } else {
+        throwFoul = null;
+        bus.emit('toast', { title: 'call.ok.contactReturn.t', sub: 'call.ok.contactStands.s', kind: 'info' });
+      }
+      emitHud();
+      return;
+    }
+
     if (v.type === 'self-contact') {
       spirit.self++;
+      rules.stallElapsed = Math.min(rules.stallElapsed, 9); // 进攻方犯规：数秒最多回到 9
       let near: Agent | null = null;
       let nd = Infinity;
       for (const o of agents) {
@@ -1204,10 +1279,12 @@ export function createGame(container: HTMLElement): GameHandle {
       spirit.correct++;
       const culprit = agents[v.id];
       if (v.type === 'travel') {
-        culprit.pos.set(culprit.ox, 0, culprit.oz); // 回到原地
+        culprit.pos.set(culprit.ox, 0, culprit.oz); // 回到原地；数秒不重数，从暂停处继续
       } else {
         const from = world.holder ? world.holder.pos : user.pos; // 多出来的人退开
         pushAway(culprit, from, 3.5);
+        if (v.type === 'double') rules.stallElapsed = Math.max(0, rules.stallElapsed - 2); // 盯防违例：减 2 秒
+        else rules.stallElapsed = 0; // 防守方贴身犯规：从 1 重数
       }
       culprit.cheat = 0;
       const key = v.type === 'double' ? 'double' : v.type === 'travel' ? 'travel' : 'contact';
@@ -1427,6 +1504,16 @@ export function createGame(container: HTMLElement): GameHandle {
           }
         }
         if (disc.mode !== 'flying') discAcc = 0;
+      }
+    }
+
+    // 在空中就喊了传球犯规：盘一有结果就处理——失误则回盘，传成则结果成立
+    if (throwFoul && throwFoul.called && (disc.mode !== 'flying' || disc.dead)) {
+      if (turnoverNow()) {
+        returnDiscToThrower(throwFoul.spot);
+        bus.emit('toast', { title: 'call.ok.contactReturn.t', sub: 'call.ok.contactReturn.s', kind: 'good' });
+      } else {
+        throwFoul = null;
       }
     }
   }

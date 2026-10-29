@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import GlassDisc from './GlassDisc';
+import SunlitField from './SunlitField';
 import { useI18n } from '@/i18n/I18nProvider';
 import '@/styles/aero-home.css';
 
@@ -8,6 +9,8 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
   const { lang, setLang } = useI18n();
   const zh = lang === 'zh';
   const [paused, setPaused] = useState(false);
+  const [replayToken, setReplayToken] = useState(0);
+  const replayFlight = () => { setPaused(false); setReplayToken(value => value + 1); };
   return <main className="aero-home">
     <a className="aero-skip" href="#aero-intro">{zh ? '跳至介绍' : 'Skip to introduction'}</a>
     <header className="aero-header">
@@ -21,10 +24,11 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
     </header>
     <section className="aero-hero" id="aero-top" aria-label={zh ? '飞盘首页' : 'Ultimate Field home'}>
       <div className="aero-eyebrow"><span>ULTIMATE FIELD</span><span>01 — {zh ? '一次出手，无数可能' : 'ONE THROW. EVERY POSSIBILITY.'}</span></div>
-      <GlassDisc paused={paused}/>
+      <SunlitField/>
+      <GlassDisc paused={paused} replayToken={replayToken}/>
       <div className="aero-hero-footer">
         <p>{zh ? '一张盘，让一切开始。' : 'It starts with a disc.'}</p>
-        <div><button className="aero-motion" aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? (zh ? '继续动效' : 'Resume motion') : (zh ? '暂停动效' : 'Pause motion')}</button><a href="#aero-intro" aria-label={zh ? '向下探索' : 'Explore below'}>↓</a></div>
+        <div><button className="aero-motion" onClick={replayFlight}>{zh ? '重放飞行' : 'Replay flight'}</button><button className="aero-motion" aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? (zh ? '继续动效' : 'Resume motion') : (zh ? '暂停动效' : 'Pause motion')}</button><a href="#aero-intro" aria-label={zh ? '向下探索' : 'Explore below'}>↓</a></div>
       </div>
     </section>
     <section className="aero-intro" id="aero-intro">
