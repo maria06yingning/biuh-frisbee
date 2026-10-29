@@ -1,0 +1,795 @@
+/* ─────────────────────────────────────────────────────────────
+ * 叙事首页（Story）：滚动驱动的连续场景
+ *
+ * 与游戏内的「粗墨线 + 硬阴影」不同，这一层用：
+ *   天空蓝 / 暖奶油 / 草地绿 / 墨蓝，青柠与珊瑚只做点缀
+ *   细发丝边框的磨砂玻璃、编辑感的巨大字号、手写批注
+ *   图形化的"摄影位"（分层色块 + 排线 + 硬投影），不使用照片
+ * 所有颜色都留在顶部令牌里，想改配色先改这里。
+ * ───────────────────────────────────────────────────────────── */
+
+@font-face {
+  font-family: 'UF Display';
+  src: url('/fonts/archivo-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UF Serif';
+  src: url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2');
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UF Hand';
+  src: url('/fonts/caveat-latin-700-normal.woff2') format('woff2');
+  font-weight: 700;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'UF Mono';
+  src: url('/fonts/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
+  font-weight: 100 800;
+  font-display: swap;
+}
+
+.uf {
+  --uf-sky: #bfdcf2;
+  --uf-sky-hi: #e6f1fa;
+  --uf-sky-lo: #7fa9cf;
+  --uf-cream: #f7f0df;
+  --uf-paper: #fffaf0;
+  --uf-grass: #86a95f;
+  --uf-grass-lo: #5d7f47;
+  --uf-grass-hi: #a8c47b;
+  --uf-ink: #15263a;
+  --uf-ink-soft: rgba(21, 38, 58, 0.66);
+  --uf-lime: #d3ec6d;
+  --uf-coral: #ff8163;
+  --uf-hair: rgba(21, 38, 58, 0.14);
+  --uf-hair-light: rgba(247, 240, 223, 0.34);
+  --uf-glass: rgba(255, 252, 244, 0.46);
+  --uf-glass-line: rgba(255, 255, 255, 0.55);
+  --uf-shadow-soft: 0 18px 40px -24px rgba(21, 38, 58, 0.55);
+  --uf-shadow-lift: 0 30px 70px -34px rgba(21, 38, 58, 0.6);
+
+  --uf-sans: 'UF Display', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', system-ui, sans-serif;
+  --uf-serif: 'UF Serif', 'Songti SC', 'Times New Roman', serif;
+  --uf-hand: 'UF Hand', 'Kaiti SC', 'STKaiti', cursive;
+  --uf-mono: 'UF Mono', ui-monospace, 'SF Mono', monospace;
+
+  position: relative;
+  background: var(--uf-cream);
+  color: var(--uf-ink);
+  font-family: var(--uf-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+.uf ::selection { background: var(--uf-lime); color: var(--uf-ink); }
+
+/* 跳过导航：键盘用户直接进入正文 */
+.uf-skip {
+  position: absolute; left: 12px; top: -80px; z-index: 60;
+  padding: 10px 16px; border-radius: 999px;
+  background: var(--uf-ink); color: var(--uf-cream);
+  font-size: 13px; font-weight: 600; text-decoration: none;
+  transition: top 0.18s ease;
+}
+.uf-skip:focus-visible { top: 12px; }
+
+/* ───────── 玻璃 ───────── */
+.uf-glass {
+  background: var(--uf-glass);
+  border: 1px solid var(--uf-glass-line);
+  border-radius: 22px;
+  -webkit-backdrop-filter: blur(18px) saturate(1.25);
+  backdrop-filter: blur(18px) saturate(1.25);
+  box-shadow: var(--uf-shadow-soft), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+.uf-glass-dark {
+  background: rgba(21, 38, 58, 0.42);
+  border-color: var(--uf-hair-light);
+  color: var(--uf-cream);
+  box-shadow: var(--uf-shadow-lift), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+}
+
+/* ───────── 悬浮导航 ───────── */
+.uf-nav {
+  position: fixed; left: 50%; top: 18px; z-index: 40;
+  width: min(1180px, calc(100% - 32px));
+  transform: translateX(-50%);
+  display: flex; align-items: center; gap: 18px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 999px;
+  color: var(--uf-ink);
+}
+.uf-brand {
+  display: flex; align-items: center; gap: 9px;
+  font-size: 14px; font-weight: 800; letter-spacing: 0.01em;
+  color: inherit; text-decoration: none; white-space: nowrap;
+}
+.uf-brand svg { width: 30px; height: 17px; overflow: visible; }
+.uf-brand svg ellipse { fill: none; stroke: currentColor; stroke-width: 1.6; }
+.uf-brand svg ellipse:first-child { fill: rgba(255, 255, 255, 0.5); }
+
+.uf-nav nav { flex: 1; min-width: 0; }
+.uf-nav ul {
+  display: flex; align-items: center; justify-content: center; gap: 2px;
+  margin: 0; padding: 0; list-style: none;
+  overflow-x: auto; scrollbar-width: none;
+}
+.uf-nav ul::-webkit-scrollbar { display: none; }
+.uf-nav li { flex: none; }
+.uf-nav li a {
+  display: inline-block; padding: 7px 12px; border-radius: 999px;
+  color: var(--uf-ink-soft); text-decoration: none;
+  font-size: 13px; font-weight: 600; white-space: nowrap;
+  transition: color 0.16s ease, background-color 0.16s ease;
+}
+.uf-nav li a:hover { color: var(--uf-ink); background: rgba(255, 255, 255, 0.42); }
+.uf-nav li a[aria-current='true'] {
+  color: var(--uf-ink);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.8);
+}
+.uf-nav-actions { display: flex; align-items: center; gap: 8px; }
+
+.uf-chip {
+  appearance: none; cursor: pointer;
+  padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--uf-hair);
+  background: rgba(255, 255, 255, 0.34);
+  color: var(--uf-ink);
+  font-family: inherit; font-size: 12.5px; font-weight: 700; letter-spacing: 0.02em;
+  transition: background-color 0.16s ease, transform 0.16s ease, border-color 0.16s ease;
+}
+.uf-chip:hover { background: rgba(255, 255, 255, 0.7); }
+.uf-chip-solid {
+  background: var(--uf-ink); border-color: var(--uf-ink); color: var(--uf-cream);
+}
+.uf-chip-solid:hover { background: #20364f; transform: translateY(-1px); }
+
+/* ───────── 开场：天空 → 飞盘 → 球场 ───────── */
+.uf-hero { position: relative; height: 320vh; overflow: hidden; }
+.uf-stage {
+  position: sticky; top: 0;
+  height: 100svh; min-height: 520px;
+  overflow: hidden;
+  isolation: isolate;
+  background: var(--uf-sky);
+}
+
+/* 天空：分层的柔和光带，靠 transform 做镜头下摇 */
+.uf-plate { position: absolute; inset: -6% -6% -6%; will-change: transform, opacity; }
+.uf-plate-sky {
+  inset: -10% -6% -10%;
+  background:
+    radial-gradient(120% 60% at 74% -10%, rgba(255, 250, 235, 0.92) 0%, rgba(255, 250, 235, 0) 58%),
+    radial-gradient(90% 50% at 18% 8%, rgba(255, 255, 255, 0.55) 0%, rgba(255, 255, 255, 0) 62%),
+    linear-gradient(178deg, var(--uf-sky-hi) 0%, var(--uf-sky) 44%, #a9c9e4 72%, var(--uf-sky-lo) 100%);
+}
+/* 云：两层错开的椭圆，用模糊边缘做体积感，不用图片 */
+.uf-plate-sky::before,
+.uf-plate-sky::after {
+  content: ''; position: absolute; left: 0; right: 0;
+  background-repeat: no-repeat;
+  pointer-events: none;
+}
+.uf-plate-sky::before {
+  top: 12%; height: 46%;
+  background-image:
+    radial-gradient(closest-side, rgba(255, 252, 246, 0.95) 62%, rgba(255, 252, 246, 0) 100%),
+    radial-gradient(closest-side, rgba(255, 250, 240, 0.8) 60%, rgba(255, 250, 240, 0) 100%),
+    radial-gradient(closest-side, rgba(255, 255, 255, 0.62) 58%, rgba(255, 255, 255, 0) 100%);
+  background-size: 42vw 20vh, 30vw 14vh, 24vw 10vh;
+  background-position: 12% 18%, 62% 4%, 84% 46%;
+  filter: blur(0.5px);
+  opacity: 0.9;
+}
+.uf-plate-sky::after {
+  bottom: 0; height: 30%;
+  background-image:
+    radial-gradient(closest-side, rgba(255, 251, 240, 0.55) 60%, rgba(255, 251, 240, 0) 100%),
+    radial-gradient(closest-side, rgba(255, 255, 255, 0.4) 60%, rgba(255, 255, 255, 0) 100%);
+  background-size: 56vw 22vh, 38vw 16vh;
+  background-position: 40% 90%, 76% 70%;
+  filter: blur(1px);
+}
+
+/* 草地：一排排越来越密的草叶，越靠下越暗 */
+.uf-plate-field {
+  inset: 0;
+  background:
+    radial-gradient(120% 80% at 50% 120%, rgba(21, 38, 58, 0.4) 0%, rgba(21, 38, 58, 0) 62%),
+    linear-gradient(180deg, var(--uf-grass-hi) 0%, var(--uf-grass) 38%, var(--uf-grass-lo) 100%);
+}
+.uf-plate-field::before {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(96deg, rgba(255, 255, 255, 0.1) 0 2px, rgba(255, 255, 255, 0) 2px 9px);
+  opacity: 0.5;
+}
+.uf-plate-field::after {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(247, 240, 223, 0.5) 0%, rgba(247, 240, 223, 0) 34%);
+}
+
+/* 全局光晕 / 暗角，把天空和草地压成一个镜头 */
+.uf-stage-grade {
+  position: absolute; inset: 0; z-index: 3; pointer-events: none;
+  background:
+    radial-gradient(120% 90% at 50% 22%, rgba(255, 252, 240, 0.34) 0%, rgba(255, 252, 240, 0) 58%),
+    radial-gradient(140% 120% at 50% 50%, rgba(21, 38, 58, 0) 46%, rgba(21, 38, 58, 0.42) 100%);
+  mix-blend-mode: multiply;
+}
+
+.uf-scene {
+  position: absolute; inset: 0; z-index: 2;
+  width: 100%; height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* 场地线 */
+.uf-lines path {
+  fill: none;
+  stroke: rgba(255, 252, 240, 0.9);
+  stroke-width: 2.4;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 1px 0 rgba(21, 38, 58, 0.25));
+}
+.uf-lines .uf-bricks { stroke-width: 2; stroke-opacity: 0.75; }
+.uf-ez { fill: var(--uf-lime); opacity: 0; }
+
+/* 飞盘 */
+.uf-flight-ghost {
+  fill: none;
+  stroke: rgba(255, 252, 240, 0.42);
+  stroke-width: 1.4;
+  stroke-dasharray: 3 9;
+  stroke-linecap: round;
+}
+.uf-trail {
+  fill: none;
+  stroke: var(--uf-cream);
+  stroke-width: 3.4;
+  stroke-linecap: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  filter: drop-shadow(0 2px 6px rgba(255, 250, 235, 0.55));
+}
+.uf-shadow { fill: rgba(21, 38, 58, 0.55); }
+.uf-ripple { fill: none; stroke: var(--uf-cream); stroke-width: 1.6; opacity: 0; }
+.uf-disc { opacity: 0; }
+.uf-disc-body { fill: var(--uf-cream); stroke: var(--uf-ink); stroke-width: 2.6; }
+.uf-disc-ring { fill: none; stroke: var(--uf-ink); stroke-width: 2; opacity: 0.55; }
+.uf-disc-spin { fill: none; stroke: var(--uf-coral); stroke-width: 1.6; stroke-dasharray: 6 10; opacity: 0.8; }
+
+/* 手写标注 */
+.uf-notes { position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: 0; }
+.uf-note {
+  position: absolute; transform: translate(-50%, -50%);
+  font-family: var(--uf-hand); font-size: 21px; line-height: 1.15;
+  color: var(--uf-ink); white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(255, 250, 235, 0.75);
+}
+.uf-note-len {
+  font-family: var(--uf-mono); font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: rgba(21, 38, 58, 0.7);
+}
+.uf-note-ez {
+  display: inline-block; padding: 5px 12px; border-radius: 999px;
+  font-family: var(--uf-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--uf-ink);
+}
+.uf-note-catch { display: grid; justify-items: center; gap: 2px; }
+.uf-note-catch svg { width: 96px; height: 60px; overflow: visible; }
+.uf-note-catch svg path {
+  fill: none; stroke: var(--uf-ink); stroke-width: 1.8;
+  stroke-linecap: round; stroke-linejoin: round;
+  stroke-dasharray: 1; stroke-dashoffset: calc(1 - var(--draw, 0));
+  opacity: 0.8;
+}
+.uf-note-catch em { font-style: normal; font-size: 20px; }
+
+/* 文案：每块由滚动区间控制，位置固定在视觉舞台的安全区 */
+.uf-copy { position: absolute; inset: 0; z-index: 5; pointer-events: none; }
+.uf-copy > div { position: absolute; opacity: 0; visibility: hidden; will-change: transform, opacity; }
+.uf-copy [data-range] > * { pointer-events: auto; }
+.uf-copy a, .uf-copy button { pointer-events: auto; }
+
+.uf-copy-intro {
+  left: clamp(20px, 7vw, 110px); top: 0; bottom: 0;
+  width: min(560px, 82vw);
+  display: flex; flex-direction: column; justify-content: center;
+}
+.uf-kicker {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin: 0 0 22px;
+  font-family: var(--uf-mono); font-size: 11.5px; font-weight: 600;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--uf-ink-soft);
+}
+.uf-kicker::before {
+  content: ''; width: 26px; height: 1px; background: currentColor; opacity: 0.7;
+}
+.uf-display {
+  margin: 0;
+  font-size: clamp(52px, 12vw, 148px);
+  font-weight: 800; line-height: 0.86; letter-spacing: -0.045em;
+  text-transform: uppercase;
+  color: var(--uf-ink);
+}
+.uf-serif {
+  display: inline-block;
+  font-family: var(--uf-serif); font-style: italic; font-weight: 400;
+  letter-spacing: -0.02em; text-transform: none;
+  color: var(--uf-ink);
+  padding-right: 0.06em;
+}
+.uf-lede {
+  margin: 26px 0 0; max-width: 30em;
+  font-size: clamp(15px, 1.15vw, 17px); line-height: 1.75; font-weight: 500;
+  color: rgba(21, 38, 58, 0.78);
+}
+.uf-scroll-cue {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-top: 34px;
+  font-family: var(--uf-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: rgba(21, 38, 58, 0.6);
+}
+.uf-scroll-cue i {
+  position: relative; width: 1px; height: 44px; overflow: hidden;
+  background: rgba(21, 38, 58, 0.22);
+}
+.uf-scroll-cue i::after {
+  content: ''; position: absolute; left: 0; top: 0; width: 1px; height: 14px;
+  background: var(--uf-ink);
+  animation: uf-cue 1.9s cubic-bezier(0.6, 0, 0.3, 1) infinite;
+}
+@keyframes uf-cue {
+  0% { transform: translateY(-14px); }
+  60%, 100% { transform: translateY(44px); }
+}
+
+/* 01 开盘 */
+.uf-copy-pull {
+  left: clamp(20px, 7vw, 110px); bottom: clamp(48px, 12vh, 140px);
+  width: min(430px, 84vw);
+  display: grid; gap: 14px;
+}
+.uf-bignum {
+  font-family: var(--uf-serif); font-style: italic;
+  font-size: clamp(64px, 7vw, 104px); line-height: 0.7;
+  color: var(--uf-ink); opacity: 0.28;
+}
+.uf-bignum-light { color: var(--uf-cream); opacity: 0.5; }
+.uf-h2 {
+  margin: 0;
+  font-size: clamp(24px, 2.4vw, 34px); font-weight: 800; line-height: 1.22;
+  letter-spacing: -0.02em;
+}
+.uf-h2-lg { font-size: clamp(30px, 4vw, 54px); line-height: 1.1; letter-spacing: -0.03em; }
+.uf-copy-pull p { margin: 0; font-size: 15.5px; line-height: 1.72; font-weight: 500; color: rgba(21, 38, 58, 0.76); max-width: 26em; }
+
+/* 02 球场 */
+.uf-copy-field {
+  right: clamp(20px, 7vw, 110px); bottom: clamp(40px, 10vh, 120px);
+  width: min(420px, 84vw);
+  display: grid; gap: 16px; justify-items: end;
+  text-align: left;
+}
+.uf-panel { padding: 22px 24px; }
+.uf-panel .uf-h2 { color: inherit; }
+.uf-panel p { margin: 12px 0 0; font-size: 15px; line-height: 1.72; font-weight: 500; }
+.uf-panel.uf-glass:not(.uf-glass-dark) p { color: rgba(21, 38, 58, 0.78); }
+.uf-panel.uf-glass-dark p { color: rgba(247, 240, 223, 0.85); }
+
+/* ───────── 段落通用 ───────── */
+.uf-sec { position: relative; padding: clamp(72px, 12vh, 150px) 0; scroll-margin-top: 92px; }
+.uf-wrap { width: min(1180px, calc(100% - 40px)); margin: 0 auto; }
+.uf-split {
+  display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+  gap: clamp(28px, 5vw, 72px); align-items: start;
+}
+
+.uf-hand {
+  margin: 16px 0 0;
+  font-family: var(--uf-hand); font-size: 22px; line-height: 1.3;
+  color: var(--uf-ink-soft);
+}
+.uf-hand-ink { color: var(--uf-ink); opacity: 0.72; }
+.uf-muted { color: var(--uf-ink-soft) !important; }
+.uf-small { margin: 18px 0 0; font-size: 12.5px; font-weight: 500; opacity: 0.62; }
+
+/* 纸胶带 */
+.uf-tape {
+  position: absolute; display: block; height: 26px;
+  background: linear-gradient(180deg, rgba(211, 236, 109, 0.78), rgba(211, 236, 109, 0.62));
+  border-left: 1px dashed rgba(21, 38, 58, 0.18);
+  border-right: 1px dashed rgba(21, 38, 58, 0.18);
+  box-shadow: 0 2px 6px -3px rgba(21, 38, 58, 0.5);
+  mix-blend-mode: multiply;
+}
+
+/* ───────── 入门：三个数字 + 拼贴 ───────── */
+.uf-basics { background: linear-gradient(180deg, var(--uf-cream) 0%, #f3edda 100%); }
+.uf-basics .uf-wrap { display: grid; gap: clamp(24px, 4vw, 44px); }
+.uf-numbers {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(10px, 2vw, 26px);
+  margin: 0; padding: 26px 0 0;
+  border-top: 1px solid var(--uf-hair);
+}
+.uf-numbers > div { display: grid; gap: 8px; align-content: start; }
+.uf-numbers dt {
+  font-size: clamp(56px, 8vw, 116px); font-weight: 800; line-height: 0.82;
+  letter-spacing: -0.05em; color: var(--uf-ink);
+}
+.uf-numbers > div:nth-child(2) dt { color: var(--uf-grass-lo); }
+.uf-numbers > div:nth-child(3) dt { color: var(--uf-coral); }
+.uf-numbers dd {
+  margin: 0; max-width: 15em;
+  font-size: 14px; line-height: 1.6; font-weight: 500;
+  color: rgba(21, 38, 58, 0.74);
+}
+
+/* 拼贴：分层色块做的"照片位"，配手绘球员剪影 */
+.uf-collage {
+  position: relative; margin: 0;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.62fr);
+  gap: clamp(12px, 2vw, 22px); align-items: end;
+}
+.uf-collage > .uf-art-main {
+  position: relative;
+  display: block;
+  padding: clamp(18px, 3vw, 34px) clamp(14px, 3vw, 30px) 0;
+  border-radius: 20px 20px 6px 6px;
+  background:
+    radial-gradient(120% 80% at 30% 0%, rgba(255, 252, 240, 0.7) 0%, rgba(255, 252, 240, 0) 60%),
+    linear-gradient(180deg, var(--uf-sky-hi) 0%, var(--uf-sky) 46%, var(--uf-grass) 100%);
+  box-shadow: var(--uf-shadow-lift);
+  overflow: hidden;
+  transform: rotate(-1.2deg);
+}
+.uf-collage > .uf-art-main::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(21, 38, 58, 0.16) 1px, transparent 1.4px);
+  background-size: 5px 5px;
+  opacity: 0.4; mix-blend-mode: multiply;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, #000 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, #000 100%);
+}
+.uf-collage > .uf-art-side {
+  position: relative;
+  display: block;
+  padding: 14px 12px 0;
+  border-radius: 8px;
+  background: var(--uf-paper);
+  border: 1px solid var(--uf-hair);
+  box-shadow: var(--uf-shadow-soft);
+  transform: rotate(2.4deg) translateY(-18px);
+}
+.uf-collage .uf-tape { top: -12px; left: 50%; transform-origin: center; }
+.uf-collage figcaption {
+  grid-column: 1 / -1;
+  margin: 4px 0 0;
+  text-align: right;
+}
+.uf-art-main svg, .uf-art-side svg { display: block; width: 100%; height: auto; }
+
+/* 手绘素材的共用笔触 */
+.art-ink { stroke: var(--uf-ink); }
+.art-ink-fill { stroke: var(--uf-ink); fill: none; }
+.art-ink-fill-none { fill: none; stroke: var(--uf-ink); }
+.art-ground { fill: rgba(21, 38, 58, 0.18); }
+.art-dash { stroke: var(--uf-coral); stroke-dasharray: 3 5; }
+.art-ez { fill: var(--uf-lime); opacity: 0.55; }
+.art-play { fill: rgba(134, 169, 95, 0.45); }
+.art-label {
+  font-family: var(--uf-mono); font-size: 11px; font-weight: 600;
+  letter-spacing: 0.12em; fill: rgba(21, 38, 58, 0.72);
+}
+
+/* ───────── 规则：列表 + 场地剖面 ───────── */
+.uf-rules { background: #f3edda; }
+.uf-rules .uf-wrap > header { position: sticky; top: 108px; }
+.uf-rule-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0; }
+.uf-rule-list li {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr);
+  gap: clamp(10px, 2vw, 24px);
+  padding: 26px 0;
+  border-top: 1px solid var(--uf-hair);
+}
+.uf-rule-list li:last-child { border-bottom: 1px solid var(--uf-hair); }
+.uf-rule-n {
+  font-family: var(--uf-serif); font-style: italic;
+  font-size: 40px; line-height: 1; color: var(--uf-sky-lo); opacity: 0.9;
+}
+.uf-rule-list h3 { margin: 0 0 8px; font-size: clamp(19px, 1.6vw, 23px); font-weight: 800; letter-spacing: -0.01em; }
+.uf-rule-list p { margin: 0; font-size: 15px; line-height: 1.72; font-weight: 500; color: rgba(21, 38, 58, 0.76); max-width: 34em; }
+.uf-ruler { margin: 40px 0 0; }
+.uf-ruler svg { width: 100%; height: auto; }
+
+/* ───────── 犯规：三段情况卡 ───────── */
+.uf-fouls { background: linear-gradient(180deg, #f3edda 0%, var(--uf-cream) 100%); }
+.uf-fouls .uf-wrap { display: grid; gap: clamp(26px, 5vw, 48px); }
+.uf-fouls .uf-wrap > .uf-h2-lg { max-width: 18em; }
+.uf-foul-row {
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: clamp(14px, 2vw, 24px);
+}
+.uf-foul {
+  position: relative;
+  padding: 26px 24px 26px;
+  border-radius: 20px;
+  background: var(--uf-paper);
+  border: 1px solid var(--uf-hair);
+  box-shadow: var(--uf-shadow-soft);
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.uf-foul:hover { transform: translateY(-3px); box-shadow: var(--uf-shadow-lift); }
+.uf-foul:nth-child(2) { transform: translateY(18px); }
+.uf-foul:nth-child(2):hover { transform: translateY(15px); }
+.uf-foul-n {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; margin-bottom: 16px;
+  border-radius: 50%;
+  background: var(--uf-ink); color: var(--uf-cream);
+  font-family: var(--uf-mono); font-size: 13px; font-weight: 700;
+}
+.uf-foul:nth-child(1) .uf-foul-n { background: var(--uf-coral); color: var(--uf-ink); }
+.uf-foul:nth-child(3) .uf-foul-n { background: var(--uf-lime); color: var(--uf-ink); }
+.uf-foul h3 { margin: 0 0 10px; font-size: 19px; font-weight: 800; line-height: 1.3; }
+.uf-foul p { margin: 0; font-size: 14px; line-height: 1.7; font-weight: 500; color: rgba(21, 38, 58, 0.76); }
+.uf-fouls .uf-wrap > .uf-duo {
+  display: grid; grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr);
+  gap: clamp(16px, 3vw, 34px); align-items: end;
+}
+.uf-duo svg { display: block; width: 100%; height: auto; }
+
+/* ───────── 体育精神：整幅暗场 ───────── */
+.uf-spirit {
+  position: relative; overflow: hidden;
+  color: var(--uf-cream);
+  background: var(--uf-ink);
+  padding: clamp(84px, 14vh, 168px) 0;
+}
+/* "摄影位"：暗场里的光带与人群剪影，全部用渐变和重复色块 */
+.uf-spirit-photo {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(80% 60% at 78% 12%, rgba(191, 220, 242, 0.35) 0%, rgba(191, 220, 242, 0) 62%),
+    radial-gradient(70% 50% at 12% 92%, rgba(211, 236, 109, 0.22) 0%, rgba(211, 236, 109, 0) 64%),
+    repeating-linear-gradient(90deg, rgba(247, 240, 223, 0.06) 0 1px, rgba(247, 240, 223, 0) 1px 64px);
+  background-color: #17293d;
+}
+.uf-spirit-photo::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 42%;
+  background:
+    radial-gradient(50% 100% at 22% 100%, rgba(21, 38, 58, 0.9) 0%, rgba(21, 38, 58, 0) 100%),
+    radial-gradient(40% 90% at 64% 100%, rgba(21, 38, 58, 0.85) 0%, rgba(21, 38, 58, 0) 100%);
+}
+.uf-spirit-inner {
+  position: relative; z-index: 1;
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 0.78fr);
+  gap: clamp(24px, 5vw, 64px); align-items: end;
+}
+.uf-spirit .uf-kicker { color: rgba(247, 240, 223, 0.7); }
+.uf-spirit .uf-display { color: var(--uf-cream); max-width: 12em; }
+.uf-spirit .uf-display .uf-serif { color: var(--uf-lime); }
+.uf-spirit .uf-panel { padding: 24px 26px; }
+.uf-spirit .uf-panel p { font-size: 15.5px; }
+.uf-spirit .uf-muted { color: rgba(247, 240, 223, 0.62) !important; }
+.uf-spirit .uf-panel .uf-small { color: rgba(247, 240, 223, 0.6); }
+.uf-spirit .art-talk { max-width: 100%; }
+
+/* ───────── 战术：预览板 + 入口 ───────── */
+.uf-tactics { background: var(--uf-cream); }
+.uf-tactics .uf-split { align-items: center; }
+.uf-board {
+  position: relative; margin: 0;
+  padding: 18px;
+  border-radius: 22px;
+  background: rgba(255, 252, 244, 0.6);
+  border: 1px solid var(--uf-hair);
+  box-shadow: var(--uf-shadow-lift);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+}
+.uf-board svg { display: block; width: 100%; height: auto; }
+.uf-board-field { fill: var(--uf-grass); }
+.uf-board-ez { fill: rgba(211, 236, 109, 0.55); }
+.uf-board-line { stroke: rgba(255, 252, 240, 0.85); stroke-width: 2; }
+.uf-board-line-dim { stroke-dasharray: 6 6; stroke-opacity: 0.6; }
+.uf-board-cut { fill: none; stroke: var(--uf-ink); stroke-width: 2.4; stroke-dasharray: 6 6; opacity: 0.55; }
+.uf-board-pass { fill: none; stroke: var(--uf-coral); stroke-width: 2.6; }
+.uf-board-o { fill: var(--uf-ink); }
+.uf-board-d { fill: none; stroke: var(--uf-ink); stroke-width: 2.4; opacity: 0.7; }
+.uf-board-disc { fill: var(--uf-cream); stroke: var(--uf-ink); stroke-width: 2; }
+.uf-board figcaption { margin-top: 12px; text-align: right; font-size: 20px; }
+
+.uf-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  margin-top: 26px; padding: 14px 24px;
+  border-radius: 999px; border: 1px solid var(--uf-ink);
+  background: var(--uf-ink); color: var(--uf-cream);
+  font-family: inherit; font-size: 15px; font-weight: 700; letter-spacing: 0.01em;
+  cursor: pointer;
+  transition: transform 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 14px 30px -18px rgba(21, 38, 58, 0.8);
+}
+.uf-btn:hover { transform: translateY(-2px); box-shadow: 0 20px 40px -18px rgba(21, 38, 58, 0.85); }
+.uf-btn:focus-visible { outline: 2px solid var(--uf-coral); outline-offset: 3px; }
+.uf-btn span { transition: transform 0.18s ease; }
+.uf-btn:hover span { transform: translateX(4px); }
+.uf-btn-lime { background: var(--uf-lime); border-color: rgba(21, 38, 58, 0.2); color: var(--uf-ink); }
+.uf-btn-ghost {
+  background: transparent; color: var(--uf-cream);
+  border-color: rgba(247, 240, 223, 0.42); box-shadow: none;
+}
+.uf-btn-ghost:hover { background: rgba(247, 240, 223, 0.1); }
+
+/* ───────── 游戏入口：回到草地 ───────── */
+.uf-game {
+  position: relative; overflow: hidden;
+  color: var(--uf-cream);
+  background: var(--uf-ink);
+  padding: clamp(96px, 16vh, 180px) 0;
+}
+.uf-game-photo {
+  position: absolute; inset: 0;
+  background:
+    linear-gradient(180deg, rgba(21, 38, 58, 0.9) 0%, rgba(21, 38, 58, 0) 46%),
+    radial-gradient(90% 70% at 50% 118%, var(--uf-grass) 0%, var(--uf-grass-lo) 52%, rgba(93, 127, 71, 0) 78%),
+    radial-gradient(70% 40% at 50% 8%, rgba(191, 220, 242, 0.4) 0%, rgba(191, 220, 242, 0) 70%);
+  background-color: #142333;
+}
+.uf-game-photo::after {
+  content: ''; position: absolute; inset: 0;
+  background-image: repeating-linear-gradient(92deg, rgba(255, 252, 240, 0.06) 0 2px, rgba(255, 252, 240, 0) 2px 14px);
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, #000 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0) 40%, #000 100%);
+}
+.uf-game-inner { position: relative; z-index: 1; max-width: 760px; }
+.uf-game .uf-kicker { color: rgba(247, 240, 223, 0.66); }
+.uf-game .uf-display { color: var(--uf-cream); }
+.uf-game .uf-lede { color: rgba(247, 240, 223, 0.8); }
+.uf-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 30px; }
+.uf-actions .uf-btn { margin-top: 0; }
+.uf-game .uf-small { color: rgba(247, 240, 223, 0.55); }
+
+/* ───────── 页脚 ───────── */
+.uf-footer {
+  display: flex; flex-wrap: wrap; gap: 10px 28px; justify-content: space-between;
+  padding: 30px clamp(20px, 5vw, 60px);
+  background: var(--uf-ink);
+  border-top: 1px solid rgba(247, 240, 223, 0.12);
+  color: rgba(247, 240, 223, 0.55);
+  font-family: var(--uf-mono); font-size: 11.5px; letter-spacing: 0.06em;
+}
+
+/* ───────── 响应式 ───────── */
+@media (max-width: 1080px) {
+  .uf-split { grid-template-columns: 1fr; }
+  .uf-rules .uf-wrap > header { position: static; }
+  .uf-spirit-inner { grid-template-columns: 1fr; }
+  .uf-foul:nth-child(2) { transform: none; }
+}
+
+@media (max-width: 860px) {
+  .uf-nav { gap: 10px; padding: 8px 8px 8px 12px; top: 12px; border-radius: 20px; }
+  .uf-brand span { display: none; }
+  .uf-nav ul { justify-content: flex-start; }
+  .uf-chip { padding: 7px 11px; font-size: 12px; }
+  .uf-foul-row { grid-template-columns: 1fr; }
+  .uf-numbers { grid-template-columns: 1fr; gap: 22px; padding-top: 20px; }
+  .uf-numbers dd { max-width: none; }
+  .uf-collage { grid-template-columns: 1fr 0.55fr; }
+  .uf-rule-list li { grid-template-columns: 46px minmax(0, 1fr); padding: 20px 0; }
+  .uf-rule-n { font-size: 30px; }
+  .uf-fouls .uf-wrap > .uf-duo { grid-template-columns: 1fr; }
+  .uf-copy-field { justify-items: start; }
+}
+
+@media (max-width: 640px) {
+  .uf-hero { height: 280vh; }
+  .uf-copy-intro { top: auto; bottom: 14vh; transform: none; }
+  .uf-copy-pull { bottom: 12vh; }
+  .uf-copy-field { right: auto; left: 20px; bottom: 10vh; }
+  .uf-bignum { font-size: 52px; }
+  .uf-note { font-size: 17px; }
+  .uf-note-len { font-size: 10px; }
+  .uf-note-catch svg { width: 68px; height: 44px; }
+  .uf-note-catch em { font-size: 16px; }
+  .uf-note-ez { font-size: 9.5px; padding: 4px 9px; }
+  .uf-nav { justify-content: space-between; }
+  .uf-nav nav { flex: 1 1 0; }
+  .uf-wrap { width: calc(100% - 32px); }
+}
+
+/* ───────── 减少动效 ───────── */
+@media (prefers-reduced-motion: reduce) {
+  .uf-scroll-cue i::after { animation: none; }
+  .uf-foul, .uf-btn, .uf-chip { transition: none; }
+  .uf-foul:hover, .uf-foul:nth-child(2):hover { transform: none; }
+  .uf-hero { height: auto; }
+  .uf-stage { position: relative; height: 92svh; }
+}
+
+/* 静态模式（脚本同步关闭动效时）：Hero 变成"完整画面 + 正常排版的正文" */
+.uf.is-static .uf-hero { height: auto; }
+.uf.is-static .uf-stage {
+  position: relative; height: auto; min-height: 0; overflow: visible;
+  padding-bottom: 8px;
+}
+.uf.is-static .uf-plate-sky { inset: 0 0 18svh; opacity: 1; transform: none; }
+.uf.is-static .uf-plate-field { inset: 42svh 0 0; opacity: 1; transform: none; }
+.uf.is-static .uf-scene { inset: 34svh 0 0; height: auto; }
+.uf.is-static .uf-notes { opacity: 1; }
+.uf.is-static .uf-copy {
+  position: relative; inset: auto; z-index: 5;
+  display: grid; gap: 26px;
+  padding: 108svh 20px 56px;
+  max-width: 620px;
+}
+.uf.is-static .uf-copy > div {
+  position: relative; inset: auto;
+  left: auto; right: auto; top: auto; bottom: auto;
+  transform: none; opacity: 1; visibility: visible;
+  width: auto; display: block;
+}
+.uf.is-static .uf-copy-intro { padding: 0; }
+.uf.is-static .uf-note-catch { display: none; }
+
+/* 高对比度 / 强制颜色下保留可读性 */
+@media (forced-colors: active) {
+  .uf-glass, .uf-panel, .uf-board, .uf-foul { border: 1px solid CanvasText; }
+}
+
+/* ───────── 段落内的小图层 ───────── */
+.uf-duel { max-width: 340px; }
+.uf-fouls-note { align-self: end; max-width: 26em; }
+
+.uf-ruler { margin: 40px 0 0; }
+.uf-ruler svg { width: 100%; height: auto; }
+.uf-ruler figcaption {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 19px;
+}
+.uf-ruler-arrow { width: 34px; height: 26px; opacity: 0.6; }
+
+.uf-spirit-art { align-self: center; }
+.uf-spirit-art svg { width: 100%; height: auto; max-width: 420px; }
+.uf-spirit .art-ink { stroke: var(--uf-cream); }
+.uf-spirit .art-ink-fill { stroke: var(--uf-cream); }
+.uf-spirit .art-ink-fill-none { stroke: var(--uf-cream); }
+.uf-spirit .art-ground { fill: rgba(247, 240, 223, 0.16); }
+
+.uf-basics .uf-art-side .art-label,
+.uf-collage .uf-art-side .art-label { font-size: 12px; }
+
+/* 中号标题（精神 / 游戏两段） */
+.uf-display-md {
+  font-size: clamp(40px, 6.4vw, 84px);
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  text-transform: none;
+  max-width: 14em;
+}
+.uf-spirit-lead { display: grid; gap: 18px; align-content: start; }
+.uf-spirit-lead .uf-display-md { max-width: 11em; }
+
+/* 导航顶部的滚动进度发丝线：一条贯穿全片的暗线 */
+.uf-nav::after {
+  content: '';
+  position: absolute; left: 22px; right: 22px; bottom: 2px; height: 1px;
+  background: linear-gradient(90deg, var(--uf-ink) 0%, var(--uf-ink) var(--uf-progress, 0%), rgba(21, 38, 58, 0) var(--uf-progress, 0%));
+  opacity: 0.28;
+  pointer-events: none;
+}

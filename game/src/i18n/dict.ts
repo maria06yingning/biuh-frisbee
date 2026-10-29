@@ -356,6 +356,62 @@ const ENTRIES: Record<string, Entry> = {
   'lab.cup.ok': ['对：沿边线的队员离所有防守者都很远。杯形挡得住中路，挡不住外侧和边线。', 'Right: the sideline cutter is far from every defender. A cup shuts the middle, not the outside and the sideline.'],
   'lab.cup.bad': ['再看看：中路和深处的队友都被贴着，只有边线上的人有空间。', 'Look again: the middle and deep players are covered; only the sideline player has space.'],
 
+  /* ── 主页叙事（Story） ── */
+  'nav.home': ['首页', 'Home'],
+  'nav.basics': ['入门', 'Basics'],
+  'nav.rules': ['规则', 'Rules'],
+  'nav.fouls': ['犯规', 'Fouls'],
+  'nav.spirit': ['精神', 'Spirit'],
+  'nav.tactics': ['战术', 'Tactics'],
+  'nav.game': ['游戏', 'Game'],
+  'nav.play': ['上场', 'Play'],
+  'nav.label': ['页面导航', 'Page sections'],
+
+  'story.kicker': ['极限飞盘 · Ultimate Frisbee', 'Ultimate Frisbee · 极限飞盘'],
+  'story.title': ['Ultimate Field', 'Ultimate Field'],
+  'story.lede': ['一张飞盘，七个人，一块草地。往下滚动，跟着它上场。', 'One disc, seven players, a patch of grass. Scroll down and follow it onto the field.'],
+  'story.scroll': ['向下滚动', 'Scroll'],
+  'story.pull.num': ['01', '01'],
+  'story.pull.h': ['一切从一次出手开始。', 'It all starts with one throw.'],
+  'story.pull.p': ['开盘（Pull）：防守方把飞盘远远掷向进攻方。每一分，都从这道弧线开始。', 'The pull: the defense sends the disc deep to the offense. Every point begins with this arc.'],
+  'story.field.h': ['这就是球场。', 'This is the field.'],
+  'story.field.p': ['100 × 37 米。中间 64 米是比赛区，两端各 18 米是得分区——在对方得分区里接到盘，得 1 分。', '100 × 37 m. The middle 64 m is the playing field, with an 18 m end zone at each end — catch the disc in the opponents’ end zone to score 1 point.'],
+  'story.note.len': ['100 米', '100 m'],
+  'story.note.ez': ['得分区 · 18 米', 'End zone · 18 m'],
+  'story.note.catch': ['在这里接到 = 1 分', 'catch it here = 1 point'],
+
+  'basics.kicker': ['入门', 'Basics'],
+  'basics.h': ['三个数字，读懂这项运动。', 'Three numbers explain the sport.'],
+  'basics.n1': ['每队场上 7 人', 'players per side'],
+  'basics.n2': ['一张飞盘，没有球门', 'disc, no goals'],
+  'basics.n3': ['没有裁判，球员自己判', 'referees — players make the calls'],
+  'basics.note': ['大学操场、海滩、公园都能打', 'campus fields, beaches, parks'],
+
+  'rules.kicker': ['规则', 'Rules'],
+  'rules.h': ['规则很短，判断很多。', 'Short rules, lots of decisions.'],
+  'rules.note': ['记住这四条就能上场', 'these four get you on the field'],
+
+  'fouls.kicker': ['犯规', 'Fouls'],
+  'fouls.h': ['最常被喊出的三种情况。', 'The three calls you’ll hear most.'],
+  'fouls.note': ['喊出来，然后说清楚你看到了什么。', 'Call it, then say what you saw.'],
+
+  'spirit.kicker': ['体育精神', 'Spirit of the Game'],
+  'spirit.h': ['没有哨子。只有对话。', 'No whistle. Just a conversation.'],
+  'spirit.caption': ['有争议时，两名球员停下来各自说明，再决定怎么继续。', 'When a call is disputed, the two players stop, explain what they saw, and agree how to continue.'],
+
+  'tactics.kicker': ['战术', 'Tactics'],
+  'tactics.h': ['从人，到站位。', 'From players to positions.'],
+  'tactics.p': ['把场上的人简化成圆点，跑位和传球路线就清楚了。战术实验室里有 5 个 7 打 7 战术：分步动画，再做一道题。', 'Reduce the players to dots and the cuts and passing lanes become clear. The Tactics Lab has five 7v7 tactics: step-by-step animation, then a question.'],
+  'tactics.cta': ['打开战术实验室', 'Open the Tactics Lab'],
+  'tactics.note': ['竖排 · 横排 · 人盯人 · 区域 · 杯形', 'vertical · horizontal · man · zone · cup'],
+
+  'game.kicker': ['游戏', 'Game'],
+  'game.h': ['轮到你上场了。', 'Your turn on the field.'],
+  'game.p': ['第一人称 3 对 3：盯人、跑位、传盘、自己喊犯规。附带 5 分钟新手教程。', 'First-person 3v3: mark, cut, throw and call your own fouls. Includes a 5-minute tutorial.'],
+  'footer.text': ['Ultimate Field · 一个关于极限飞盘的课程项目', 'Ultimate Field · a course project about ultimate frisbee'],
+  'footer.photos': ['摄影图像为 AI 生成的示意图', 'Photographic images are AI-generated illustrations'],
+  'footer.art': ['所有插画为手绘 SVG', 'Every illustration is hand-drawn SVG'],
+
   /* ── 图鉴面板 ── */
   'codex.title': ['规则图鉴', 'Rule codex'],
   'codex.count': ['已解锁 {n} / {m}', 'Unlocked {n} / {m}'],
