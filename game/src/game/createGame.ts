@@ -8,13 +8,16 @@ import {
   createPlayers,
   createViewArm,
   laneClearance,
+  nearestDefenderDist,
   resetFormation,
   syncAgents,
   updateAI,
   updateMarkers,
+  userTacticGoal,
   yawOf,
 } from './createPlayers';
 import { createInput, createUserControl, updateUserMovement } from './movement';
+import { isActiveCutter, stackSpot, zoneAnchor } from './tactics';
 import {
   MAX_SPEED,
   MIN_SPEED,
@@ -42,8 +45,12 @@ import {
   LANE_BLOCK_R,
   MARKER_ZONE,
   STALL_RADIUS,
+  TEAM_SIZE,
   WIN_SCORE,
   ZONE_DEPTH,
+  applyMatchConfig,
+  defaultMatchConfig,
+  getMatchConfig,
   otherTeam,
   teamDir,
   type Agent,
@@ -51,6 +58,7 @@ import {
   type CurveType,
   type GameEvents,
   type HudState,
+  type MatchConfig,
   type TeamId,
   type TurnoverReason,
   type ViolationType,
@@ -70,9 +78,14 @@ export interface GameHandle {
   bus: Emitter<GameEvents>;
   /** 必须在用户点击事件里调用（浏览器要求手势才能锁定鼠标） */
   requestLock(): void;
-  restart(): void;
   startTutorial(): void;
   dispose(): void;
+  /** 重开一局；传入 config 可切换模式 / 战术（模式改变需要重建玩家，由 React 层重建） */
+  restart(config?: Partial<MatchConfig>): void;
+  /** 当前比赛配置（暂停菜单展示 / 修改战术用） */
+  getConfig(): MatchConfig;
+  /** 只改战术（人数不变），下一分生效 */
+  setTactics(t: Partial<MatchConfig>): void;
   /** 调试入口：网址加 ?debug 时挂到 window.__ufo，用来摆好场景测试跨步 / 假动作 / 喊违规 */
   debug: {
     scenario(): void;
@@ -80,7 +93,10 @@ export interface GameHandle {
   };
 }
 
-export function createGame(container: HTMLElement): GameHandle {
+export function createGame(container: HTMLElement, config?: Partial<MatchConfig>): GameHandle {
+  // 建场 / 建人之前先应用比赛配置（场地尺寸和人数都取决于它）
+  const startMode = config?.mode ?? '3v3';
+  applyMatchConfig({ ...defaultMatchConfig(startMode), ...config, mode: startMode, teamSize: startMode === '7v7' ? 7 : 3 });
   const bus = new Emitter<GameEvents>();
   const ctx = createScene(container);
   const canvas = ctx.renderer.domElement;
@@ -110,6 +126,7 @@ export function createGame(container: HTMLElement): GameHandle {
     force: [-1, -1],
     rush: 0,
     readyT: 0,
+    tacticGoal: null,
   };
 
   let disposed = false;
@@ -125,7 +142,10 @@ export function createGame(container: HTMLElement): GameHandle {
   let discAcc = 0;
   let contest: Map<number, number> | null = null;
   let contestT = 0;
-  let pendingPass: 0 | 1 | 2 = 0; // 玩家按下的 1 / 2 键
+  let pendingPass = 0; // 玩家按下的传球键 1..mates（0 = 没按）
+  const mates = TEAM_SIZE - 1; // 队友人数 = 可用的传球键数
+  let suggest = 0; // 战术推荐的传球目标（队友编号），0 = 无
+  let pendingTactics: Partial<MatchConfig> | null = null; // 暂停时改的我方战术，下一分开始时生效
   let stallNear = false; // 防守者是否在 3m 内
   let prevStallNear = false;
   const ignoreDef = new Set<number>(); // 本次传球中"没碰到盘"的盯防者
@@ -190,9 +210,10 @@ export function createGame(container: HTMLElement): GameHandle {
 
   /* ───────── 场景内的"判断辅助"：传球线路 / 预测落点 ───────── */
   // 传球线路：一根扁平的彩色丝带（绿 = 安全，红 = 有人站在线上）
+  // 3v3 两根（对应两个队友）；7v7 最多三根：最空的 2 人 + 战术推荐的 1 人
   const ribbonGeo = new THREE.CylinderGeometry(0.035, 0.035, 1, 6);
   ribbonGeo.rotateX(Math.PI / 2); // 轴向沿 z，方便 lookAt
-  const laneLines = [1, 2].map(() => {
+  const laneLines = Array.from({ length: Math.min(3, mates) }, () => {
     const m = new THREE.Mesh(ribbonGeo, new THREE.MeshBasicMaterial({ color: 0x9dff4a }));
     m.visible = false;
     ctx.scene.add(m);
@@ -241,6 +262,24 @@ export function createGame(container: HTMLElement): GameHandle {
   );
   landBeam.visible = false;
   ctx.scene.add(landBeam);
+
+  // 战术引导标（7v7）：和落点标同样的「地面圆环 + 光柱」，换成紫色——告诉玩家战术里自己该去哪
+  const tacticRing = new THREE.Mesh(
+    new THREE.RingGeometry(0.8, 1, 48),
+    new THREE.MeshBasicMaterial({ color: PALETTE.tactic, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }),
+  );
+  tacticRing.rotation.x = -Math.PI / 2;
+  tacticRing.visible = false;
+  ctx.scene.add(tacticRing);
+  const tacticBeam = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.05, 0.05, 6, 8),
+    new THREE.MeshBasicMaterial({ color: PALETTE.tactic, transparent: true, opacity: 0.3, depthWrite: false }),
+  );
+  tacticBeam.visible = false;
+  ctx.scene.add(tacticBeam);
+  const _tgoal = new THREE.Vector3();
+  const tacticPos = new THREE.Vector3(); // 平滑后的引导标位置（避免轮换切入时瞬移）
+  let tacticOn = false;
 
   const input = createInput(canvas, {
     onLockChange: onLock,
@@ -319,6 +358,21 @@ export function createGame(container: HTMLElement): GameHandle {
         mine: (world.pulling ? otherTeam(disc.throwTeam) : disc.throwTeam) === 0,
       };
     }
+    const cfg = getMatchConfig();
+    // 战术引导标相对视线的方向
+    let tacticGuide: HudState['tacticGuide'] = null;
+    if (tacticOn) {
+      const gx2 = tacticPos.x - user.pos.x;
+      const gz2 = tacticPos.z - user.pos.z;
+      tacticGuide = { angle: Math.atan2(gx2 * rx + gz2 * rz, gx2 * fx + gz2 * fz), dist: Math.hypot(gx2, gz2) };
+    }
+    let tactic: HudState['tactic'] = null;
+    if (cfg.mode === '7v7') {
+      const weOnOffense = world.offense === 0;
+      tactic = weOnOffense
+        ? { ours: cfg.ourOffense, theirs: cfg.oppDefense }
+        : { ours: cfg.ourDefense, theirs: cfg.oppOffense };
+    }
     return {
       phase: rules.phase,
       scoreA: rules.score[0],
@@ -345,10 +399,48 @@ export function createGame(container: HTMLElement): GameHandle {
       speed: Math.min(1, Math.hypot(user.vel.x, user.vel.z) / 7.6),
       chain,
       chainTeam,
+      mode: cfg.mode,
+      mates,
+      tactic,
+      tacticGuide,
+      suggest,
     };
   }
 
   /* ───────── 持盘 / 换攻 ───────── */
+  /** 7v7 自动分配角色：每次攻防转换，把离玩家最近的战术位置分给玩家（和原来占这个位置的队友互换） */
+  function autoRole(): void {
+    const cfg = getMatchConfig();
+    if (cfg.mode !== '7v7' || tut) return;
+    const team = agents.filter((a) => a.team === 0);
+    const ref = { x: world.refPos.x, z: world.refPos.z };
+    const dirOff = teamDir(rules.dirA, world.offense);
+    let bestSlot = user.slot;
+    let bestD = Infinity;
+    for (let s = 0; s < team.length; s++) {
+      if (world.offense === 0) stackSpot(cfg.ourOffense, s, ref, dirOff, _tg);
+      else zoneAnchor(s, team.length, ref, dirOff, _tg);
+      const d = Math.hypot(_tg.x - user.pos.x, _tg.z - user.pos.z);
+      if (d < bestD) {
+        bestD = d;
+        bestSlot = s;
+      }
+    }
+    const other = team.find((a) => a.slot === bestSlot);
+    if (other && other !== user) other.slot = user.slot;
+    user.slot = bestSlot;
+  }
+  let roleOffense = -1; // 上次分配角色时的进攻方；球权一变就重新分配
+  function checkRole(): void {
+    if (world.pullPending) {
+      roleOffense = -1; // 开盘前按开局阵型站位，开盘后接盘方确定了再分配
+      return;
+    }
+    if (world.offense === roleOffense) return;
+    roleOffense = world.offense;
+    autoRole();
+  }
+
   function giveDisc(a: Agent): void {
     world.holder = a;
     world.loose = false;
@@ -368,6 +460,7 @@ export function createGame(container: HTMLElement): GameHandle {
     a.evalT = 0;
     a.bestTarget = -1;
     assignMarks(agents, a.team);
+    checkRole();
     charge = 0;
     charging = false;
     contest = null;
@@ -450,6 +543,7 @@ export function createGame(container: HTMLElement): GameHandle {
     world.stallElapsed = 0;
     world.refPos.set(spot.x, 0, spot.z);
     assignMarks(agents, to);
+    checkRole();
     contest = null;
     charging = false;
     charge = 0;
@@ -472,7 +566,19 @@ export function createGame(container: HTMLElement): GameHandle {
   }
 
   /** 每一分都从开盘（pull）开始：receiving 是接盘方（进攻方），另一方站在自己得分线上开盘 */
+  /** 7v7：对手选了「随机」的战术，在每一分开盘前重新抽（和真实比赛一样，战术在开盘前定下） */
+  function rollOppTactics(): void {
+    const cfg = getMatchConfig();
+    if (cfg.mode !== '7v7') return;
+    const next = { ...cfg, ...pendingTactics, mode: cfg.mode, teamSize: cfg.teamSize };
+    pendingTactics = null;
+    if (next.oppOffenseRandom) next.oppOffense = Math.random() < 0.5 ? 'vstack' : 'hstack';
+    if (next.oppDefenseRandom) next.oppDefense = Math.random() < 0.5 ? 'man' : 'zone';
+    applyMatchConfig(next);
+  }
+
   function setupPoint(receiving: TeamId, delay = 0): void {
+    rollOppTactics();
     resetFormation(agents, rules.dirA, receiving);
     const puller = agents.find((a) => a.team === otherTeam(receiving)) as Agent; // 玩家方开盘时默认是玩家本人
     world.dirA = rules.dirA;
@@ -536,6 +642,7 @@ export function createGame(container: HTMLElement): GameHandle {
       world.offense = receiving;
       rules.offense = receiving;
       assignMarks(agents, receiving);
+      checkRole();
       world.rush = 10;
       ignoreDef.clear();
     } else {
@@ -746,8 +853,8 @@ export function createGame(container: HTMLElement): GameHandle {
     }
   }
 
-  /** 1 / 2 键：把盘直接传给对应队友，必定到达——除非有防守者站在传球线路上 */
-  function guidedPass(slot: 1 | 2): void {
+  /** 数字键 1..mates：把盘直接传给对应队友，必定到达——除非有防守者站在传球线路上 */
+  function guidedPass(slot: number): void {
     const target = agents[slot];
     handPos(user, _hp);
     disc.pos.copy(_hp);
@@ -802,15 +909,21 @@ export function createGame(container: HTMLElement): GameHandle {
     disc.pos.addScaledVector(_dir, step);
   }
 
-  /** 开盘时按 1 / 2：交给队友 A / B 来开盘 */
-  function delegatePull(slot: 1 | 2): void {
+  /** 开盘时按数字键：交给对应队友来开盘 */
+  function delegatePull(slot: number): void {
     const mate = agents[slot];
     charging = false;
     charge = 0;
     giveDisc(mate);
     rules.stopStall();
     mate.throwT = 0.8;
-    bus.emit('toast', { title: 'toast.pullby.t', sub: '', params: { who: slot === 1 ? '@name.mateA' : '@name.mateB' }, kind: 'info' });
+    bus.emit('toast', { title: 'toast.pullby.t', sub: '', params: { who: mateName(slot) }, kind: 'info' });
+  }
+
+  /** 队友显示名（i18n 引用）：3v3 沿用「队友 A / B」，7v7 用编号 */
+  function mateName(slot: number): string {
+    if (mates <= 2) return slot === 1 ? '@name.mateA' : '@name.mateB';
+    return `@name.mate${slot}`;
   }
 
   function handleUserThrow(dt: number, holding: boolean): void {
@@ -820,7 +933,7 @@ export function createGame(container: HTMLElement): GameHandle {
     if (!holding || world.frozen || rules.phase !== 'playing') {
       charging = false;
       charge = 0;
-    } else if (slot && world.time >= pickupReadyAt) {
+    } else if (slot >= 1 && slot <= mates && world.time >= pickupReadyAt) {
       charging = false;
       charge = 0;
       if (world.pullPending) delegatePull(slot);
@@ -1386,7 +1499,7 @@ export function createGame(container: HTMLElement): GameHandle {
         coach('pivot', 25);
       }
       if (currentForce()) coach('force', 60);
-      for (const m of [agents[1], agents[2]]) {
+      for (const m of shownMates) {
         const st = laneState(user, m);
         if (st === 2) {
           coach('lane', 30);
@@ -1523,22 +1636,86 @@ export function createGame(container: HTMLElement): GameHandle {
   const LANE_BAD = 0xff4d4d;
   const LANE_RISK = 0xffd23f;
 
+  /** 本帧要画传球丝带的队友：3v3 = 两个队友；7v7 = 最空的 2 人 + 战术推荐的 1 人（可能重合） */
+  const shownMates: Agent[] = [];
+  function pickRibbonMates(): void {
+    shownMates.length = 0;
+    suggest = 0;
+    const list = agents.filter((a) => a.team === 0 && !a.isUser);
+    if (getMatchConfig().mode !== '7v7') {
+      shownMates.push(...list.slice(0, 2));
+      return;
+    }
+    // 战术推荐：正在轮换切入、线路没被堵、往前推进最多的那个人
+    const cfg = getMatchConfig();
+    const dir = teamDir(rules.dirA, 0);
+    let best: Agent | null = null;
+    let bestS = -Infinity;
+    for (const m of list) {
+      if (!isActiveCutter(cfg.ourOffense, m.slot, world.time)) continue;
+      if (laneState(user, m) === 2) continue;
+      const s = dir * (m.pos.z - user.pos.z) + nearestDefenderDist(world, m.pos.x, m.pos.z, 0);
+      if (s > bestS) {
+        bestS = s;
+        best = m;
+      }
+    }
+    // 最空的两个人（离最近防守者最远）
+    const open = list
+      .map((m) => ({ m, d: nearestDefenderDist(world, m.pos.x, m.pos.z, 0) }))
+      .sort((p, q) => q.d - p.d)
+      .slice(0, 2)
+      .map((p) => p.m);
+    shownMates.push(...open);
+    if (best) {
+      suggest = best.id;
+      if (!shownMates.includes(best)) shownMates.push(best);
+    }
+  }
+
   function updateGuides(): void {
     const userHolding =
       world.holder === user && disc.mode === 'held' && !world.frozen && rules.phase === 'playing';
+    const showLane = userHolding && !world.pullPending;
+    if (showLane) pickRibbonMates();
+    else {
+      shownMates.length = 0;
+      suggest = 0;
+    }
     laneLines.forEach((line, i) => {
-      const mate = agents[i + 1];
-      const showLane = userHolding && !world.pullPending;
-      line.visible = showLane;
-      if (!showLane) return;
+      const mate = shownMates[i];
+      line.visible = showLane && !!mate;
+      if (!line.visible || !mate) return;
       const st = laneState(user, mate);
-      (line.material as THREE.MeshBasicMaterial).color.setHex(st === 2 ? LANE_BAD : st === 1 ? LANE_RISK : LANE_OK);
+      // 战术推荐的那条线路安全时用紫色，和引导标对应
+      const okColor = mate.id === suggest ? PALETTE.tactic : LANE_OK;
+      (line.material as THREE.MeshBasicMaterial).color.setHex(st === 2 ? LANE_BAD : st === 1 ? LANE_RISK : okColor);
       _hp.set(user.pos.x, 1.0, user.pos.z);
       _lp.set(mate.pos.x, 1.2, mate.pos.z);
       line.position.copy(_hp).add(_lp).multiplyScalar(0.5);
       line.scale.set(1, 1, _hp.distanceTo(_lp));
       line.lookAt(_lp);
     });
+
+    // 战术引导标：紫色地面圆环 + 光柱（平滑跟随，玩家到位后变淡）
+    const wantTactic = !world.frozen && !world.pullPending && rules.phase === 'playing' && userTacticGoal(world, _tgoal);
+    if (wantTactic) {
+      if (!tacticOn) tacticPos.copy(_tgoal);
+      else tacticPos.lerp(_tgoal, 0.08);
+    }
+    tacticOn = wantTactic;
+    world.tacticGoal = wantTactic ? tacticPos : null;
+    tacticRing.visible = wantTactic;
+    tacticBeam.visible = wantTactic;
+    if (wantTactic) {
+      const near = Math.hypot(tacticPos.x - user.pos.x, tacticPos.z - user.pos.z) < 1.6;
+      const pulse = 1.1 * (1 + 0.07 * Math.sin(world.time * 6));
+      tacticRing.scale.set(pulse, pulse, 1);
+      tacticRing.position.set(tacticPos.x, 0.08, tacticPos.z);
+      tacticBeam.position.set(tacticPos.x, 3, tacticPos.z);
+      (tacticRing.material as THREE.MeshBasicMaterial).opacity = near ? 0.35 : 0.85;
+      (tacticBeam.material as THREE.MeshBasicMaterial).opacity = near ? 0.1 : 0.3;
+    }
 
     const show = userHolding && charging;
     arcDots.visible = show;
@@ -1704,6 +1881,7 @@ export function createGame(container: HTMLElement): GameHandle {
     },
     debug: {
       scenario() {
+        if (agents.length !== 6) return; // 调试场景摆位按 3v3 写死
         // 玩家持盘，盯防者站在面前，两个队友在前方跑位
         rules.begin();
         world.frozen = false;
@@ -1725,20 +1903,14 @@ export function createGame(container: HTMLElement): GameHandle {
         emitHud();
       },
       violate(type) {
-        logViolation(type, type === 'self-contact' ? user : agents[4]);
+        const culprit = agents.length > 4 ? agents[4] : user;
+        logViolation(type, type === 'self-contact' ? user : culprit);
       },
     },
-    startTutorial() {
-      rules.reset();
-      tipNext.clear();
-      guide = false;
-      spirit.correct = spirit.wrong = spirit.self = spirit.missed = 0;
-      tut = { step: 1, stepDone: false, advanceT: 0, retryT: 0, resetIn: 0, timer: 0, moved: 0, yawSum: 0, thrown: false, staged: false, warned: false, hinted: false };
-      setupTutStep(1);
-      paused = true;
-      emitHud();
-    },
-    restart() {
+    restart(cfg) {
+      // 同人数下只改战术：直接应用并重开（模式改变的重建由 React 层负责）
+      if (cfg) applyMatchConfig({ ...getMatchConfig(), ...cfg, mode: getMatchConfig().mode, teamSize: getMatchConfig().teamSize });
+      pendingTactics = null;
       tut = null;
       world.passive = false;
       spirit.correct = spirit.wrong = spirit.self = spirit.missed = 0;
@@ -1747,7 +1919,27 @@ export function createGame(container: HTMLElement): GameHandle {
       rules.reset();
       tipNext.clear();
       guide = true;
+      roleOffense = -1;
       setupPoint(1);
+      paused = true;
+      emitHud();
+    },
+    getConfig() {
+      return getMatchConfig();
+    },
+    setTactics(t) {
+      // 比赛中途改战术：先记下，下一分开盘前再换（WFDF 7.1.1 注释：战术在两分之间决定）
+      pendingTactics = { ...pendingTactics, ...t };
+    },
+    startTutorial() {
+      // 新手教程固定按 3v3 编排（React 层会先按 3v3 创建游戏）
+      if (agents.length !== 6) return;
+      rules.reset();
+      tipNext.clear();
+      guide = false;
+      spirit.correct = spirit.wrong = spirit.self = spirit.missed = 0;
+      tut = { step: 1, stepDone: false, advanceT: 0, retryT: 0, resetIn: 0, timer: 0, moved: 0, yawSum: 0, thrown: false, staged: false, warned: false, hinted: false };
+      setupTutStep(1);
       paused = true;
       emitHud();
     },

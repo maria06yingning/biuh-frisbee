@@ -14,6 +14,7 @@ export const PALETTE = {
   discRim: 0xff6a1a,
   attack: 0xffcf4a,
   defend: 0x8f7be8,
+  tactic: 0xb14bff, // 7v7 战术引导标（紫色，和落点标同样风格但颜色区分）
   skin: 0xf2c6a0,
   shorts: 0x2b2a52,
   trunk: 0x8a5a3c,
@@ -33,6 +34,11 @@ export function gradientMap(): THREE.DataTexture {
     gradient.needsUpdate = true;
   }
   return gradient;
+}
+
+/** 场景释放时调用：清掉被 dispose 的共享色阶缓存，下次重建游戏时重新生成 */
+export function resetGradientMap(): void {
+  gradient = null;
 }
 
 export function toonMat(color: number): THREE.MeshToonMaterial {

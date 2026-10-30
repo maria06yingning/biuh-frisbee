@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { PALETTE } from './toon';
+import { PALETTE, resetGradientMap } from './toon';
 
 export interface SceneContext {
   renderer: THREE.WebGLRenderer;
@@ -129,6 +129,7 @@ export function createScene(container: HTMLElement): SceneContext {
     renderer.dispose();
     renderer.forceContextLoss();
     renderer.domElement.remove();
+    resetGradientMap();
   };
 
   return { renderer, scene, camera, resize, dispose };

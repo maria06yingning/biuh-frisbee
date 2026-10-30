@@ -1,10 +1,12 @@
 import type * as THREE from 'three';
 
-/* ───────── 场地常量（按 100×37m 约 0.6 比例缩小） ───────── */
-export const FIELD_HALF_W = 13; // 场宽 26m：x ∈ [-13, 13]
-export const GOAL_Z = 30; // 得分线：z = ±30（中场 60m）
-export const ZONE_DEPTH = 11; // 得分区深度
-export const END_Z = GOAL_Z + ZONE_DEPTH; // 底线：z = ±41
+/* ───────── 场地常量（按 WFDF 100×37m 约 0.5 比例缩小；7v7 用标准比例，3v3 用更紧凑的练习场） ─────────
+ * 这几个是“可变绑定”：ESM 的具名导入是活引用，applyMatchConfig 改了之后各模块读到的就是新值。
+ * 注意：不要在模块顶层把它们复制进 const，要在运行时读取。 */
+export let FIELD_HALF_W = 13; // 场宽的一半（米）
+export let GOAL_Z = 30; // 得分线：z = ±GOAL_Z（中场 = 2×GOAL_Z）
+export let ZONE_DEPTH = 11; // 得分区深度
+export let END_Z = GOAL_Z + ZONE_DEPTH; // 底线：z = ±END_Z
 export const WIN_SCORE = 5;
 export const STALL_LIMIT = 10; // 数秒 10 秒
 export const EYE_HEIGHT = 1.7;
@@ -13,6 +15,56 @@ export const NEXT_POINT_DELAY = 2.6;
 export const STALL_RADIUS = 3; // 防守者在 3m 内才开始数秒
 export const LANE_BLOCK_R = 1.0; // 防守者离传球线路 1m 内 = 线路被堵
 export const MARKER_ZONE = 2.0; // 持盘者身前 2m 内的防守者算"盯防者"，只有概率碰到盘
+
+/* ───────── 比赛模式 / 战术 ───────── */
+export type MatchMode = '3v3' | '7v7';
+// 进攻阵型 / 防守战术（名字和战术实验室一致）
+export type OffenseTactic = 'vstack' | 'hstack';
+export type DefenseTactic = 'man' | 'zone';
+
+export interface MatchConfig {
+  mode: MatchMode;
+  teamSize: number; // 每队人数
+  ourOffense: OffenseTactic;
+  ourDefense: DefenseTactic;
+  oppOffense: OffenseTactic; // 对手本分实际使用的战术
+  oppDefense: DefenseTactic;
+  // 对手选「随机」：每一分开始时重新抽（WFDF 7.1.1 注释：队伍在每分开盘前决定本分战术）
+  oppOffenseRandom: boolean;
+  oppDefenseRandom: boolean;
+}
+
+export let TEAM_SIZE = 3; // 每队人数（3 或 7）
+export const defaultMatchConfig = (mode: MatchMode = '3v3'): MatchConfig => ({
+  mode,
+  teamSize: mode === '7v7' ? 7 : 3,
+  ourOffense: 'vstack',
+  ourDefense: 'man',
+  oppOffense: 'hstack',
+  oppDefense: 'man',
+  oppOffenseRandom: true,
+  oppDefenseRandom: true,
+});
+
+let matchConfig: MatchConfig = defaultMatchConfig('3v3');
+export const getMatchConfig = (): MatchConfig => matchConfig;
+
+/** 在创建一局游戏之前调用：根据模式设定场地尺寸和人数（活绑定会被各模块读到） */
+export function applyMatchConfig(cfg: MatchConfig): void {
+  matchConfig = cfg;
+  TEAM_SIZE = cfg.teamSize;
+  if (cfg.mode === '7v7') {
+    // WFDF 标准 37×100m，约 0.5 比例：场宽 18.5、中场 64→GOAL_Z=32、得分区 18→END_Z=50
+    FIELD_HALF_W = 18.5;
+    GOAL_Z = 32;
+    ZONE_DEPTH = 18;
+  } else {
+    FIELD_HALF_W = 13;
+    GOAL_Z = 30;
+    ZONE_DEPTH = 11;
+  }
+  END_Z = GOAL_Z + ZONE_DEPTH;
+}
 
 export type TeamId = 0 | 1; // 0 = 你的队伍，1 = 对手
 export type Dir = 1 | -1; // 进攻方向（沿 z 轴）
@@ -47,6 +99,7 @@ export interface Agent {
   fakePos: THREE.Vector3;
   wantDeep: boolean;
   markId: number;
+  slot: number; // 在本队战术阵型里的位置编号（0..teamSize-1）
   throwT: number;
   evalT: number;
   bestTarget: number;
@@ -98,6 +151,7 @@ export interface World {
   force: [number, number]; // 各队盯防者的"逼向"：-1 站在持盘者左侧（逼正手），+1 站在右侧（逼反手）
   rush: number; // 开盘后防守方回防冲刺的剩余秒数
   readyT: number; // 新一回合开始前的"各就各位"倒计时
+  tacticGoal: THREE.Vector3 | null; // 玩家在当前战术里应该去的位置（紫色引导标）
 }
 
 export interface AIHooks {
@@ -132,6 +186,11 @@ export interface HudState {
   speed: number; // 0..1，相对冲刺速度
   chain: number; // 连续传球次数
   chainTeam: TeamId;
+  mode: MatchMode;
+  mates: number; // 队友人数（= 可用的传球键 1..mates）
+  tactic: { ours: OffenseTactic | DefenseTactic; theirs: OffenseTactic | DefenseTactic } | null; // 只在 7v7 有值
+  tacticGuide: { angle: number; dist: number } | null; // 战术引导标相对视线的方向和距离
+  suggest: number; // 战术推荐的传球目标队友编号（1..mates），0 = 无
 }
 
 export interface ToastPayload {

@@ -17,7 +17,8 @@ function tipKey(h: HudState): string {
     return h.offense === 0 ? 'tip.pull.mate' : 'tip.pull.opp'; // 开盘等待期间 offense = 开盘一方
   }
   if (h.pulling) return h.offense === 0 ? 'tip.pulling.me' : 'tip.pulling.them'; // 开盘飞行中 offense = 接盘方
-  if (h.userHasDisc) return 'tip.hold';
+  if (h.userHasDisc) return h.mode === '7v7' ? 'tip.hold7' : 'tip.hold';
+  if (h.tacticGuide && h.tacticGuide.dist > 3 && (h.possession === 'mate' || h.possession === 'opp')) return 'tip.tactic';
   if (h.possession === 'mate') return 'tip.mate';
   if (h.possession === 'opp') return 'tip.opp';
   if (h.possession === 'loose') return h.offense === 0 ? 'tip.looseMe' : 'tip.looseOpp';
@@ -91,6 +92,14 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
       </div>
       <div className="hud-poss">{t(possessionKey(hud))}</div>
 
+      {/* 7v7：双方当前战术 */}
+      {hud.tactic && (
+        <div className="hud-tactic">
+          <span className="is-us">{t('hud.tactic.us', { t: t(`tac.${hud.tactic.ours}`) })}</span>
+          <span className="is-them">{t('hud.tactic.them', { t: t(`tac.${hud.tactic.theirs}`) })}</span>
+        </div>
+      )}
+
       {/* 盯防者"逼向"：空位在哪一侧 */}
       {hud.force && <div className="hud-force">{t(hud.force === 'forehand' ? 'hud.force.fh' : 'hud.force.bh')}</div>}
 
@@ -139,6 +148,7 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
       <div className="hud-curve">
         <span className={hud.curve === 'backhand' ? 'is-on' : ''}>{t('hud.curve.back')}</span>
         <span className={hud.curve === 'forehand' ? 'is-on' : ''}>{t('hud.curve.fore')}</span>
+        {hud.mates > 2 && <span className="is-plain">{t('hud.pass', { n: hud.mates })}</span>}
         <span className="is-plain">{t('hud.fake')}</span>
         <span className="is-plain">{t('hud.step')}</span>
         <span className="is-plain">{t('hud.sprint')}</span>
@@ -155,6 +165,18 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
             </svg>
           </div>
           <span>{t('hud.landing', { d: Math.round(hud.landing.dist) })}</span>
+        </div>
+      )}
+
+      {/* 战术引导标的方向（紫色，和场上的光柱对应） */}
+      {hud.tacticGuide && !hud.landing && hud.tacticGuide.dist > 1.6 && (
+        <div className="hud-landing hud-tguide">
+          <div className="hud-landing-arrow" style={{ transform: `rotate(${hud.tacticGuide.angle}rad)` }}>
+            <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true">
+              <path d="M12 2 L21 21 L12 16 L3 21 Z" fill="currentColor" stroke="#1b1a2e" strokeWidth="2" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <span>{t('hud.tacticGuide', { d: Math.round(hud.tacticGuide.dist) })}</span>
         </div>
       )}
 

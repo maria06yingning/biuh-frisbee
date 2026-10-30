@@ -32,7 +32,7 @@ export function createInput(
   cb: {
     onLockChange(locked: boolean): void;
     onCurve(c: CurveType): void;
-    onPass(slot: 1 | 2): void;
+    onPass(slot: number): void; // 1..6：队友编号（3v3 只有 1 / 2 有效）
     onFake(): void;
     onCall(): void;
     onStep(dir: -1 | 1): void;
@@ -54,8 +54,9 @@ export function createInput(
     state.keys.add(e.code);
     if (e.code === 'KeyQ') cb.onCurve('backhand');
     if (e.code === 'KeyE') cb.onCurve('forehand');
-    if (e.code === 'Digit1' || e.code === 'Numpad1') cb.onPass(1);
-    if (e.code === 'Digit2' || e.code === 'Numpad2') cb.onPass(2);
+    // 数字键 1..6 → 队友 1..6（超出队友人数的由游戏层忽略）
+    const m = /^(?:Digit|Numpad)([1-6])$/.exec(e.code);
+    if (m) cb.onPass(Number(m[1]));
     if (!e.repeat) {
       if (e.code === 'KeyV') cb.onFake();
       if (e.code === 'KeyF') cb.onCall();

@@ -3,6 +3,8 @@ import {
   END_Z,
   FIELD_HALF_W,
   GOAL_Z,
+  TEAM_SIZE,
+  getMatchConfig,
   teamDir,
   type Agent,
   type AIHooks,
@@ -11,6 +13,7 @@ import {
   type World,
 } from './types';
 import { PALETTE, addOutline, addScaleOutline, blobShadow, toonMat } from './toon';
+import { offenseGoal, zoneAnchor, type Spot } from './tactics';
 
 const clamp = THREE.MathUtils.clamp;
 const TEAM_COLORS = [PALETTE.teamA, PALETTE.teamB];
@@ -118,14 +121,13 @@ export function createPlayers(scene: THREE.Scene): Agent[] {
   const visorMat = new THREE.MeshBasicMaterial({ color: PALETTE.ink });
   const teamMats = TEAM_COLORS.map((c) => toonMat(c));
 
-  const specs: { team: TeamId; isUser: boolean; name: string }[] = [
-    { team: 0, isUser: true, name: '你' },
-    { team: 0, isUser: false, name: '队友 A' },
-    { team: 0, isUser: false, name: '队友 B' },
-    { team: 1, isUser: false, name: '对手 1' },
-    { team: 1, isUser: false, name: '对手 2' },
-    { team: 1, isUser: false, name: '对手 3' },
-  ];
+  const specs: { team: TeamId; isUser: boolean; name: string }[] = [];
+  // 0 = 你，1..n-1 = 队友，n..2n-1 = 对手
+  const n = TEAM_SIZE;
+  for (let i = 0; i < n; i++) {
+    specs.push({ team: 0, isUser: i === 0, name: i === 0 ? '你' : `队友 ${String.fromCharCode(64 + i)}` });
+  }
+  for (let i = 0; i < n; i++) specs.push({ team: 1, isUser: false, name: `对手 ${i + 1}` });
 
   return specs.map((s, id) => {
     const group = new THREE.Group();
@@ -204,6 +206,7 @@ export function createPlayers(scene: THREE.Scene): Agent[] {
       fakePos: new THREE.Vector3(),
       wantDeep: false,
       markId: -1,
+      slot: 0,
       throwT: 2,
       evalT: 0,
       bestTarget: -1,
@@ -284,27 +287,47 @@ export function assignMarks(agents: Agent[], offense: TeamId): void {
     usedD.add(p.d.id);
     usedO.add(p.o.id);
   }
+  // 玩家在防守时：AI 队友盯完之后剩下的那个对手就是你的人（用来画紫色引导标）
+  const me = agents.find((a) => a.isUser && a.team !== offense);
+  if (me) {
+    const left = offs.find((o) => !usedO.has(o.id));
+    if (left) me.markId = left.id;
+  }
 }
 
-/** 重置一回合的站位，返回开盘持盘者 */
+/** 重置一回合的站位，返回开盘持盘者。按各队战术阵型铺开（进攻用进攻阵型，防守用防守战术）。 */
 export function resetFormation(agents: Agent[], dirA: Dir, offense: TeamId): Agent {
   const dirOff = teamDir(dirA, offense);
   const zG = -dirOff * GOAL_Z; // 进攻方自己的得分线
   const off = agents.filter((a) => a.team === offense);
   const def = agents.filter((a) => a.team !== offense);
-  const offSpots: [number, number][] = [
-    [0, zG + dirOff * 1.2],
-    [-7, zG + dirOff * 6],
-    [7, zG + dirOff * 10],
-  ];
-  off.forEach((a, i) => a.pos.set(offSpots[i][0], 0, offSpots[i][1]));
-  // 防守方站在自己的得分线上（进攻方要进攻的那条线）
-  const defSpots: [number, number][] = [
-    [0, 1.2],
-    [-7, 2.4],
-    [7, 2.4],
-  ];
-  def.forEach((a, i) => a.pos.set(defSpots[i][0], 0, dirOff * (GOAL_Z - defSpots[i][1])));
+  off.forEach((a, i) => (a.slot = i));
+  def.forEach((a, i) => (a.slot = i));
+
+  if (getMatchConfig().mode === '7v7') {
+    // WFDF 7.3：接盘方全员一只脚踩在自己的防守得分线上；7.4：开盘方双脚在自己得分线后方。
+    // 开盘后各队再按战术拉开阵型（见 cutter / zoneSpot）。第 0 个人站中间，其余左右交替铺开。
+    const gap = (FIELD_HALF_W * 2 - 4) / Math.max(1, off.length - 1);
+    const lineX = (i: number) => (i === 0 ? 0 : (i % 2 === 1 ? -1 : 1) * Math.ceil(i / 2) * gap);
+    off.forEach((a, i) => a.pos.set(lineX(i), 0, zG + dirOff * 0.3));
+    def.forEach((a, i) => a.pos.set(lineX(i), 0, dirOff * (GOAL_Z + 0.6)));
+  } else {
+    // 3v3：保持原来的站位
+    const offSpots: [number, number][] = [
+      [0, zG + dirOff * 1.2],
+      [-7, zG + dirOff * 6],
+      [7, zG + dirOff * 10],
+    ];
+    off.forEach((a, i) => a.pos.set(offSpots[i][0], 0, offSpots[i][1]));
+    // 防守方站在自己的得分线上（进攻方要进攻的那条线）
+    const defSpots: [number, number][] = [
+      [0, 1.2],
+      [-7, 2.4],
+      [7, 2.4],
+    ];
+    def.forEach((a, i) => a.pos.set(defSpots[i][0], 0, dirOff * (GOAL_Z - defSpots[i][1])));
+  }
+
   for (const a of agents) {
     a.vel.set(0, 0, 0);
     a.yaw = yawOf(0, a.team === offense ? dirOff : -dirOff);
@@ -323,6 +346,7 @@ export function resetFormation(agents: Agent[], dirA: Dir, offense: TeamId): Age
 const _t = new THREE.Vector3();
 const _d = new THREE.Vector3();
 const _v = new THREE.Vector3();
+const _ref: Spot = { x: 0, z: 0 }; // 战术参照点（暂存）
 
 function steer(a: Agent, target: THREE.Vector3, speed: number, dt: number, stop = 0.3): void {
   _t.set(target.x - a.pos.x, 0, target.z - a.pos.z);
@@ -344,13 +368,17 @@ function faceToward(a: Agent, p: THREE.Vector3, dt: number): void {
   a.yaw = lerpAngle(a.yaw, yawOf(dx, dz), Math.min(1, 8 * dt));
 }
 
-/* ───────── 进攻：无盘队友跑位 ───────── */
+/* ───────── 进攻：无盘队友跑位（3v3 自由跑位；7v7 走 tactics.offenseGoal） ───────── */
 function planCut(a: Agent, w: World, dir: Dir): void {
   const ref = w.refPos;
+  // 边界按场宽算（3v3 时与原来的 11 / 11.5 / 9.5 一致）
+  const fakeW = FIELD_HALF_W - 2;
+  const cutW = FIELD_HALF_W - 1.5;
+  const deepW = FIELD_HALF_W - 3.5;
   // 被紧盯：假动作（先回撤，再反切）
   if (a.openness < 2 && !a.wantDeep && Math.random() < 0.45) {
     a.fakeT = 0.45 + Math.random() * 0.2;
-    a.fakePos.set(clamp(a.pos.x + (Math.random() < 0.5 ? -2 : 2), -11, 11), 0, a.pos.z - dir * 3.5);
+    a.fakePos.set(clamp(a.pos.x + (Math.random() < 0.5 ? -2 : 2), -fakeW, fakeW), 0, a.pos.z - dir * 3.5);
     return;
   }
   let best = -Infinity;
@@ -360,7 +388,7 @@ function planCut(a: Agent, w: World, dir: Dir): void {
     let z: number;
     if (kind === 0 || (a.wantDeep && i < 4)) {
       // 深切
-      x = (Math.random() * 2 - 1) * 9.5;
+      x = (Math.random() * 2 - 1) * deepW;
       z = ref.z + dir * (10 + Math.random() * 12);
     } else if (kind === 1) {
       // 侧向拉开 / 接应
@@ -371,7 +399,7 @@ function planCut(a: Agent, w: World, dir: Dir): void {
       x = ref.x + (Math.random() < 0.5 ? -1 : 1) * (3 + Math.random() * 3);
       z = ref.z - dir * (2 + Math.random() * 4);
     }
-    x = clamp(x, -11.5, 11.5);
+    x = clamp(x, -cutW, cutW);
     z = clamp(z, -(END_Z - 2), END_Z - 2);
     let score = Math.min(nearestDefenderDist(w, x, z, a.team), 6);
     for (const m of w.agents) {
@@ -393,6 +421,17 @@ function planCut(a: Agent, w: World, dir: Dir): void {
 function cutter(a: Agent, w: World, dt: number): void {
   const dir = teamDir(w.dirA, a.team);
   a.openness = nearestDefenderDist(w, a.pos.x, a.pos.z, a.team);
+  const cfg = getMatchConfig();
+  // 7v7：按进攻战术跑位（轮换切入 / 站排位），这样整体有阵型形状
+  if (cfg.mode === '7v7' && a.slot >= 0) {
+    const ourOff = a.team === 0 ? cfg.ourOffense : cfg.oppOffense;
+    _ref.x = w.refPos.x;
+    _ref.z = w.refPos.z;
+    offenseGoal(ourOff, a.slot, _ref, dir, w.time, a.goal);
+    steer(a, a.goal, a.maxSpeed, dt, 0.4);
+    if (a.vel.lengthSq() < 0.5) faceToward(a, w.refPos, dt);
+    return;
+  }
   if (a.fakeT > 0) {
     a.fakeT -= dt;
     steer(a, a.fakePos, a.maxSpeed * 0.8, dt);
@@ -409,6 +448,30 @@ function cutter(a: Agent, w: World, dt: number): void {
 }
 
 /* ───────── 防守：盯人 + 站在得分区一侧 ───────── */
+/** 这名防守者所在的队伍是否在打区域防守（7v7 才有战术） */
+export function teamDefense(team: TeamId): 'man' | 'zone' {
+  const cfg = getMatchConfig();
+  if (cfg.mode !== '7v7') return 'man';
+  return team === 0 ? cfg.ourDefense : cfg.oppDefense;
+}
+
+/** 区域防守里 a 该站的位置；不是区域防守、或 a 就是盯持盘者的杯尖时返回 false。
+ *  玩家也占一个区域（用来画紫色引导标）。 */
+export function zoneSpot(w: World, a: Agent, out: THREE.Vector3): boolean {
+  if (a.team === w.offense || teamDefense(a.team) !== 'zone') return false;
+  const h = w.holder;
+  if (h && w.disc.mode === 'held' && a.markId === h.id) return false; // 杯尖 = 盯防者
+  const zoners = w.agents
+    .filter((d) => d.team === a.team && !(h && w.disc.mode === 'held' && d.markId === h.id))
+    .sort((p, q) => p.slot - q.slot);
+  const index = zoners.indexOf(a);
+  if (index < 0) return false;
+  _ref.x = w.refPos.x;
+  _ref.z = w.refPos.z;
+  zoneAnchor(index, zoners.length, _ref, teamDir(w.dirA, w.offense), out);
+  return true;
+}
+
 function defender(a: Agent, w: World, dt: number, hooks: AIHooks): void {
   const dirOff = teamDir(w.dirA, w.offense);
   const ref = w.refPos;
@@ -460,6 +523,12 @@ function defender(a: Agent, w: World, dt: number, hooks: AIHooks): void {
     _d.set(ref.x * 0.6, 0, ref.z + dirOff * 7);
     steer(a, _d, a.maxSpeed * 0.85 * (w.rush > 0 ? 1.7 : 1), dt, 0.5);
     faceToward(a, ref, dt);
+    return;
+  }
+  // 区域防守：不贴人，守住自己那一块（盯持盘者的人已在上面处理，是杯尖）
+  if (zoneSpot(w, a, _v)) {
+    steer(a, _v, a.maxSpeed * 0.9 * (w.rush > 0 ? 1.7 : 1), dt, 0.4);
+    if (a.vel.lengthSq() < 0.6) faceToward(a, ref, dt);
     return;
   }
   // 站在对手靠得分区的一侧（1.5m），并稍微偏向传球线路
@@ -642,4 +711,33 @@ export function updateMarkers(w: World, time: number): void {
     a.marker.position.y = 2.15 + Math.sin(time * 4 + a.id) * 0.06;
     a.marker.rotation.y = time * 2;
   }
+}
+
+/* ───────── 玩家战术引导位（紫色标） ───────── */
+/** 计算玩家在当前战术里该去的位置；返回 false 表示本局不显示引导标（3v3 / 玩家持盘 / 教程）。 */
+export function userTacticGoal(w: World, out: THREE.Vector3): boolean {
+  const cfg = getMatchConfig();
+  if (cfg.mode !== '7v7' || w.passive) return false;
+  const user = w.agents[0];
+  if (!user || user.isUser !== true) return false;
+  if (w.holder === user && w.disc.mode === 'held') return false; // 玩家持盘时不需要跑位标
+  _ref.x = w.refPos.x;
+  _ref.z = w.refPos.z;
+  if (user.team === w.offense) {
+    // 进攻：按玩家的 slot 给出切入 / 站位点
+    const ourOff = cfg.ourOffense;
+    offenseGoal(ourOff, user.slot, _ref, teamDir(w.dirA, w.offense), w.time, out);
+    return true;
+  }
+  // 防守：区域时站区域中心，盯人时站在所盯对手和得分区之间
+  if (zoneSpot(w, user, out)) return true;
+  const mark = user.markId >= 0 ? w.agents[user.markId] : null;
+  if (!mark) return false;
+  const dirOff = teamDir(w.dirA, w.offense);
+  out.set(
+    THREE.MathUtils.clamp(mark.pos.x, -(FIELD_HALF_W - 1), FIELD_HALF_W - 1),
+    0,
+    THREE.MathUtils.clamp(mark.pos.z + dirOff * 1.5, -(END_Z - 1.5), END_Z - 1.5),
+  );
+  return true;
 }

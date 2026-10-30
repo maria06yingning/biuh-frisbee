@@ -15,10 +15,10 @@
 .aero-brand span{font-size:22px;color:var(--aero-accent)}
 .aero-header nav{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .aero-home .aero-primary{background:var(--aero-accent);color:white;border-radius:var(--aero-radius);padding:12px 22px;min-height:44px}
-.aero-hero{height:calc(100svh - var(--aero-header));min-height:540px;max-height:1100px;position:relative;isolation:isolate;overflow:clip;max-width:var(--aero-max);margin:auto;background:#6b7d3d}
-.aero-hero::after{content:"";position:absolute;inset:55% 0 0;z-index:2;pointer-events:none;background:linear-gradient(transparent,rgba(13,30,14,.42))}
+.aero-hero{height:calc(100svh - var(--aero-header));min-height:540px;max-height:1100px;position:relative;isolation:isolate;overflow:clip;max-width:var(--aero-max);margin:auto;background:linear-gradient(180deg,#a9cdee 0%,#dcebea 36%,#d6e8d6 39%,#8fbf6e 54%,#5f9a45 76%,#3d7130 100%)}
+.aero-hero::after{content:"";position:absolute;inset:68% 0 0;z-index:3;pointer-events:none;background:linear-gradient(transparent,rgba(20,36,22,.34))}
 .aero-eyebrow{display:flex;justify-content:space-between;position:absolute;top:30px;left:var(--aero-space);right:var(--aero-space);font-size:10px;letter-spacing:.14em;z-index:4;color:#20382c;pointer-events:none;text-shadow:0 1px 12px rgba(255,255,255,.8)}
-.aero-field{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:#6b7d3d}
+.aero-field{position:absolute;inset:0;z-index:0;overflow:hidden;pointer-events:none;background:linear-gradient(180deg,#a9cdee 0%,#dcebea 36%,#d6e8d6 39%,#8fbf6e 54%,#5f9a45 76%,#3d7130 100%)}
 .aero-field img{display:block;width:100%;height:100%;object-fit:cover;object-position:center}
 .aero-object{position:absolute;inset:0;z-index:3;overflow:hidden;touch-action:pan-y}
 .aero-object[data-interactive=true]{cursor:grab}

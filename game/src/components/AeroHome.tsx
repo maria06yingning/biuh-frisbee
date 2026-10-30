@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
 import GlassDisc from './GlassDisc';
-import SunlitField from './SunlitField';
 import { useI18n } from '@/i18n/I18nProvider';
 import '@/styles/aero-home.css';
 
@@ -24,7 +23,6 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
     </header>
     <section className="aero-hero" id="aero-top" aria-label={zh ? '飞盘首页' : 'Ultimate Field home'}>
       <div className="aero-eyebrow"><span>ULTIMATE FIELD</span><span>01 — {zh ? '一次出手，无数可能' : 'ONE THROW. EVERY POSSIBILITY.'}</span></div>
-      <SunlitField/>
       <GlassDisc paused={paused} replayToken={replayToken}/>
       <div className="aero-hero-footer">
         <p>{zh ? '一张盘，让一切开始。' : 'It starts with a disc.'}</p>
