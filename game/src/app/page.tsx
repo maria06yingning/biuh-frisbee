@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import CodexPanel from '@/components/CodexPanel';
 import AeroHome from '@/components/AeroHome';
 import TacticsLab from '@/components/TacticsLab';
@@ -21,6 +21,17 @@ export default function Home() {
   const [playing, setPlaying] = useState(false);
   const [codex, setCodex] = useState<string[] | null>(null);
   const [lab, setLab] = useState(false);
+
+  // Content pages link back here with ?open=play|lab|codex. Read it once on
+  // mount, open the matching view, then strip the query so refresh/back behave.
+  useEffect(() => {
+    const open = new URLSearchParams(window.location.search).get('open');
+    if (!open) return;
+    window.history.replaceState(window.history.state, '', window.location.pathname);
+    if (open === 'play') { window.scrollTo(0, 0); setPlaying(true); }
+    else if (open === 'lab') { window.scrollTo(0, 0); setLab(true); }
+    else if (open === 'codex') setCodex(loadUnlocked());
+  }, []);
 
   // 从战术实验室返回时回到战术段落，而不是被弹回页面顶部
   const exitLab = useCallback(() => {

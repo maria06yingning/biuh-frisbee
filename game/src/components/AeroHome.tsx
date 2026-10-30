@@ -1,26 +1,19 @@
 'use client';
 import { useState } from 'react';
 import GlassDisc from './GlassDisc';
+import SiteHeader from './SiteHeader';
 import { useI18n } from '@/i18n/I18nProvider';
 import '@/styles/aero-home.css';
 
 export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => void; onLab: () => void; onCodex: () => void }) {
-  const { lang, setLang } = useI18n();
+  const { lang } = useI18n();
   const zh = lang === 'zh';
   const [paused, setPaused] = useState(false);
   const [replayToken, setReplayToken] = useState(0);
   const replayFlight = () => { setPaused(false); setReplayToken(value => value + 1); };
   return <main className="aero-home">
     <a className="aero-skip" href="#aero-intro">{zh ? '跳至介绍' : 'Skip to introduction'}</a>
-    <header className="aero-header">
-      <a className="aero-brand" href="#aero-top">Ultimate Field<span aria-hidden="true">↗</span></a>
-      <nav aria-label={zh ? '主导航' : 'Main navigation'}>
-        <button onClick={onLab}>{zh ? '战术实验室' : 'Tactics Lab'}</button>
-        <button onClick={onCodex}>{zh ? '规则图鉴' : 'Rule codex'}</button>
-        <button onClick={() => setLang(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
-        <button className="aero-primary" onClick={onPlay}>{zh ? '上场' : 'Play'} <span aria-hidden="true">↗</span></button>
-      </nav>
-    </header>
+    <SiteHeader onPlay={onPlay} onLab={onLab} onCodex={onCodex} />
     <section className="aero-hero" id="aero-top" aria-label={zh ? '飞盘首页' : 'Ultimate Field home'}>
       <div className="aero-eyebrow"><span>ULTIMATE FIELD</span><span>01 — {zh ? '一次出手，无数可能' : 'ONE THROW. EVERY POSSIBILITY.'}</span></div>
       <GlassDisc paused={paused} replayToken={replayToken}/>

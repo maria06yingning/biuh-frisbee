@@ -4,10 +4,11 @@ type ThreeModule = typeof Three;
 type DiscPosition = { x: number; y: number; z: number };
 
 /*
- * Clearance contract with GlassDisc: across every flight frame and every widened pointer pose,
- * the disc's lowest vertex stays above y = -3.10 (pitch .70, bank -.36, pointer at the bottom
- * corner, maximum follow gain). Grass tips are capped at TIP_CAP everywhere, so the disc can never intersect the
- * meadow at any aspect ratio, and no blade can stand between the camera and the disc.
+ * Clearance contract with GlassDisc: in every flight frame the disc stays high, and once it
+ * settles its centre never drops below y = -0.85 while no vertex lies more than 2.2 from that
+ * centre, so however the pointer turns it the lowest point stays above y = -3.05. Grass tips are
+ * capped at TIP_CAP everywhere, so the disc can never intersect the meadow at any aspect ratio,
+ * and no blade can stand between the camera and the disc.
  */
 const TIP_CAP = -3.5;
 const BASE_Y = -7.4;

@@ -1,0 +1,385 @@
+/* Content pages (Rules / Fouls / Spirit / Why).
+   These continue the live homepage ("Aero") visual language from aero-home.css:
+   paper #f5f9fa, ink #132d41, accent #195de6, hairline #d1dfe6, UF Display type,
+   a 12-column 1600px grid, the sky→meadow gradient band and quiet arrow links.
+   The page root carries both .aero-home (tokens, type, header, buttons) and
+   .aero-page (this file). Selectors that restyle buttons/links are prefixed with
+   .aero-page so they beat the generic `.aero-home button / a` rules. */
+
+.aero-page {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+}
+.aero-page main { flex: 1 0 auto; }
+.aero-page main:focus { outline: none; }
+
+/* Body links inside prose read as text links, not 44px flex buttons. */
+.aero-page .ap-prose a:not(.aero-primary):not(.aero-text-link) {
+  min-height: 0;
+  display: inline;
+  color: var(--aero-accent);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* ───────── Hero band ───────── */
+.ap-hero {
+  position: relative;
+  isolation: isolate;
+  max-width: var(--aero-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(40px, 7vw, 92px) var(--aero-space) clamp(44px, 6vw, 80px);
+  overflow: clip;
+  background: linear-gradient(180deg, #a9cdee 0%, #cfe6ea 44%, #d6e8d6 60%, #b4d495 84%, #9fc77d 100%);
+}
+.ap-hero-inner {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0 var(--aero-space);
+  align-items: end;
+}
+.ap-eyebrow {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: space-between;
+  gap: 24px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: #15303f;
+}
+.ap-hero h1 {
+  grid-column: 1 / 9;
+  margin: 28px 0 0;
+  font-size: clamp(42px, 6.6vw, 96px);
+  font-weight: 500;
+  line-height: 1.04;
+  letter-spacing: -0.06em;
+  color: #0e2433;
+}
+.ap-hero-lede {
+  grid-column: 1 / 8;
+  margin: 22px 0 0;
+  font-size: clamp(16px, 1.4vw, 20px);
+  line-height: 1.7;
+  color: #163042;
+  max-width: 42ch;
+}
+.ap-hero-art {
+  grid-column: 9 / -1;
+  grid-row: 2 / span 2;
+  align-self: center;
+  justify-self: center;
+  width: min(100%, 340px);
+}
+.ap-hero-art svg { width: 100%; height: auto; display: block; filter: drop-shadow(0 18px 30px rgba(14, 36, 51, 0.22)); }
+
+/* ───────── Section rhythm ───────── */
+.ap-body {
+  max-width: var(--aero-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 var(--aero-space);
+}
+.ap-section {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--aero-space);
+  padding: clamp(56px, 7vw, 104px) 0;
+  border-top: 1px solid var(--aero-line);
+  scroll-margin-top: 24px;
+}
+.ap-section:first-child { border-top: 0; }
+.ap-section-head { grid-column: 1 / 4; }
+.ap-section-body { grid-column: 5 / -1; min-width: 0; }
+.ap-section.ap-full .ap-section-head { grid-column: 1 / 8; }
+.ap-section.ap-full .ap-section-body { grid-column: 1 / -1; }
+.ap-label {
+  font-size: 12px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--aero-soft);
+}
+.ap-section-head h2 {
+  margin: 14px 0 0;
+  font-size: clamp(26px, 3vw, 40px);
+  font-weight: 500;
+  line-height: 1.14;
+  letter-spacing: -0.04em;
+}
+.ap-section-head p {
+  margin: 14px 0 0;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--aero-soft);
+}
+.ap-section:not(.ap-full) .ap-sticky { position: sticky; top: 24px; }
+
+.ap-prose { max-width: 68ch; }
+.ap-prose p { margin: 0 0 18px; font-size: clamp(16px, 1.3vw, 18px); line-height: 1.8; }
+.ap-prose p:last-child { margin-bottom: 0; }
+.ap-prose strong { font-weight: 650; }
+.ap-prose .ap-lead { font-size: clamp(19px, 1.8vw, 24px); line-height: 1.6; letter-spacing: -0.02em; }
+.ap-hint { margin: 12px 0 0; font-size: 13px; line-height: 1.6; color: var(--aero-soft); }
+
+/* Core English term annotation inside Chinese copy: 术语（term） */
+.ap-term .ap-en { color: var(--aero-soft); }
+.ap-term .ap-en::before { content: '（'; }
+.ap-term .ap-en::after { content: '）'; }
+
+/* ───────── Numbered editorial list (Rules) ───────── */
+.ap-numbers { list-style: none; margin: 0; padding: 0; }
+.ap-numbers > li {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  gap: 18px;
+  padding: 26px 0;
+  border-top: 1px solid var(--aero-line);
+}
+.ap-numbers > li:first-child { border-top: 0; padding-top: 0; }
+.ap-num {
+  font-size: clamp(34px, 3.4vw, 46px);
+  font-weight: 300;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--aero-accent);
+}
+.ap-numbers h3 { margin: 0 0 8px; font-size: clamp(18px, 1.6vw, 22px); font-weight: 600; letter-spacing: -0.01em; }
+.ap-numbers p { margin: 0; font-size: 16px; line-height: 1.7; color: #33505f; }
+.ap-why {
+  display: block;
+  margin-top: 10px;
+  padding-left: 14px;
+  border-left: 2px solid var(--aero-line);
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--aero-soft);
+}
+
+/* ───────── Spec rows ───────── */
+.ap-specs { margin: 28px 0 0; }
+.ap-specs > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 24px;
+  padding: 15px 0;
+  border-top: 1px solid var(--aero-line);
+}
+.ap-specs dt { font-size: 15px; color: var(--aero-soft); }
+.ap-specs dd { margin: 0; font-size: clamp(17px, 1.6vw, 21px); font-weight: 600; letter-spacing: -0.01em; text-align: right; }
+
+/* ───────── Hairline card grid ───────── */
+.ap-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1px;
+  background: var(--aero-line);
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius);
+  overflow: hidden;
+}
+.ap-cards.is-wide { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.ap-card { background: var(--aero-paper); padding: 26px 24px; display: flex; flex-direction: column; gap: 10px; }
+.ap-card .ap-tag { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--aero-accent); }
+.ap-card.is-danger .ap-tag { color: #b8361f; }
+.ap-card h3 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: -0.01em; }
+.ap-card p { margin: 0; font-size: 15px; line-height: 1.65; color: #33505f; }
+.ap-list { margin: 0; padding-left: 18px; display: grid; gap: 8px; font-size: 15px; line-height: 1.6; color: #33505f; }
+
+/* ───────── Step rail ───────── */
+.ap-rail { margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: var(--aero-space); counter-reset: rail; }
+.ap-rail > li { list-style: none; position: relative; padding-top: 44px; }
+.ap-rail > li::before {
+  counter-increment: rail;
+  content: counter(rail);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--aero-accent);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+.ap-rail > li::after {
+  content: '';
+  position: absolute;
+  top: 15px;
+  left: 40px;
+  right: calc(var(--aero-space) * -1 + 8px);
+  height: 1px;
+  background: var(--aero-line);
+}
+.ap-rail > li:last-child::after { display: none; }
+.ap-rail h3 { margin: 0 0 6px; font-size: 16px; font-weight: 600; }
+.ap-rail p { margin: 0; font-size: 14px; line-height: 1.6; color: var(--aero-soft); }
+.ap-rail + .ap-choice { margin-top: 36px; }
+
+/* ───────── Two-part layouts (diagram + text) ───────── */
+.ap-duo { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: var(--aero-space); align-items: center; }
+.ap-duo-a { grid-column: 1 / 8; min-width: 0; }
+.ap-duo-b { grid-column: 8 / -1; min-width: 0; display: flex; flex-direction: column; gap: 14px; }
+.ap-duo.is-field .ap-duo-a { grid-column: 1 / 9; }
+.ap-duo.is-field .ap-duo-b { grid-column: 9 / -1; align-self: start; gap: 10px; }
+.ap-duo.is-circle .ap-duo-a { grid-column: 1 / 6; max-width: 380px; }
+.ap-duo.is-circle .ap-duo-b { grid-column: 6 / -1; }
+.ap-figure svg { width: 100%; height: auto; display: block; border: 1px solid var(--aero-line); border-radius: var(--aero-radius); background: #eef5ef; }
+.ap-figure.is-bare svg { border: 0; background: none; }
+
+/* Field diagram keys */
+.aero-page .ap-key {
+  width: 100%;
+  min-height: 0;
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 3px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius);
+  background: var(--aero-paper);
+}
+.aero-page .ap-key:hover { opacity: 1; border-color: #a9c3d1; }
+.aero-page .ap-key[aria-pressed='true'] { border-color: var(--aero-accent); box-shadow: inset 0 0 0 1px var(--aero-accent); }
+.ap-key b { font-size: 15px; font-weight: 600; }
+.ap-key span { font-size: 13px; line-height: 1.5; color: var(--aero-soft); }
+.ap-fz { transition: opacity var(--aero-fast) var(--aero-ease); }
+
+/* Segmented choice buttons (call flow) */
+.ap-choice { display: flex; flex-wrap: wrap; gap: 10px; }
+.aero-page .ap-choice button {
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius);
+  background: var(--aero-paper);
+  padding: 10px 16px;
+}
+.aero-page .ap-choice button:hover { opacity: 1; border-color: #a9c3d1; }
+.aero-page .ap-choice button[aria-pressed='true'] { background: var(--aero-accent); border-color: var(--aero-accent); color: #fff; }
+.ap-result { margin: 20px 0 0; font-size: 17px; line-height: 1.75; max-width: 60ch; }
+
+/* ───────── Stall-count demo ───────── */
+.ap-stall { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 8px 0; }
+.ap-stall-ring { width: 184px; height: 184px; }
+.ap-stall-arc { transition: stroke-dashoffset 0.9s linear, stroke var(--aero-fast) var(--aero-ease); }
+.ap-stall-num { font-size: 56px; font-weight: 300; letter-spacing: -0.04em; fill: var(--aero-ink); }
+.ap-stall-word { font-size: 11px; letter-spacing: 0.16em; fill: var(--aero-soft); }
+.ap-stall-msg { min-height: 52px; margin: 0; max-width: 36ch; text-align: center; font-size: 15px; line-height: 1.6; color: var(--aero-soft); }
+.ap-stall-msg.is-bad { color: #b8361f; }
+.ap-stall-msg.is-good { color: var(--aero-ink); }
+
+/* ───────── Spirit scorecard ───────── */
+.ap-score-row { display: grid; grid-template-columns: 1fr auto; gap: 16px; align-items: center; padding: 16px 0; border-top: 1px solid var(--aero-line); }
+.ap-score-row:first-child { border-top: 0; padding-top: 0; }
+.ap-score-row h3 { margin: 0 0 4px; font-size: 16px; font-weight: 600; }
+.ap-score-row p { margin: 0; font-size: 13px; line-height: 1.5; color: var(--aero-soft); }
+.ap-dots { display: flex; gap: 8px; }
+.aero-page .ap-dot {
+  width: 40px;
+  height: 40px;
+  min-height: 0;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--aero-line);
+  background: var(--aero-paper);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--aero-soft);
+}
+.aero-page .ap-dot:hover { opacity: 1; border-color: var(--aero-accent); color: var(--aero-accent); }
+.aero-page .ap-dot[aria-pressed='true'] { background: var(--aero-accent); border-color: var(--aero-accent); color: #fff; }
+.ap-score-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 20px;
+  margin-top: 8px;
+  padding-top: 20px;
+  border-top: 2px solid var(--aero-ink);
+}
+.ap-score-total b { font-size: clamp(32px, 4vw, 48px); font-weight: 300; letter-spacing: -0.04em; }
+.ap-score-note { font-size: 15px; color: var(--aero-soft); text-align: right; max-width: 32ch; }
+
+/* ───────── Pull-quote ───────── */
+.ap-quote { margin: 0; }
+.ap-quote blockquote {
+  margin: 0;
+  font-size: clamp(22px, 2.5vw, 32px);
+  font-weight: 400;
+  line-height: 1.42;
+  letter-spacing: -0.02em;
+}
+.ap-quote cite { display: block; margin-top: 18px; font-size: 13px; font-style: normal; color: var(--aero-soft); }
+.ap-quote + .ap-prose { margin-top: 28px; }
+
+/* ───────── Big counter (Why) ───────── */
+.ap-count { margin: 0; font-size: clamp(44px, 5vw, 68px); font-weight: 300; letter-spacing: -0.04em; line-height: 1; }
+.ap-count small { margin-left: 10px; font-size: 15px; font-weight: 400; letter-spacing: 0; color: var(--aero-soft); }
+.ap-pass-copy { margin: 0; font-size: 15px; line-height: 1.7; color: #33505f; max-width: 34ch; }
+.ap-pass-disc { transition: transform 0.5s var(--aero-ease); }
+.ap-duo .ap-duo-b { justify-content: center; }
+
+/* ───────── Reasons grid (Why) ───────── */
+.ap-reasons { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 48px var(--aero-space); }
+.ap-reason { display: flex; flex-direction: column; gap: 10px; padding-top: 22px; border-top: 1px solid var(--aero-line); }
+.ap-reason-n { font-size: 13px; letter-spacing: 0.1em; color: var(--aero-accent); }
+.ap-reason h3 { margin: 0; font-size: clamp(20px, 1.8vw, 24px); font-weight: 600; letter-spacing: -0.02em; }
+.ap-reason p { margin: 0; font-size: 16px; line-height: 1.75; color: #33505f; }
+
+/* ───────── CTA rows ───────── */
+.ap-cta-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 8px; }
+.aero-page .ap-cta-row .aero-text-link { padding-left: 0; }
+.aero-page .ap-ghost { border: 1px solid var(--aero-line); border-radius: var(--aero-radius); padding: 10px 16px; }
+
+/* ───────── Next-page hand-off ───────── */
+.ap-next {
+  max-width: var(--aero-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: clamp(40px, 5vw, 72px) var(--aero-space) clamp(56px, 6vw, 88px);
+  border-top: 1px solid var(--aero-line);
+}
+.aero-page .ap-next a { display: block; min-height: 0; }
+.aero-page .ap-next a:hover { opacity: 1; }
+.ap-next-k { display: block; font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--aero-soft); }
+.ap-next-t { display: block; margin-top: 10px; font-size: clamp(32px, 4.4vw, 60px); font-weight: 500; letter-spacing: -0.05em; line-height: 1.05; }
+.ap-next-t span { display: inline-block; color: var(--aero-accent); transition: transform var(--aero-fast) var(--aero-ease); }
+.aero-page .ap-next a:hover .ap-next-t span { transform: translateX(10px); }
+
+/* ───────── Responsive ───────── */
+@media (max-width: 900px) {
+  .ap-hero h1, .ap-hero-lede { grid-column: 1 / -1; }
+  .ap-hero-art { grid-column: 1 / -1; grid-row: auto; justify-self: start; width: min(64%, 260px); margin-top: 28px; }
+  .ap-section { grid-template-columns: 1fr; }
+  .ap-section-head, .ap-section-body,
+  .ap-section.ap-full .ap-section-head, .ap-section.ap-full .ap-section-body { grid-column: 1; }
+  .ap-section .ap-sticky { position: static; }
+  .ap-duo { grid-template-columns: 1fr; }
+  .ap-duo .ap-duo-a, .ap-duo .ap-duo-b,
+  .ap-duo.is-field .ap-duo-a, .ap-duo.is-field .ap-duo-b,
+  .ap-duo.is-circle .ap-duo-a, .ap-duo.is-circle .ap-duo-b { grid-column: 1; }
+  .ap-duo.is-field .ap-duo-b { flex-direction: row; flex-wrap: wrap; }
+  .aero-page .ap-duo.is-field .ap-key { flex: 1 1 200px; width: auto; }
+  .ap-duo.is-circle .ap-duo-a { max-width: 300px; }
+  .ap-rail > li::after { display: none; }
+}
+@media (max-width: 560px) {
+  .ap-eyebrow { flex-direction: column; gap: 4px; }
+  .ap-numbers > li { grid-template-columns: 48px 1fr; gap: 12px; }
+  .ap-score-row { grid-template-columns: 1fr; gap: 10px; }
+  .ap-score-total { flex-direction: column; align-items: flex-start; }
+  .ap-score-note { text-align: left; }
+  .aero-page .ap-dot { width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ap-fz, .ap-stall-arc, .ap-pass-disc, .ap-next-t span { transition: none; }
+}

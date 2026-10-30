@@ -1,0 +1,101 @@
+/* Shared header/footer chrome for the homepage and the four content pages.
+   Continues aero-home.css tokens; this file only adds the page-link group,
+   the "pages" disclosure for narrow screens, and anchor variants of the
+   existing header buttons. It never changes the homepage's existing look. */
+
+/* Anchor variants must match the existing <button> chrome exactly. */
+.aero-home .aero-header nav a.aero-navbtn {
+  padding: 10px 14px;
+  font-size: 14px;
+  min-height: 44px;
+}
+.aero-home .aero-header nav a.aero-primary { padding: 12px 22px; }
+
+/* Divider between content pages and tool actions */
+.aero-nav-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 8px 4px;
+  background: var(--aero-line);
+}
+
+/* Inline page links (desktop) */
+.aero-pages-inline { display: flex; gap: 2px; align-items: center; }
+.aero-home .aero-pages-inline a { padding: 10px 12px; font-size: 14px; min-height: 44px; }
+.aero-pages-inline a[aria-current='page'] {
+  color: var(--aero-accent);
+  text-decoration: underline;
+  text-underline-offset: 7px;
+  text-decoration-thickness: 2px;
+}
+
+/* "Pages" disclosure (narrow screens) */
+.aero-nav-pages { position: relative; }
+.aero-home .aero-pages-toggle { padding: 10px 14px; font-size: 14px; min-height: 44px; gap: 6px; }
+.aero-pages-toggle span { font-size: 11px; transition: transform var(--aero-fast) var(--aero-ease); }
+.aero-pages-toggle[aria-expanded='true'] span { transform: rotate(180deg); }
+.aero-pages-menu[hidden] { display: none; }
+.aero-pages-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  z-index: 40;
+  min-width: 268px;
+  background: var(--aero-paper);
+  border: 1px solid var(--aero-line);
+  border-radius: var(--aero-radius);
+  box-shadow: 0 22px 48px -28px rgba(14, 36, 51, 0.5);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+}
+.aero-home .aero-pages-menu a {
+  justify-content: flex-start;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 12px;
+  min-height: 0;
+  border-radius: 6px;
+  text-align: left;
+}
+.aero-home .aero-pages-menu a:hover { opacity: 1; box-shadow: inset 0 0 0 1px var(--aero-line); }
+.aero-pages-menu a[aria-current='page'] { box-shadow: inset 0 0 0 1px var(--aero-accent); }
+.aero-pages-menu a b { font-size: 15px; font-weight: 600; letter-spacing: -0.01em; }
+.aero-pages-menu a small { font-size: 12px; color: var(--aero-soft); }
+
+/* Shared content-page footer */
+.aero-page-footer {
+  flex-shrink: 0;
+  max-width: var(--aero-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: 28px var(--aero-space) 40px;
+  border-top: 1px solid var(--aero-line);
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: var(--aero-space);
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--aero-soft);
+}
+.aero-page-footer .afo-brand { grid-column: 1 / 5; font-size: 14px; font-weight: 650; letter-spacing: -0.03em; color: var(--aero-ink); }
+.aero-page-footer .afo-links { grid-column: 5 / 9; display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.aero-home .aero-page-footer .afo-links a { min-height: 0; padding: 0; }
+.aero-page-footer .afo-cite { grid-column: 9 / -1; }
+.aero-page-footer .afo-cite a { min-height: 0; padding: 0; display: inline; color: var(--aero-accent); text-decoration: underline; text-underline-offset: 2px; }
+
+@media (max-width: 1080px) {
+  .aero-pages-inline, .aero-nav-sep { display: none; }
+}
+@media (min-width: 1081px) {
+  .aero-nav-pages { display: none; }
+}
+@media (max-width: 768px) {
+  /* Keep the existing stacked mobile header; match the toggle to the other buttons */
+  .aero-home .aero-header .aero-pages-toggle { font-size: 12px; padding: 8px; }
+  .aero-home .aero-header nav a.aero-navbtn { font-size: 12px; padding: 8px; }
+  .aero-home .aero-header nav a.aero-navbtn.aero-primary { padding: 8px 14px; }
+  .aero-page-footer { grid-template-columns: 1fr; gap: 10px; }
+  .aero-page-footer .afo-brand, .aero-page-footer .afo-links, .aero-page-footer .afo-cite { grid-column: 1; }
+}
