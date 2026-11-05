@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { pick, type Bi } from '@/content/shared';
+import { pick, withBase, type Bi } from '@/content/shared';
 import PageShell, { Section } from '@/components/PageShell';
 
 /* Seven reasons, each with a short personal note. */
@@ -222,10 +222,10 @@ export default function Why() {
               : 'No field nearby yet? Try the passing and cutting in our 3D game, or open the Tactics Lab to see how seven players move together.'}
           </p>
           <div className="ap-cta-row">
-            <a className="aero-primary" href="/?open=play">
+            <a className="aero-primary" href={withBase('/?open=play')}>
               {zh ? '进入游戏' : 'Enter the game'} <span aria-hidden="true">↗</span>
             </a>
-            <a className="aero-text-link" href="/?open=lab">
+            <a className="aero-text-link" href={withBase('/?open=lab')}>
               {zh ? '去战术实验室' : 'Open the Tactics Lab'} <span aria-hidden="true">→</span>
             </a>
           </div>

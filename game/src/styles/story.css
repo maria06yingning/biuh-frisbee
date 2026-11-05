@@ -10,26 +10,26 @@
 
 @font-face {
   font-family: 'UF Display';
-  src: url('/fonts/archivo-latin-wght-normal.woff2') format('woff2');
+  src: url('./fonts/archivo-latin-wght-normal.woff2') format('woff2');
   font-weight: 100 900;
   font-display: swap;
 }
 @font-face {
   font-family: 'UF Serif';
-  src: url('/fonts/instrument-serif-latin-400-italic.woff2') format('woff2');
+  src: url('./fonts/instrument-serif-latin-400-italic.woff2') format('woff2');
   font-style: italic;
   font-weight: 400;
   font-display: swap;
 }
 @font-face {
   font-family: 'UF Hand';
-  src: url('/fonts/caveat-latin-700-normal.woff2') format('woff2');
+  src: url('./fonts/caveat-latin-700-normal.woff2') format('woff2');
   font-weight: 700;
   font-display: swap;
 }
 @font-face {
   font-family: 'UF Mono';
-  src: url('/fonts/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
+  src: url('./fonts/jetbrains-mono-latin-wght-normal.woff2') format('woff2');
   font-weight: 100 800;
   font-display: swap;
 }

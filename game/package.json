@@ -6,6 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
+    "build:pages": "GITHUB_PAGES=1 next build",
     "calibrate": "tsx scripts/calibrate.ts",
     "check-lab": "tsx scripts/check-lab.ts"
   },

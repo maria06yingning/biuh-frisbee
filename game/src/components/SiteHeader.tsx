@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { PAGES, pick, type PageLink } from '@/content/shared';
+import { PAGES, pick, withBase, type PageLink } from '@/content/shared';
 import '@/styles/aero-nav.css';
 
 /**
@@ -58,7 +58,7 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
         {label}
       </button>
     ) : (
-      <a className={`aero-navbtn${primary ? ' aero-primary' : ''}`} href={`/?open=${kind}`}>
+      <a className={`aero-navbtn${primary ? ' aero-primary' : ''}`} href={withBase(`/?open=${kind}`)}>
         {label}
       </a>
     );

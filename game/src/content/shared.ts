@@ -7,6 +7,14 @@ import type { Lang } from '@/i18n/dict';
 export type Bi = [zh: string, en: string];
 export const pick = (lang: Lang, b: Bi): string => (lang === 'zh' ? b[0] : b[1]);
 
+/**
+ * Deploy base path. Empty in local dev; "/<repo>" on a GitHub Pages project site
+ * (see next.config.mjs). next/link applies this automatically — plain <a href>
+ * does not, so those few links go through withBase().
+ */
+export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+export const withBase = (path: string): string => `${BASE_PATH}${path}`;
+
 /** The four content pages, in reading order. Used by the nav and the "next page" footer. */
 export interface PageLink {
   slug: '/rules' | '/fouls' | '/spirit' | '/why';

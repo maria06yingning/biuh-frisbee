@@ -7,21 +7,22 @@ type DiscPosition = { x: number; y: number; z: number };
  * Clearance contract with GlassDisc: in every flight frame the disc stays high, and once it
  * settles its centre never drops below y = -0.85 while no vertex lies more than 2.2 from that
  * centre, so however the pointer turns it the lowest point stays above y = -3.05. Grass tips are
- * capped at TIP_CAP everywhere, so the disc can never intersect the meadow at any aspect ratio,
- * and no blade can stand between the camera and the disc.
+ * capped at TIP_CAP everywhere (the short lawn stays well below even that), so the disc can never
+ * intersect the meadow at any aspect ratio, and no blade can stand between the camera and the disc.
  */
 const TIP_CAP = -3.5;
 const BASE_Y = -7.4;
 const MAX_HEIGHT = TIP_CAP - BASE_Y;
+const TALLEST_BLADE = 2.8;  // Short, lively lawn: the tallest tip stays 1.1 under the cap.
 const FAR_DISTANCE = 170;   // Blades flatten into the ground carpet by this distance.
-const FOG_NEAR = 18;        // Aerial haze starts here and thickens exponentially.
-const FOG_SCALE = 330;
-const NEAR_HILLS = 380;     // Two soft hill silhouettes close the horizon, so no field edge shows.
-const FAR_HILLS = 560;
+const FOG_NEAR = 18;        // Aerial haze starts here and thickens exponentially, then
+const FOG_SCALE = 400;
+const FOG_FULL = 660;       // completes just inside the camera's far plane (700), so the meadow
+                            // melts into the sky at the horizon without any visible edge.
 /** Direction toward the sun: upper right and slightly behind the field, so the grass is back-lit. */
 const SUN_DIRECTION: readonly [number, number, number] = [0.46, 0.5, -0.74];
-/** Pale horizon haze (display values) shared by the sky, the fogged meadow and the hills. */
-const HAZE: readonly [number, number, number] = [0.86, 0.92, 0.9];
+/** Bright pale-blue horizon haze (display values) shared by the sky and the fogged meadow. */
+const HAZE: readonly [number, number, number] = [0.84, 0.93, 0.96];
 
 function createRandom(seed: number) {
   let value = seed >>> 0;
@@ -47,14 +48,6 @@ function smoothstep(edge0: number, edge1: number, value: number) {
   return t * t * (3 - 2 * t);
 }
 
-// Rounded humps with flatter valleys; integer frequencies keep each ring seamless.
-const hump = (value: number, power: number) => Math.pow(0.5 + 0.5 * value, power);
-const nearHillHeight = (a: number) =>
-  3 + 9 * hump(Math.sin(7 * a + 1.3), 1.6) + 3 * hump(Math.sin(12 * a + 0.4), 2) + Math.sin(23 * a + 2.1);
-// Always taller than the camera's eye height, so the true horizon line never shows.
-const farHillHeight = (a: number) =>
-  13 + 15 * hump(Math.sin(5 * a + 2.2), 1.4) + 6 * hump(Math.sin(9 * a + 0.7), 1.8) + 1.5 * Math.sin(17 * a + 1.9);
-
 // Haze picks up a warm glow toward the sun, so distant grass and sky brighten on the sun side.
 const HAZE_GLSL = `
   vec3 hazeToward(vec3 dir) {
@@ -64,8 +57,11 @@ const HAZE_GLSL = `
 const FOG_GLSL = `
   uniform float uFogNear;
   uniform float uFogScale;
+  uniform float uFogFull;
   float fogAmount(float depth) {
-    return 1.0 - exp(-max(depth - uFogNear, 0.0) / uFogScale);
+    float haze = 1.0 - exp(-max(depth - uFogNear, 0.0) / uFogScale);
+    // Completes just inside the far plane, so the ground's clipped edge matches the sky exactly.
+    return mix(haze, 1.0, smoothstep(uFogFull * 0.55, uFogFull, depth));
   }
 `;
 const NOISE_GLSL = `
@@ -101,12 +97,13 @@ const SKY_FRAGMENT = `
   void main() {
     vec3 d = normalize(vDir);
     vec3 haze = hazeToward(d);
-    vec3 zenith = vec3(0.47, 0.68, 0.93);
+    // Clear, saturated summer blue overhead, fading to a bright horizon.
+    vec3 zenith = vec3(0.36, 0.62, 0.94);
     vec3 sky = mix(uHaze, zenith, smoothstep(0.0, 0.3, max(d.y, 0.0))) + (haze - uHaze);
   #ifdef VISIBLE_DOME
     vec3 below = haze;
   #else
-    vec3 below = mix(vec3(0.4, 0.58, 0.32), vec3(0.2, 0.38, 0.16), smoothstep(0.0, 0.5, -d.y));
+    vec3 below = mix(vec3(0.36, 0.58, 0.26), vec3(0.16, 0.38, 0.12), smoothstep(0.0, 0.5, -d.y));
   #endif
     vec3 color = mix(below, sky, smoothstep(-0.03, 0.0, d.y));
     vec3 skyLinear = pow(max(color, 0.0), vec3(2.2));
@@ -149,12 +146,12 @@ const BLADE_VERTEX = `
     vec3 facing = vec3(cos(aFace), 0.0, sin(aFace));
     vec3 across = facing * (position.x * aWidth * taper);
 
-    // Rolling wind waves travel left to right; a slow envelope and a per-blade flutter keep
-    // neighbouring patches out of step without turning it into a storm.
+    // Rolling wind waves travel left to right at a brisk, playful pace; a slow envelope and a
+    // per-blade flutter keep neighbouring patches out of step without turning it into a storm.
     float along = dot(aOrigin.xz, uWind);
-    float wave = sin(along * 0.16 - uTime * 1.05) * 0.5 + 0.5;
-    float envelope = sin(along * 0.045 + aOrigin.z * 0.03 - uTime * 0.37) * 0.5 + 0.5;
-    float flutter = sin(uTime * 2.1 + aPhase) * 0.1;
+    float wave = sin(along * 0.16 - uTime * 1.3) * 0.5 + 0.5;
+    float envelope = sin(along * 0.045 + aOrigin.z * 0.03 - uTime * 0.45) * 0.5 + 0.5;
+    float flutter = sin(uTime * 2.6 + aPhase) * 0.1;
     float gust = wave * (0.45 + 0.55 * envelope) + flutter;
     float bend = aLean * (0.68 + 0.32 * gust) * t * t;
 
@@ -197,23 +194,23 @@ const BLADE_FRAGMENT = `
 
   void main() {
     float t = vUp;
-    // Fresh, vivid palette: deep grass root -> lush green body.
-    vec3 root = vec3(0.16, 0.34, 0.16);
-    vec3 shade = vec3(0.26, 0.52, 0.22);
-    vec3 body = vec3(0.46, 0.73, 0.32);
+    // Deep, saturated lawn greens: a sunny, lively field rather than a pastel meadow.
+    vec3 root = vec3(0.08, 0.24, 0.07);
+    vec3 shade = vec3(0.15, 0.41, 0.11);
+    vec3 body = vec3(0.28, 0.6, 0.16);
     vec3 color = mix(root, shade, smoothstep(0.0, 0.28, t));
     color = mix(color, body, smoothstep(0.22, 0.62, t));
 
     // Broad warm/cool patches across the field plus per-blade tone.
-    color += vec3(0.07, 0.05, -0.04) * (vClump - 0.5);
-    color *= (0.9 + 0.22 * vClump) * (0.95 + 0.12 * vTone);
+    color += vec3(0.07, 0.05, -0.03) * (vClump - 0.5);
+    color *= (0.9 + 0.22 * vClump) * (0.94 + 0.12 * vTone);
 
-    // Warm cream-gold tips, glowing most where the view looks toward the sun (back light).
-    vec3 tip = vec3(0.92, 0.9, 0.56);
-    color = mix(color, tip, smoothstep(0.66, 1.0, t) * (0.5 + 0.5 * vTone));
-    color += vec3(0.26, 0.21, 0.08) * smoothstep(0.5, 1.0, t) * (0.18 + vBack);
+    // Sunny yellow-green tips, glowing most where the view looks toward the sun (back light).
+    vec3 tip = vec3(0.64, 0.84, 0.28);
+    color = mix(color, tip, smoothstep(0.64, 1.0, t) * (0.3 + 0.4 * vTone));
+    color += vec3(0.17, 0.17, 0.04) * smoothstep(0.5, 1.0, t) * (0.15 + vBack);
     // The sun-facing edge of each blade is a touch lighter.
-    color += vec3(0.1, 0.1, 0.04) * smoothstep(0.25, 1.0, vSide) * t;
+    color += vec3(0.07, 0.09, 0.02) * smoothstep(0.25, 1.0, vSide) * t;
     // Contact shadow pooling at the roots.
     color *= mix(0.6, 1.0, smoothstep(0.0, 0.3, t));
 
@@ -251,52 +248,12 @@ const GROUND_FRAGMENT = `
     // Fine detail fades out before it can shimmer at a grazing angle.
     float n = mix(broad, field, 1.0 - smoothstep(150.0, 280.0, d));
     n = mix(n, n * 0.75 + grain * 0.25, 1.0 - smoothstep(30.0, 60.0, d));
-    vec3 nearColor = mix(vec3(0.28, 0.5, 0.24), vec3(0.52, 0.72, 0.34), n);
+    vec3 nearColor = mix(vec3(0.15, 0.36, 0.1), vec3(0.3, 0.57, 0.17), n);
     // Beyond the blades the carpet matches their sunlit upper halves, so the hand-off is invisible.
-    vec3 farColor = mix(vec3(0.46, 0.66, 0.34), vec3(0.64, 0.76, 0.44), n);
+    vec3 farColor = mix(vec3(0.3, 0.58, 0.17), vec3(0.46, 0.7, 0.24), n);
     vec3 color = mix(nearColor, farColor, smoothstep(70.0, 170.0, d));
     vec3 dir = normalize(vWorld - cameraPosition);
     color = mix(color, hazeToward(dir), fogAmount(d));
-    gl_FragColor = vec4(pow(max(color, 0.0), vec3(2.2)), 1.0);
-    #include <colorspace_fragment>
-    ${DITHER_GLSL}
-  }
-`;
-
-const HILL_VERTEX = `
-  attribute float aRise;
-  attribute float aLayer;
-  varying float vRise;
-  varying float vLayer;
-  varying vec3 vWorld;
-  varying float vDepth;
-  void main() {
-    vec4 world = modelMatrix * vec4(position, 1.0);
-    vec4 mv = viewMatrix * world;
-    vRise = aRise;
-    vLayer = aLayer;
-    vWorld = world.xyz;
-    vDepth = -mv.z;
-    gl_Position = projectionMatrix * mv;
-  }
-`;
-
-const HILL_FRAGMENT = `
-  uniform vec3 uSun;
-  uniform vec3 uHaze;
-  ${FOG_GLSL}
-  varying float vRise;
-  varying float vLayer;
-  varying vec3 vWorld;
-  varying float vDepth;
-  ${HAZE_GLSL}
-  ${NOISE_GLSL}
-  void main() {
-    // Back-lit hills: richer green shaded faces, a lighter crest; the far ring is a touch cooler.
-    vec3 base = mix(vec3(0.34, 0.54, 0.34), vec3(0.44, 0.6, 0.52), vLayer);
-    vec3 crest = mix(vec3(0.5, 0.68, 0.42), vec3(0.56, 0.7, 0.56), vLayer);
-    vec3 color = mix(base, crest, smoothstep(0.55, 1.0, vRise));
-    color = mix(color, hazeToward(normalize(vWorld - cameraPosition)), fogAmount(vDepth));
     gl_FragColor = vec4(pow(max(color, 0.0), vec3(2.2)), 1.0);
     #include <colorspace_fragment>
     ${DITHER_GLSL}
@@ -322,41 +279,7 @@ function createBladeGeometry(T: ThreeModule, count: number) {
   return geometry;
 }
 
-/** Two rings of rolling hills around the field, drawn as walls with a wavy crest. */
-function createHillGeometry(T: ThreeModule) {
-  const segments = 512;
-  const positions: number[] = [];
-  const rises: number[] = [];
-  const layers: number[] = [];
-  const indices: number[] = [];
-  const rings: Array<[number, number, (a: number) => number]> = [
-    [NEAR_HILLS, 0, nearHillHeight],
-    [FAR_HILLS, 1, farHillHeight],
-  ];
-  for (const [radius, layer, heightAt] of rings) {
-    const start = positions.length / 3;
-    for (let i = 0; i <= segments; i++) {
-      const a = (i / segments) * Math.PI * 2; // a = 0 looks straight down the field (-z).
-      const x = Math.sin(a) * radius;
-      const z = -Math.cos(a) * radius;
-      positions.push(x, BASE_Y - 1.5, z, x, BASE_Y + heightAt(a), z);
-      rises.push(0, 1);
-      layers.push(layer, layer);
-    }
-    for (let i = 0; i < segments; i++) {
-      const r = start + i * 2;
-      indices.push(r, r + 1, r + 2, r + 1, r + 3, r + 2);
-    }
-  }
-  const geometry = new T.BufferGeometry();
-  geometry.setAttribute('position', new T.Float32BufferAttribute(positions, 3));
-  geometry.setAttribute('aRise', new T.Float32BufferAttribute(rises, 1));
-  geometry.setAttribute('aLayer', new T.Float32BufferAttribute(layers, 1));
-  geometry.setIndex(indices);
-  return geometry;
-}
-
-/** Sky dome, haze-faded ground, distant hills and a dense instanced meadow, sharing one sun. */
+/** Sky dome, haze-faded ground and a dense instanced lawn, sharing one sun and one haze. */
 export function createProceduralGrassField(T: ThreeModule) {
   const smallViewport = typeof window !== 'undefined' && Math.min(window.innerWidth, window.innerHeight) < 720;
   const count = smallViewport ? 16000 : 40000;
@@ -411,12 +334,13 @@ export function createProceduralGrassField(T: ThreeModule) {
   const uHaze = { value: new T.Vector3(...HAZE) };
   const uFogNear = { value: FOG_NEAR };
   const uFogScale = { value: FOG_SCALE };
+  const uFogFull = { value: FOG_FULL };
   const bladeUniforms = {
     uTime: { value: 0 },
     uWind: { value: new T.Vector2(1, 0.16).normalize() },
     uDiscPosition: { value: new T.Vector3() },
     uDiscInfluence: { value: 0 },
-    uSun, uHaze, uFogNear, uFogScale,
+    uSun, uHaze, uFogNear, uFogScale, uFogFull,
   };
 
   const bladeMaterial = new T.ShaderMaterial({
@@ -431,30 +355,18 @@ export function createProceduralGrassField(T: ThreeModule) {
   blades.renderOrder = 0;
 
   const groundMaterial = new T.ShaderMaterial({
-    uniforms: { uSun, uHaze, uFogNear, uFogScale },
+    uniforms: { uSun, uHaze, uFogNear, uFogScale, uFogFull },
     vertexShader: GROUND_VERTEX,
     fragmentShader: GROUND_FRAGMENT,
     toneMapped: false,
   });
-  // Reaches past the far hills, so the meadow runs uninterrupted into them.
+  // Wide enough to reach the camera's far plane in every direction, where the haze is complete.
   const groundGeometry = new T.PlaneGeometry(1600, 1600);
   const ground = new T.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, BASE_Y - 0.02, 0); // A hair below the roots: no z-fighting.
   ground.renderOrder = 1; // After the blades, so covered ground is depth-rejected.
   ground.frustumCulled = false;
-
-  const hillGeometry = createHillGeometry(T);
-  const hillMaterial = new T.ShaderMaterial({
-    uniforms: { uSun, uHaze, uFogNear, uFogScale },
-    vertexShader: HILL_VERTEX,
-    fragmentShader: HILL_FRAGMENT,
-    side: T.DoubleSide,
-    toneMapped: false,
-  });
-  const hills = new T.Mesh(hillGeometry, hillMaterial);
-  hills.renderOrder = 2;
-  hills.frustumCulled = false;
 
   const makeSkyMaterial = (visible: boolean) => new T.ShaderMaterial({
     uniforms: { uSun, uHaze },
@@ -473,7 +385,7 @@ export function createProceduralGrassField(T: ThreeModule) {
 
   const group = new T.Group();
   group.name = 'procedural-grass-field';
-  group.add(dome, blades, ground, hills);
+  group.add(dome, blades, ground);
 
   const forward = new T.Vector3();
 
@@ -498,8 +410,8 @@ export function createProceduralGrassField(T: ThreeModule) {
       const tanV = Math.tan(camera.fov * Math.PI / 360);
       const tanH = tanV * camera.aspect;
       const bottom = Math.max(0.05, pitch + Math.atan(tanV));
-      // Nearest distance at which a full-height tip can enter the bottom of the frame.
-      const nearD = Math.max(0.5, ((camera.position.y - TIP_CAP) / Math.tan(bottom)) * 0.82);
+      // Nearest distance at which the tallest tip can enter the bottom of the frame.
+      const nearD = Math.max(0.5, ((camera.position.y - (BASE_Y + TALLEST_BLADE)) / Math.tan(bottom)) * 0.82);
       const span = FAR_DISTANCE - nearD;
       for (let i = 0; i < count; i++) {
         const d = nearD + Math.pow(depthSeeds[i], 1.6) * span;
@@ -510,14 +422,15 @@ export function createProceduralGrassField(T: ThreeModule) {
         const fine = noise2(x * 0.31 - 3, z * 0.31 + 5);
         // Far blades settle gradually into the smooth carpet the ground continues.
         const fade = 1 - smoothstep(FAR_DISTANCE * 0.45, FAR_DISTANCE, d);
-        const height = Math.min(MAX_HEIGHT, (1.7 + clump * 1.2 + fine * 0.5 + heightSeeds[i] * 0.7) * fade);
+        // A short lawn (1.1-2.8 tall); clumps and fine noise keep it uneven and lively.
+        const height = Math.min(MAX_HEIGHT, (1.1 + clump * 0.8 + fine * 0.35 + heightSeeds[i] * 0.55) * fade);
         const stride = i * 3;
         origins[stride] = x;
         origins[stride + 1] = BASE_Y;
         origins[stride + 2] = z;
         heights[i] = height;
         // Far blades widen a little so the distant carpet stays solid instead of shimmering.
-        widths[i] = (0.045 + widthSeeds[i] * 0.035) * (1 + d / 45);
+        widths[i] = (0.04 + widthSeeds[i] * 0.03) * (1 + d / 45);
         leans[i] = height * (0.16 + leanSeeds[i] * 0.16 + clump * 0.08);
         clumps[i] = clump;
       }
@@ -539,8 +452,6 @@ export function createProceduralGrassField(T: ThreeModule) {
       bladeMaterial.dispose();
       groundGeometry.dispose();
       groundMaterial.dispose();
-      hillGeometry.dispose();
-      hillMaterial.dispose();
       domeGeometry.dispose();
       domeMaterial.dispose();
     },

@@ -39,7 +39,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       const scene = new T.Scene();
       // The grass/ground/sky shaders fade themselves into haze, so no scene-wide fog here
       // (scene fog would also dim the disc on its distant approach at z=-72).
-      // Far plane reaches past the far hill ring; nothing sits closer than ~7 units.
+      // Far plane sits just past where the meadow reaches full haze; nothing sits closer than ~7 units.
       const camera = new T.PerspectiveCamera(36, 1, 0.5, 700);
       camera.position.set(0, 10.2 * 0.078, 10.2);
       camera.lookAt(0, 0, 0);
@@ -66,26 +66,26 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       const attitude = new T.Group();
       const spinner = new T.Group();
       attitude.add(spinner); scene.add(attitude);
-      // Clear glass, a little denser than before: low roughness keeps what lies behind sharp,
-      // while less transmission and more opacity let the pale blue body read more solidly.
+      // Glass with a denser, brighter pale-blue body: still clear (low roughness keeps what lies
+      // behind sharp), but less transmission and more opacity make it read as a solid object.
       const glass = new T.MeshPhysicalMaterial({
-        color: 0xd0eff3, metalness: 0.015, roughness: 0.095,
-        transmission: 0.76, thickness: 0.2, ior: 1.46,
+        color: 0xc6eaf2, metalness: 0.015, roughness: 0.1,
+        transmission: 0.68, thickness: 0.22, ior: 1.46,
         clearcoat: 1, clearcoatRoughness: 0.08,
-        attenuationColor: new T.Color(0x86c9dd), attenuationDistance: 1.5,
-        transparent: true, opacity: 0.93, side: T.DoubleSide,
+        attenuationColor: new T.Color(0x74c2dc), attenuationDistance: 1.35,
+        transparent: true, opacity: 0.95, side: T.DoubleSide,
       });
       const section = [[0,0.11],[0.6,0.115],[1.3,0.1],[1.72,0.07],[1.88,0.035],[2,0],[2.12,-0.08],[2.19,-0.18],[2.18,-0.29],[2.1,-0.34],[2.02,-0.29],[1.98,-0.17],[1.86,-0.09],[1.5,-0.035],[0.6,0.025],[0,0.035]];
       spinner.add(new T.Mesh(new T.LatheGeometry(section.map(([x, y]) => new T.Vector2(x, y)), 144), glass));
-      const blue = new T.MeshPhysicalMaterial({ color: 0x45afcd, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.7, clearcoat: 1 });
-      const white = new T.MeshPhysicalMaterial({ color: 0xf2fbfc, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.78 });
+      const blue = new T.MeshPhysicalMaterial({ color: 0x38a9d2, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1 });
+      const white = new T.MeshPhysicalMaterial({ color: 0xf2fbfc, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.84 });
       for (let i = 0; i < 14; i++) {
         const ring = new T.Mesh(new T.TorusGeometry(1.76 + i * 0.028, i % 4 === 0 ? 0.008 : 0.0045, 6, 128), i % 3 === 0 ? blue : white);
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.055 - Math.pow(i / 13, 2) * 0.24;
         spinner.add(ring);
       }
-      const etching = new T.MeshStandardMaterial({ color: 0x6fb2c6, roughness: 0.33, transparent: true, opacity: 0.52, side: T.DoubleSide });
+      const etching = new T.MeshStandardMaterial({ color: 0x5aa9c4, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide });
       for (const [start, arc] of [[0.3, 0.8], [3.4, 0.4]]) {
         const mark = new T.Mesh(new T.RingGeometry(1.56, 1.576, 48, 1, start, arc), etching);
         mark.rotation.x = -Math.PI / 2; mark.position.y = 0.089;
