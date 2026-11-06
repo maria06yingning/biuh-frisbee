@@ -1,35 +1,41 @@
 'use client';
+
 import { useState } from 'react';
 import GlassDisc from './GlassDisc';
 import SiteHeader from './SiteHeader';
 import { useI18n } from '@/i18n/I18nProvider';
 import '@/styles/aero-home.css';
+import '@/styles/aero-playground.css';
 
 export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => void; onLab: () => void; onCodex: () => void }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const [paused, setPaused] = useState(false);
   const [replayToken, setReplayToken] = useState(0);
-  const replayFlight = () => { setPaused(false); setReplayToken(value => value + 1); };
-  return <main className="aero-home">
-    <a className="aero-skip" href="#aero-intro">{zh ? '跳至介绍' : 'Skip to introduction'}</a>
+  const replayFlight = () => {
+    setPaused(false);
+    setReplayToken(value => value + 1);
+  };
+
+  return <main className="aero-home aero-playground">
+    <a className="aero-skip" href="#aero-controls">{zh ? '跳至试玩控制' : 'Skip to playground controls'}</a>
     <SiteHeader onPlay={onPlay} onLab={onLab} onCodex={onCodex} />
-    <section className="aero-hero" id="aero-top" aria-label={zh ? '飞盘首页' : 'Ultimate Field home'}>
-      <div className="aero-eyebrow"><span>ULTIMATE FIELD</span><span>01 — {zh ? '一次出手，无数可能' : 'ONE THROW. EVERY POSSIBILITY.'}</span></div>
-      <GlassDisc paused={paused} replayToken={replayToken}/>
-      <div className="aero-hero-footer">
-        <p>{zh ? '一张盘，让一切开始。' : 'It starts with a disc.'}</p>
-        <div><button className="aero-motion" onClick={replayFlight}>{zh ? '重放飞行' : 'Replay flight'}</button><button className="aero-motion" aria-pressed={paused} onClick={() => setPaused(p => !p)}>{paused ? (zh ? '继续动效' : 'Resume motion') : (zh ? '暂停动效' : 'Pause motion')}</button><a href="#aero-intro" aria-label={zh ? '向下探索' : 'Explore below'}>↓</a></div>
+    <section className="aero-hero" id="aero-top" aria-label={zh ? '晴空飞盘游乐场' : 'The sunny disc playground'}>
+      <GlassDisc paused={paused} replayToken={replayToken} />
+      <div className="aero-playground-caption" aria-hidden="true">
+        <span className="aero-caption-dot" />
+        {zh ? '一张盘，无数可能。' : 'A little disc. Every possibility.'}
+      </div>
+      <div className="aero-playground-controls" id="aero-controls" tabIndex={-1} role="group" aria-label={zh ? '飞盘试玩控制' : 'Disc playground controls'}>
+        <button className="aero-play-control" type="button" onClick={replayFlight}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>
+          <span>{zh ? '再飞一次' : 'Replay'}</span>
+        </button>
+        <button className="aero-play-control aero-play-control-pause" type="button" aria-pressed={paused} onClick={() => setPaused(value => !value)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">{paused ? <path d="m9 5 10 7-10 7Z" /> : <><path d="M8 5v14" /><path d="M16 5v14" /></>}</svg>
+          <span>{paused ? (zh ? '继续动效' : 'Resume') : (zh ? '暂停动效' : 'Pause')}</span>
+        </button>
       </div>
     </section>
-    <section className="aero-intro" id="aero-intro">
-      <span className="aero-label">{zh ? '极限飞盘' : 'THE GAME OF ULTIMATE'}</span>
-      <h1>{zh ? <>接住下一种<br/>可能。</> : <>Catch what<br/>comes next.</>}</h1>
-      <div className="aero-intro-side"><p>{zh ? '跑出空当，传给队友，让飞盘把所有人连在一起。从第一传，到下一分。' : 'Find the space. Make the pass. Connect through a disc. From your first throw to your next point.'}</p>
-      <button className="aero-primary" onClick={onPlay}>{zh ? '进入现有游戏' : 'Enter the game'} ↗</button>
-      <button className="aero-text-link" onClick={onLab}>{zh ? '先去战术实验室' : 'Explore the Tactics Lab'} →</button>
-      <small>{zh ? '游戏需要电脑和鼠标，战术实验室支持触屏。' : 'Game requires a computer and mouse. Tactics Lab supports touch.'}</small></div>
-    </section>
-    <footer className="aero-footer"><span>Ultimate Field</span><span>{zh ? '一起上场。' : 'A little disc. A world of possibilities.'}</span></footer>
   </main>;
 }

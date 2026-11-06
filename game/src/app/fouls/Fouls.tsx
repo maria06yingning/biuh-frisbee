@@ -127,7 +127,6 @@ export default function Fouls() {
   return (
     <PageShell
       slug="/fouls"
-      art="fouls"
       title={zh ? <>喊出来，<br />再说清楚。</> : <>Call it,<br />then explain.</>}
       lede={[
         '极限飞盘没有裁判。犯规和违例由场上球员自己叫停，再由当事双方一起解决。这页讲清楚：有哪些犯规和违例，以及一次叫停之后会发生什么。',

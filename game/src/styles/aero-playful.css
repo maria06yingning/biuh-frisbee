@@ -1,0 +1,257 @@
+/* Content pages (Rules / Fouls / Spirit / Why) in playful game/tactics style.
+   Scoped to .aero-page.aero-playful to coexist with the original look. */
+.aero-page.aero-playful {
+  --aero-paper: #f6ecd2;
+  --aero-ink: #1b1a2e;
+  --aero-accent: #14c2d8;
+  --aero-line: #1b1a2e;
+  --aero-soft: #4a4556;
+  --play-yellow: #ffd23f;
+  --play-coral: #ff5a4a;
+  --play-shadow: 3px 3px 0 #1b1a2e;
+  background: var(--aero-paper);
+  color: var(--aero-ink);
+  min-height: 100svh;
+}
+.aero-playful .aero-header {
+  background: var(--aero-paper);
+  border-bottom: 3px solid var(--aero-ink);
+  box-shadow: 0 3px 0 var(--aero-ink);
+  padding: 16px max(24px, env(safe-area-inset-left)) 16px;
+}
+.aero-playful .aero-header nav {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  padding: 0;
+}
+.aero-playful .aero-header nav a,
+.aero-playful .aero-header nav button {
+  border: 2px solid var(--aero-ink);
+  border-radius: 10px;
+  padding: 9px 13px;
+  font-size: 14px;
+  font-weight: 700;
+  min-height: 44px;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+  box-shadow: 2px 2px 0 var(--aero-ink);
+}
+.aero-playful .aero-header nav a:hover,
+.aero-playful .aero-header nav button:hover {
+  background: #ffe9c8;
+  transform: translate(-1px, -1px);
+  box-shadow: 3px 3px 0 var(--aero-ink);
+}
+.aero-playful .aero-header nav a:active,
+.aero-playful .aero-header nav button:active {
+  transform: translate(2px, 2px);
+  box-shadow: none;
+}
+.aero-playful .aero-header nav button.aero-primary {
+  background: var(--play-yellow);
+  color: var(--aero-ink);
+}
+.aero-playful .aero-header nav a[aria-current='page'] {
+  background: var(--play-yellow);
+}
+.aero-playful .aero-pages-menu {
+  background: var(--aero-paper);
+  border: 2px solid var(--aero-ink);
+  box-shadow: var(--play-shadow);
+}
+.aero-playful main { flex: 1; }
+/* Hero: no gradient, just clean title area */
+.aero-playful .ap-hero {
+  background: var(--aero-paper);
+  border-bottom: 3px solid var(--aero-ink);
+  padding: clamp(36px, 6vw, 72px) var(--aero-space) clamp(40px, 5vw, 68px);
+}
+.aero-playful .ap-hero-inner {
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 0 var(--aero-space);
+}
+.aero-playful .ap-eyebrow {
+  grid-column: 1 / -1;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--aero-soft);
+}
+.aero-playful .ap-hero h1 {
+  grid-column: 1 / 10;
+  margin: 20px 0 0;
+  font-size: clamp(38px, 6vw, 84px);
+  font-weight: 900;
+  line-height: 1.08;
+  letter-spacing: -0.05em;
+  color: var(--aero-ink);
+  text-shadow: 2px 2px 0 var(--play-yellow);
+}
+.aero-playful .ap-hero-lede {
+  grid-column: 1 / 9;
+  margin: 18px 0 0;
+  font-size: clamp(16px, 1.4vw, 19px);
+  line-height: 1.7;
+  color: var(--aero-ink);
+  max-width: 52ch;
+  font-weight: 600;
+}
+.aero-playful .ap-hero-art {
+  display: none;
+}
+/* Section rhythm */
+.aero-playful .ap-body {
+  padding: 0 var(--aero-space) clamp(64px, 8vw, 120px);
+}
+.aero-playful .ap-section {
+  padding: clamp(48px, 6vw, 88px) 0;
+  border-top: 3px solid var(--aero-ink);
+}
+.aero-playful .ap-section:first-child { border-top: 0; padding-top: clamp(40px, 5vw, 72px); }
+.aero-playful .ap-section-head { grid-column: 1 / 4; }
+.aero-playful .ap-section-body { grid-column: 5 / -1; }
+.aero-playful .ap-label {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--aero-soft);
+}
+.aero-playful .ap-section-head h2 {
+  margin: 12px 0 0;
+  font-size: clamp(26px, 3vw, 38px);
+  font-weight: 900;
+  line-height: 1.16;
+  letter-spacing: -0.04em;
+  color: var(--aero-ink);
+}
+.aero-playful .ap-section-head p {
+  margin: 12px 0 0;
+  font-size: 15px;
+  line-height: 1.7;
+  font-weight: 600;
+  color: var(--aero-soft);
+}
+.aero-playful .ap-prose p {
+  font-size: clamp(16px, 1.3vw, 18px);
+  line-height: 1.7;
+  font-weight: 600;
+}
+.aero-playful .ap-prose .ap-lead {
+  font-size: clamp(19px, 1.8vw, 23px);
+  font-weight: 700;
+}
+/* Interactive components: keep buttons tactile */
+.aero-playful button.aero-primary,
+.aero-playful .ap-btn {
+  background: var(--play-yellow);
+  border: 2px solid var(--aero-ink);
+  border-radius: 10px;
+  padding: 10px 18px;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--aero-ink);
+  box-shadow: var(--play-shadow);
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.aero-playful button.aero-primary:hover { background: #ffca1f; transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--aero-ink); }
+.aero-playful button.aero-primary:active { transform: translate(3px, 3px); box-shadow: none; }
+/* Cards */
+.aero-playful .ap-cards {
+  gap: 20px;
+}
+.aero-playful .ap-card {
+  background: #fff8e6;
+  border: 2px solid var(--aero-ink);
+  border-radius: 12px;
+  padding: 22px;
+  box-shadow: var(--play-shadow);
+}
+.aero-playful .ap-card h3 {
+  font-size: 19px;
+  font-weight: 800;
+  margin: 0 0 10px;
+}
+.aero-playful .ap-card p {
+  font-size: 15px;
+  line-height: 1.6;
+  font-weight: 600;
+}
+/* Numbers list */
+.aero-playful .ap-numbers > li {
+  border-top: 2px dashed var(--aero-ink);
+  padding: 24px 0;
+}
+.aero-playful .ap-num {
+  font-size: clamp(32px, 3.2vw, 42px);
+  font-weight: 900;
+  color: var(--play-coral);
+}
+.aero-playful .ap-numbers h3 {
+  font-size: clamp(18px, 1.6vw, 21px);
+  font-weight: 800;
+}
+.aero-playful .ap-numbers p {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--aero-ink);
+}
+.aero-playful .ap-why {
+  border-left: 3px solid var(--play-yellow);
+  background: #fff8e6;
+  padding: 10px 14px;
+  border-radius: 6px;
+}
+/* Footer */
+.aero-playful .aero-page-footer {
+  background: var(--aero-paper);
+  border-top: 3px solid var(--aero-ink);
+  padding: 32px var(--aero-space);
+}
+.aero-playful .aero-page-footer a {
+  color: var(--aero-ink);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  font-weight: 700;
+}
+/* Next page */
+.aero-playful .ap-next {
+  background: var(--aero-paper);
+  border: 3px solid var(--aero-ink);
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 4px 4px 0 var(--aero-ink);
+  transition: transform 160ms ease, box-shadow 160ms ease;
+}
+.aero-playful .ap-next:hover {
+  transform: translate(-2px, -2px);
+  box-shadow: 6px 6px 0 var(--aero-ink);
+}
+.aero-playful .ap-next:active {
+  transform: translate(4px, 4px);
+  box-shadow: none;
+}
+.aero-playful .ap-next-label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--aero-soft);
+}
+.aero-playful .ap-next-title {
+  font-size: clamp(22px, 2.4vw, 32px);
+  font-weight: 900;
+  margin: 8px 0 0;
+  color: var(--aero-ink);
+}
+/* Responsive */
+@media (max-width: 960px) {
+  .aero-playful .ap-section-head { grid-column: 1 / -1; }
+  .aero-playful .ap-section-body { grid-column: 1 / -1; margin-top: 24px; }
+}
+@media (max-width: 640px) {
+  .aero-playful .ap-hero h1 { grid-column: 1 / -1; }
+  .aero-playful .ap-hero-lede { grid-column: 1 / -1; }
+  .aero-playful .ap-numbers > li { grid-template-columns: 56px 1fr; gap: 14px; }
+}

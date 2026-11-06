@@ -4,21 +4,19 @@ import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { PAGES, pick, type Bi, type PageLink } from '@/content/shared';
-import DiscArt, { type DiscVariant } from './DiscArt';
 import SiteHeader from './SiteHeader';
 import '@/styles/aero-home.css';
-import '@/styles/aero-pages.css';
+import '@/styles/aero-playful.css';
 
 /** Hero + body + "next page" + footer, shared by Rules / Fouls / Spirit / Why. */
 export default function PageShell({
   slug,
-  art,
   title,
   lede,
   children,
 }: {
   slug: PageLink['slug'];
-  art: DiscVariant;
+  art?: never;
   title: ReactNode;
   lede: Bi;
   children: ReactNode;
@@ -27,13 +25,11 @@ export default function PageShell({
   const zh = lang === 'zh';
   const i = PAGES.findIndex((p) => p.slug === slug);
   const page = PAGES[i];
-  // The last page hands off to the homepage instead of looping back to Rules.
   const next: { slug: string; num: string; label: Bi } =
     i < PAGES.length - 1 ? PAGES[i + 1] : { slug: '/', num: '01', label: ['回到首页', 'Back to the start'] };
 
   return (
-    // .aero-home brings the homepage tokens and type; .aero-page adds page layout.
-    <div className="aero-home aero-page">
+    <div className="aero-home aero-page aero-playful">
       <a className="aero-skip" href="#ap-main">
         {zh ? '跳至正文' : 'Skip to content'}
       </a>
@@ -42,17 +38,9 @@ export default function PageShell({
       <main id="ap-main">
         <section className="ap-hero" aria-labelledby="ap-title">
           <div className="ap-hero-inner">
-            <div className="ap-eyebrow">
-              <span>ULTIMATE FIELD</span>
-              <span>
-                {page.num} — {pick(lang, page.tagline)}
-              </span>
-            </div>
+            <span className="ap-eyebrow">{page.num} — {pick(lang, page.tagline)}</span>
             <h1 id="ap-title">{title}</h1>
             <p className="ap-hero-lede">{pick(lang, lede)}</p>
-            <div className="ap-hero-art">
-              <DiscArt variant={art} />
-            </div>
           </div>
         </section>
 
@@ -60,13 +48,10 @@ export default function PageShell({
 
         <nav className="ap-next" aria-label={zh ? '下一页' : 'Next page'}>
           <Link href={next.slug}>
-            <span>
-              <span className="ap-next-k">{next.slug === '/' ? (zh ? '继续' : 'Continue') : zh ? '下一页' : 'Next'} · {next.num}</span>
-              <br />
-              <span className="ap-next-t">
-                {pick(lang, next.label)} <span aria-hidden="true">→</span>
-              </span>
+            <span className="ap-next-label">
+              {next.slug === '/' ? (zh ? '继续' : 'Continue') : zh ? '下一页' : 'Next'} · {next.num}
             </span>
+            <h2 className="ap-next-title">{pick(lang, next.label)}</h2>
           </Link>
         </nav>
       </main>
@@ -74,15 +59,12 @@ export default function PageShell({
       <footer className="aero-page-footer">
         <span className="afo-brand">Ultimate Field</span>
         <span className="afo-links">
-          <Link href="/">{zh ? '首页' : 'Home'}</Link>
-          {PAGES.map((p) => (
-            <Link key={p.slug} href={p.slug}>
-              {pick(lang, p.label)}
-            </Link>
-          ))}
+          <a href="https://github.com/maria06yingning/biuh-frisbee" target="_blank" rel="noopener noreferrer">
+            GitHub
+          </a>
         </span>
         <span className="afo-cite">
-          {zh ? '规则内容依据 ' : 'Rules content follows the '}
+          {zh ? '规则内容来自 ' : 'Rules content is derived from '}
           <a href="https://rules.wfdf.sport/" target="_blank" rel="noopener noreferrer">
             {zh ? 'WFDF 极限飞盘规则 2025–2028' : 'WFDF Rules of Ultimate 2025–2028'}
           </a>
@@ -95,7 +77,6 @@ export default function PageShell({
   );
 }
 
-/** Core-term annotation for Chinese copy: 标记者（marker）. English text renders as-is. */
 export function Term({ zh, en }: { zh: string; en: string }) {
   const { lang } = useI18n();
   if (lang !== 'zh') return <>{en}</>;
@@ -109,7 +90,6 @@ export function Term({ zh, en }: { zh: string; en: string }) {
   );
 }
 
-/** Section scaffold: label + heading on the left (sticky), body on the right. */
 export function Section({
   id,
   label,
@@ -118,24 +98,23 @@ export function Section({
   full,
   children,
 }: {
-  id: string;
-  label: string;
+  id?: string;
+  label?: ReactNode;
   heading: ReactNode;
   intro?: ReactNode;
   full?: boolean;
   children: ReactNode;
 }) {
-  const hid = `${id}-h`;
   return (
-    <section id={id} className={`ap-section${full ? ' ap-full' : ''}`} aria-labelledby={hid}>
-      <div className="ap-section-head">
-        <div className="ap-sticky">
-          <span className="ap-label">{label}</span>
-          <h2 id={hid}>{heading}</h2>
+    <section id={id} className="ap-section">
+      <div className={full ? 'ap-section-full' : 'ap-section-grid'}>
+        <div className="ap-section-head">
+          {label && <span className="ap-label">{label}</span>}
+          <h2>{heading}</h2>
           {intro && <p>{intro}</p>}
         </div>
+        <div className="ap-section-body">{children}</div>
       </div>
-      <div className="ap-section-body">{children}</div>
     </section>
   );
 }

@@ -233,7 +233,6 @@ export default function Rules() {
   return (
     <PageShell
       slug="/rules"
-      art="rules"
       title={zh ? <>规则很短，<br />判断很多。</> : <>Short rules,<br />lots of decisions.</>}
       lede={[
         '极限飞盘（ultimate frisbee）是 7 人一队、非身体接触、球员自己当裁判的运动。下面这些内容依据 WFDF《极限飞盘规则 2025–2028》，先看一张盘怎么变成一场比赛。',

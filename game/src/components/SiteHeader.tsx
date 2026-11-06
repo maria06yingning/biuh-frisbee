@@ -65,15 +65,6 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
 
   return (
     <header className="aero-header">
-      {onHome ? (
-        <a className="aero-brand" href="#aero-top">
-          Ultimate Field<span aria-hidden="true">↗</span>
-        </a>
-      ) : (
-        <Link className="aero-brand" href="/">
-          Ultimate Field<span aria-hidden="true">↗</span>
-        </Link>
-      )}
       <nav aria-label={zh ? '主导航' : 'Main navigation'}>
         {/* Content pages: inline on wide screens */}
         <span className="aero-pages-inline">

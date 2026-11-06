@@ -1,4 +1,5 @@
 import type * as Three from 'three';
+import { createMeadowFlowers } from './meadow-flowers';
 
 type ThreeModule = typeof Three;
 type DiscPosition = { x: number; y: number; z: number };
@@ -22,7 +23,7 @@ const FOG_FULL = 660;       // completes just inside the camera's far plane (700
 /** Direction toward the sun: upper right and slightly behind the field, so the grass is back-lit. */
 const SUN_DIRECTION: readonly [number, number, number] = [0.46, 0.5, -0.74];
 /** Bright pale-blue horizon haze (display values) shared by the sky and the fogged meadow. */
-const HAZE: readonly [number, number, number] = [0.84, 0.93, 0.96];
+const HAZE: readonly [number, number, number] = [0.88, 0.95, 0.94];
 
 function createRandom(seed: number) {
   let value = seed >>> 0;
@@ -51,7 +52,8 @@ function smoothstep(edge0: number, edge1: number, value: number) {
 // Haze picks up a warm glow toward the sun, so distant grass and sky brighten on the sun side.
 const HAZE_GLSL = `
   vec3 hazeToward(vec3 dir) {
-    return uHaze + vec3(0.16, 0.12, 0.05) * pow(max(dot(dir, uSun), 0.0), 8.0);
+    float sunScatter = pow(max(dot(dir, uSun), 0.0), 7.0);
+    return uHaze + vec3(0.15, 0.09, 0.035) * sunScatter;
   }
 `;
 const FOG_GLSL = `
@@ -97,9 +99,22 @@ const SKY_FRAGMENT = `
   void main() {
     vec3 d = normalize(vDir);
     vec3 haze = hazeToward(d);
-    // Clear, saturated summer blue overhead, fading to a bright horizon.
-    vec3 zenith = vec3(0.36, 0.62, 0.94);
-    vec3 sky = mix(uHaze, zenith, smoothstep(0.0, 0.3, max(d.y, 0.0))) + (haze - uHaze);
+    // Clear, welcoming summer daylight with a soft warm horizon.
+    vec3 zenith = vec3(0.55, 0.79, 0.94);
+    vec3 sky = mix(uHaze, zenith, smoothstep(0.0, 0.34, max(d.y, 0.0))) + (haze - uHaze);
+    float sunHalo = pow(max(dot(d, uSun), 0.0), 9.0);
+    sky += vec3(0.1, 0.065, 0.025) * sunHalo;
+
+    // Very soft, stretched cloud wisps—procedural and sparse, with no hills or hard silhouettes.
+    float skyDepth = max(d.y + 0.24, 0.18);
+    vec2 cloudUv = d.xz / skyDepth;
+    float cloudBroad = valueNoise(cloudUv * vec2(0.38, 1.35) + vec2(8.4, 3.2));
+    float cloudFine = valueNoise(cloudUv * vec2(0.9, 3.1) + vec2(-4.7, 6.1));
+    float cloudField = cloudBroad * 0.72 + cloudFine * 0.28;
+    float cloudMask = smoothstep(0.53, 0.72, cloudField)
+      * smoothstep(0.015, 0.09, d.y) * (1.0 - smoothstep(0.38, 0.65, d.y));
+    vec3 cloudTint = mix(vec3(0.98, 0.98, 0.95), vec3(1.0, 0.97, 0.88), clamp(sunHalo * 2.2, 0.0, 1.0));
+    sky = mix(sky, cloudTint, cloudMask * 0.72);
   #ifdef VISIBLE_DOME
     vec3 below = haze;
   #else
@@ -194,25 +209,25 @@ const BLADE_FRAGMENT = `
 
   void main() {
     float t = vUp;
-    // Deep, saturated lawn greens: a sunny, lively field rather than a pastel meadow.
-    vec3 root = vec3(0.08, 0.24, 0.07);
-    vec3 shade = vec3(0.15, 0.41, 0.11);
-    vec3 body = vec3(0.28, 0.6, 0.16);
+    // A lighter spring palette; keep the original layered blade shading and texture.
+    vec3 root = vec3(0.20, 0.35, 0.23);
+    vec3 shade = vec3(0.37, 0.56, 0.31);
+    vec3 body = vec3(0.58, 0.73, 0.41);
     vec3 color = mix(root, shade, smoothstep(0.0, 0.28, t));
     color = mix(color, body, smoothstep(0.22, 0.62, t));
 
     // Broad warm/cool patches across the field plus per-blade tone.
-    color += vec3(0.07, 0.05, -0.03) * (vClump - 0.5);
-    color *= (0.9 + 0.22 * vClump) * (0.94 + 0.12 * vTone);
+    color += vec3(0.045, 0.035, -0.018) * (vClump - 0.5);
+    color *= (0.9 + 0.24 * vClump) * (0.95 + 0.1 * vTone);
 
-    // Sunny yellow-green tips, glowing most where the view looks toward the sun (back light).
-    vec3 tip = vec3(0.64, 0.84, 0.28);
-    color = mix(color, tip, smoothstep(0.64, 1.0, t) * (0.3 + 0.4 * vTone));
-    color += vec3(0.17, 0.17, 0.04) * smoothstep(0.5, 1.0, t) * (0.15 + vBack);
-    // The sun-facing edge of each blade is a touch lighter.
-    color += vec3(0.07, 0.09, 0.02) * smoothstep(0.25, 1.0, vSide) * t;
+    // Fresh sunlit tips: warm daylight, with green still dominant over gold.
+    vec3 tip = vec3(0.84, 0.87, 0.57);
+    color = mix(color, tip, smoothstep(0.68, 1.0, t) * (0.34 + 0.34 * vTone));
+    color += vec3(0.13, 0.105, 0.045) * smoothstep(0.52, 1.0, t) * (0.12 + vBack);
+    // Restrained warm edge light on the sun-facing side of each blade.
+    color += vec3(0.055, 0.055, 0.025) * smoothstep(0.25, 1.0, vSide) * t;
     // Contact shadow pooling at the roots.
-    color *= mix(0.6, 1.0, smoothstep(0.0, 0.3, t));
+    color *= mix(0.83, 1.0, smoothstep(0.0, 0.3, t));
 
     color = mix(color, hazeToward(normalize(vViewDir)), fogAmount(vDepth));
     gl_FragColor = vec4(pow(max(color, 0.0), vec3(2.2)), 1.0);
@@ -248,9 +263,9 @@ const GROUND_FRAGMENT = `
     // Fine detail fades out before it can shimmer at a grazing angle.
     float n = mix(broad, field, 1.0 - smoothstep(150.0, 280.0, d));
     n = mix(n, n * 0.75 + grain * 0.25, 1.0 - smoothstep(30.0, 60.0, d));
-    vec3 nearColor = mix(vec3(0.15, 0.36, 0.1), vec3(0.3, 0.57, 0.17), n);
-    // Beyond the blades the carpet matches their sunlit upper halves, so the hand-off is invisible.
-    vec3 farColor = mix(vec3(0.3, 0.58, 0.17), vec3(0.46, 0.7, 0.24), n);
+    vec3 nearColor = mix(vec3(0.37, 0.51, 0.28), vec3(0.57, 0.70, 0.39), n);
+    // Keep the carpet in the same spring greens as the blades before it fades into haze.
+    vec3 farColor = mix(vec3(0.56, 0.70, 0.41), vec3(0.68, 0.78, 0.51), n);
     vec3 color = mix(nearColor, farColor, smoothstep(70.0, 170.0, d));
     vec3 dir = normalize(vWorld - cameraPosition);
     color = mix(color, hazeToward(dir), fogAmount(d));
@@ -383,9 +398,10 @@ export function createProceduralGrassField(T: ThreeModule) {
   dome.renderOrder = -10; // Backdrop: drawn first and writes no depth, so everything covers it.
   dome.frustumCulled = false;
 
+  const flowers = createMeadowFlowers(T, BASE_Y, smallViewport ? 12 : 24);
   const group = new T.Group();
   group.name = 'procedural-grass-field';
-  group.add(dome, blades, ground);
+  group.add(dome, blades, ground, flowers.group);
 
   const forward = new T.Vector3();
 
@@ -404,6 +420,7 @@ export function createProceduralGrassField(T: ThreeModule) {
 
     /** Fill the camera's visible wedge of meadow; call after every camera change. */
     layout(camera: Three.PerspectiveCamera) {
+      flowers.layout(camera);
       camera.updateMatrixWorld();
       camera.getWorldDirection(forward);
       const pitch = Math.asin(Math.max(-1, Math.min(1, -forward.y)));
@@ -418,7 +435,9 @@ export function createProceduralGrassField(T: ThreeModule) {
         const z = camera.position.z - d;
         const halfWidth = tanH * d * 1.1 + 3.5;
         const x = camera.position.x + (lateralSeeds[i] * 2 - 1) * halfWidth;
-        const clump = noise2(x * 0.07 + 11, z * 0.07 - 7);
+        const broadPatch = noise2(x * 0.035 + 11, z * 0.035 - 7);
+        const localPatch = noise2(x * 0.095 - 3, z * 0.095 + 5);
+        const clump = broadPatch * 0.7 + localPatch * 0.3;
         const fine = noise2(x * 0.31 - 3, z * 0.31 + 5);
         // Far blades settle gradually into the smooth carpet the ground continues.
         const fade = 1 - smoothstep(FAR_DISTANCE * 0.45, FAR_DISTANCE, d);
@@ -448,6 +467,7 @@ export function createProceduralGrassField(T: ThreeModule) {
     },
 
     dispose() {
+      flowers.dispose();
       bladeGeometry.dispose();
       bladeMaterial.dispose();
       groundGeometry.dispose();

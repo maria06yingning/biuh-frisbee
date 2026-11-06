@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { createOutsideInFlight, DISC_FLIGHT_DURATION } from './disc-flight';
 import { createProceduralGrassField } from './procedural-grass';
+import { createUserThrow, getThrowImpulse, type ThrowSample } from './disc-throw';
 
 /** The homepage disc and its procedural field share one lightweight Three.js scene. */
 export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean; replayToken?: number }) {
@@ -41,7 +42,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       // (scene fog would also dim the disc on its distant approach at z=-72).
       // Far plane sits just past where the meadow reaches full haze; nothing sits closer than ~7 units.
       const camera = new T.PerspectiveCamera(36, 1, 0.5, 700);
-      camera.position.set(0, 10.2 * 0.078, 10.2);
+      camera.position.set(0, 10.2 * -0.028, 10.2);
       camera.lookAt(0, 0, 0);
 
       // The meadow module owns the sky dome, the ground, the blades and the sun direction.
@@ -55,37 +56,37 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       scene.environment = env.texture;
       environment.dispose(); pmrem.dispose();
 
-      const hemisphere = new T.HemisphereLight(0xeaf2f6, 0x4a5a3c, 1.55);
+      const hemisphere = new T.HemisphereLight(0xe9f1ec, 0x596545, 1.5);
       scene.add(hemisphere);
-      const sun = new T.DirectionalLight(0xfff0cf, 3.0);
+      // Warm clear daylight with enough sky fill to keep the scene open and cheerful.
+      const sun = new T.DirectionalLight(0xffedc8, 3.0);
       sun.position.copy(grass.sunDirection).multiplyScalar(12); scene.add(sun);
-      const fill = new T.DirectionalLight(0xc3e5ee, 0.9);
+      const fill = new T.DirectionalLight(0xc9dfe5, 0.85);
       fill.position.set(-4, 3, 6); scene.add(fill);
 
       // Keep attitude and axial spin separate so the disc banks without tumbling.
       const attitude = new T.Group();
       const spinner = new T.Group();
       attitude.add(spinner); scene.add(attitude);
-      // Glass with a denser, brighter pale-blue body: still clear (low roughness keeps what lies
-      // behind sharp), but less transmission and more opacity make it read as a solid object.
+      // Coral-tinted glass: keep the original transmission, roughness, IOR and geometry.
       const glass = new T.MeshPhysicalMaterial({
-        color: 0xc6eaf2, metalness: 0.015, roughness: 0.1,
+        color: 0xffa18f, metalness: 0.015, roughness: 0.1,
         transmission: 0.68, thickness: 0.22, ior: 1.46,
         clearcoat: 1, clearcoatRoughness: 0.08,
-        attenuationColor: new T.Color(0x74c2dc), attenuationDistance: 1.35,
+        attenuationColor: new T.Color(0xef9a85), attenuationDistance: 1.35,
         transparent: true, opacity: 0.95, side: T.DoubleSide,
       });
       const section = [[0,0.11],[0.6,0.115],[1.3,0.1],[1.72,0.07],[1.88,0.035],[2,0],[2.12,-0.08],[2.19,-0.18],[2.18,-0.29],[2.1,-0.34],[2.02,-0.29],[1.98,-0.17],[1.86,-0.09],[1.5,-0.035],[0.6,0.025],[0,0.035]];
       spinner.add(new T.Mesh(new T.LatheGeometry(section.map(([x, y]) => new T.Vector2(x, y)), 144), glass));
-      const blue = new T.MeshPhysicalMaterial({ color: 0x38a9d2, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1 });
-      const white = new T.MeshPhysicalMaterial({ color: 0xf2fbfc, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.84 });
+      const blue = new T.MeshPhysicalMaterial({ color: 0xf3ac79, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1 });
+      const white = new T.MeshPhysicalMaterial({ color: 0xfff8e8, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.84 });
       for (let i = 0; i < 14; i++) {
         const ring = new T.Mesh(new T.TorusGeometry(1.76 + i * 0.028, i % 4 === 0 ? 0.008 : 0.0045, 6, 128), i % 3 === 0 ? blue : white);
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.055 - Math.pow(i / 13, 2) * 0.24;
         spinner.add(ring);
       }
-      const etching = new T.MeshStandardMaterial({ color: 0x5aa9c4, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide });
+      const etching = new T.MeshStandardMaterial({ color: 0xdc8467, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide });
       for (const [start, arc] of [[0.3, 0.8], [3.4, 0.4]]) {
         const mark = new T.Mesh(new T.RingGeometry(1.56, 1.576, 48, 1, start, arc), etching);
         mark.rotation.x = -Math.PI / 2; mark.position.y = 0.089;
@@ -110,6 +111,23 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       const AXIS_X = new T.Vector3(1, 0, 0);
       const AXIS_Y = new T.Vector3(0, 1, 0);
       let touchId: number | null = null;
+      let gesture: ThrowSample[] = [];
+      let inspecting = false;
+      let pressMode: 'inspect' | 'locked' = 'locked';
+      let movedDuringPress = false;
+      const lockedRotation = new T.Quaternion().setFromEuler(new T.Euler(0.82, 0, -0.18, 'YXZ'));
+      const lockedPosition = new T.Vector3();
+      let userThrow: ReturnType<typeof createUserThrow> | null = null;
+      let throwTime = 0;
+      const throwStartRotation = new T.Quaternion();
+      const raycaster = new T.Raycaster();
+      const pointer = new T.Vector2();
+      const dragPlane = new T.Plane();
+      const dragHit = new T.Vector3();
+      const dragOffset = new T.Vector3();
+      const dragPosition = new T.Vector3();
+      const dragNormal = new T.Vector3();
+
       let sampleFlight = createOutsideInFlight(1, camera.position.z);
 
       const applyPose = () => {
@@ -125,12 +143,27 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         tipTurn.setFromAxisAngle(AXIS_X, sy * (sy < 0 ? 1.75 : 0.8));
         sideTurn.setFromAxisAngle(AXIS_Y, sx * 1.7);
         attitude.quaternion.copy(sideTurn).multiply(tipTurn).multiply(baseTurn);
+        if (pose.ready && !userThrow) {
+          attitude.position.copy(lockedPosition);
+          if (!inspecting) attitude.quaternion.copy(lockedRotation);
+        }
+        if (touchId !== null && pressMode === 'locked') attitude.position.copy(dragPosition);
+        if (userThrow) {
+          const thrown = userThrow.sample(throwTime);
+          attitude.position.set(thrown.position.x, thrown.position.y, thrown.position.z);
+          baseTurn.setFromEuler(baseEuler.set(thrown.pitch, 0, thrown.bank, 'YXZ'));
+          const launchBlend = Math.min(1, throwTime / 0.22);
+          attitude.quaternion.copy(throwStartRotation).slerp(baseTurn, launchBlend * launchBlend * (3 - 2 * launchBlend));
+        }
         spinner.rotation.y = spinAngle;
         if (ready !== pose.ready || !node.dataset.flight) {
           ready = pose.ready;
           node.dataset.flight = ready ? 'settled' : 'flying';
         }
-        node.dataset.interactive = String(ready && !reduced && !pause.current);
+        node.dataset.flight = userThrow ? (userThrow.sample(throwTime).returning ? 'returning' : 'thrown') : (ready ? 'settled' : 'flying');
+        node.dataset.dragging = String(touchId !== null && pressMode === 'locked' && movedDuringPress);
+        node.dataset.mode = inspecting ? 'inspect' : 'locked';
+        node.dataset.interactive = String(ready && !userThrow && !reduced && !pause.current);
         return pose;
       };
       const applyGrass = (pose: { x: number; y: number; z: number }, motion: boolean) => {
@@ -143,9 +176,9 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         camera.aspect = width / height;
         const tanHalfFov = Math.tan(camera.fov * Math.PI / 360);
         camera.position.z = Math.max(10.2, 3.15 / (tanHalfFov * camera.aspect));
-        // Low, eye-level framing: a fixed small downward pitch keeps the horizon near 38%
-        // from the top at every aspect ratio, with the disc centred above the meadow.
-        camera.position.y = camera.position.z * 0.078;
+        // Slightly upward framing leaves about 55% of the full-screen view to the sky.
+        // The camera still aims at the disc; ground height and grass clearance are unchanged.
+        camera.position.y = camera.position.z * -0.028;
         camera.lookAt(0, 0, 0); camera.updateProjectionMatrix();
         grass.layout(camera);
         sampleFlight = createOutsideInFlight(camera.aspect, camera.position.z, camera.fov);
@@ -162,26 +195,107 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       const observer = new ResizeObserver(resize); observer.observe(node);
       const visibility = new IntersectionObserver(([entry]) => { active = entry.isIntersecting; });
       visibility.observe(node);
-      const move = (event: PointerEvent) => {
-        if (!ready || pause.current || reduced) return;
-        if (event.pointerType !== 'mouse' && event.pointerId !== touchId) return;
+      const aimRay = (event: PointerEvent) => {
+        const box = node.getBoundingClientRect();
+        pointer.set((event.clientX - box.left) / box.width * 2 - 1, -(event.clientY - box.top) / box.height * 2 + 1);
+        camera.updateMatrixWorld();
+        raycaster.setFromCamera(pointer, camera);
+      };
+      const remember = (event: PointerEvent) => {
+        const time = performance.now();
+        gesture.push({ x: event.clientX, y: event.clientY, time });
+        if (gesture.length > 100) gesture.splice(1, gesture.length - 100);
+      };
+      const updateInspection = (event: PointerEvent) => {
         const box = node.getBoundingClientRect();
         tx = Math.max(-1, Math.min(1, ((event.clientX - box.left) / Math.max(1, box.width) - 0.5) * 2));
         ty = Math.max(-1, Math.min(1, ((event.clientY - box.top) / Math.max(1, box.height) - 0.5) * 2));
       };
-      const down = (event: PointerEvent) => {
-        if (event.pointerType === 'mouse' || !ready || pause.current || reduced) return;
-        touchId = event.pointerId; node.setPointerCapture(event.pointerId); move(event);
+      const move = (event: PointerEvent) => {
+        if (!ready || userThrow || pause.current || reduced) return;
+        if (touchId !== null) {
+          if (event.pointerId !== touchId) return;
+          const first = gesture[0];
+          if (first && Math.hypot(event.clientX - first.x, event.clientY - first.y) > 8) movedDuringPress = true;
+          if (pressMode === 'inspect') {
+            if (movedDuringPress) updateInspection(event);
+          } else if (movedDuringPress) {
+            aimRay(event);
+            if (raycaster.ray.intersectPlane(dragPlane, dragHit)) {
+              dragPosition.copy(dragHit).add(dragOffset);
+              dragPosition.y = Math.max(-0.85, Math.min(3, dragPosition.y));
+            }
+          }
+          remember(event);
+          return;
+        }
+        if (inspecting && event.pointerType === 'mouse') updateInspection(event);
       };
-      const leave = () => { tx = 0; ty = 0; };
+      const down = (event: PointerEvent) => {
+        if (touchId !== null || !event.isPrimary || event.button !== 0 || !ready || userThrow || pause.current || reduced) return;
+        aimRay(event);
+        attitude.updateWorldMatrix(true, true);
+        if (!raycaster.intersectObject(spinner, true).length) return;
+        event.preventDefault();
+        touchId = event.pointerId;
+        pressMode = inspecting ? 'inspect' : 'locked';
+        movedDuringPress = false;
+        // Stop easing immediately on the second click, preserving exactly the displayed angle.
+        if (inspecting) { tx = px; ty = py; }
+        camera.getWorldDirection(dragNormal);
+        dragPlane.setFromNormalAndCoplanarPoint(dragNormal, attitude.position);
+        raycaster.ray.intersectPlane(dragPlane, dragHit);
+        dragOffset.copy(attitude.position).sub(dragHit);
+        dragPosition.copy(attitude.position);
+        gesture = []; remember(event);
+        node.setPointerCapture(event.pointerId);
+        node.dataset.dragging = 'false';
+      };
+      const leave = () => {
+        // Leaving the scene pauses inspection at its current angle; it never resets a locked pose.
+        if (touchId === null && inspecting) { tx = px; ty = py; }
+      };
       const release = (event: PointerEvent) => {
         if (event.pointerId !== touchId) return;
+        remember(event);
+        const box = node.getBoundingClientRect();
+        const validRelease = event.type === 'pointerup' && !pause.current && !reduced;
+        const first = gesture[0];
+        const end = gesture[gesture.length - 1];
+        const isClick = validRelease && !movedDuringPress && first && end && end.time - first.time < 500
+          && Math.hypot(end.x - first.x, end.y - first.y) <= 8;
+        const impulse = validRelease && pressMode === 'locked' && movedDuringPress
+          ? getThrowImpulse(gesture, box.width, box.height) : null;
+        if (isClick) {
+          if (pressMode === 'inspect') {
+            lockedRotation.copy(attitude.quaternion);
+            lockedPosition.copy(attitude.position);
+            inspecting = false;
+          } else {
+            inspecting = true;
+          }
+          tx = px; ty = py;
+        } else if (impulse) {
+          throwStartRotation.copy(lockedRotation);
+          userThrow = createUserThrow(dragPosition, impulse, camera.aspect);
+          throwTime = 0;
+        } else if (pressMode === 'locked' && validRelease && movedDuringPress) {
+          // A gentle reposition keeps the chosen orientation instead of entering inspection.
+          lockedPosition.copy(dragPosition);
+        }
+        touchId = null;
+        gesture = [];
         if (node.hasPointerCapture(event.pointerId)) node.releasePointerCapture(event.pointerId);
-        touchId = null; leave();
+        node.dataset.dragging = 'false';
       };
       const onMotion = () => {
         reduced = mq.matches;
         if (reduced) {
+          userThrow = null;
+          if (touchId !== null && node.hasPointerCapture(touchId)) node.releasePointerCapture(touchId);
+          touchId = null; gesture = []; node.dataset.dragging = 'false';
+          inspecting = false; lockedPosition.set(0, 0, 0);
+          lockedRotation.setFromEuler(baseEuler.set(0.82, 0, -0.18, 'YXZ'));
           elapsed = DISC_FLIGHT_DURATION; windTime = 0; tx = ty = px = py = spinAngle = 0;
         }
       };
@@ -194,7 +308,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       const zone = node.parentElement ?? node;
       zone.addEventListener('pointermove', move); zone.addEventListener('pointerleave', leave);
       node.addEventListener('pointerdown', down);
-      node.addEventListener('pointerup', release); node.addEventListener('pointercancel', release);
+      node.addEventListener('pointerup', release); node.addEventListener('pointercancel', release); node.addEventListener('lostpointercapture', release);
       mq.addEventListener('change', onMotion);
       renderer.domElement.addEventListener('webglcontextlost', onContextLost);
       renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
@@ -204,6 +318,10 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         if (seenReplay !== replay.current) {
           seenReplay = replay.current;
           elapsed = reduced ? DISC_FLIGHT_DURATION : 0;
+          userThrow = null; inspecting = false; lockedPosition.set(0, 0, 0);
+          lockedRotation.setFromEuler(baseEuler.set(0.82, 0, -0.18, 'YXZ'));
+          if (touchId !== null && node.hasPointerCapture(touchId)) node.releasePointerCapture(touchId);
+          touchId = null; gesture = [];
           windTime = 0; tx = ty = px = py = spinAngle = 0;
         }
         if (wasPaused !== pause.current) wasPaused = pause.current;
@@ -212,16 +330,28 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
             elapsed = Math.min(DISC_FLIGHT_DURATION, elapsed + dt);
             windTime += dt;
             const pose = sampleFlight(elapsed);
-            spinAngle += pose.spinRate * dt;
-            if (pose.ready) {
+            if (userThrow) {
+              throwTime += dt;
+              const thrown = userThrow.sample(throwTime);
+              spinAngle += thrown.spinRate * dt;
+              if (thrown.done) {
+                userThrow = null; inspecting = false;
+                lockedPosition.set(0, 0, 0);
+                lockedRotation.setFromEuler(baseEuler.set(0.82, 0, -0.18, 'YXZ'));
+                tx = ty = px = py = 0;
+              }
+            } else {
+              spinAngle += pose.spinRate * dt;
+            }
+            if (pose.ready && !userThrow && inspecting) {
               const damping = 1 - Math.exp(-dt / 0.22);
               px += (tx - px) * damping; py += (ty - py) * damping;
             }
           }
           const pose = applyPose();
-          applyGrass(pose.position, !reduced && !pause.current);
+          applyGrass(attitude.position, !reduced && !pause.current);
           const interacting = Math.abs(tx - px) + Math.abs(ty - py) > 0.002;
-          const frameInterval = !pose.ready || interacting ? 1000 / 60 : 1000 / 30;
+          const frameInterval = !pose.ready || userThrow || touchId !== null || interacting ? 1000 / 60 : 1000 / 30;
           if (now - lastRender >= frameInterval || wasPaused !== pause.current) {
             renderer.render(scene, camera); lastRender = now;
           }
@@ -234,7 +364,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         cancelAnimationFrame(raf); observer.disconnect(); visibility.disconnect();
         zone.removeEventListener('pointermove', move); zone.removeEventListener('pointerleave', leave);
         node.removeEventListener('pointerdown', down);
-        node.removeEventListener('pointerup', release); node.removeEventListener('pointercancel', release);
+        node.removeEventListener('pointerup', release); node.removeEventListener('pointercancel', release); node.removeEventListener('lostpointercapture', release);
         mq.removeEventListener('change', onMotion);
         renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
         renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
@@ -242,23 +372,26 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         glass.dispose(); blue.dispose(); white.dispose(); etching.dispose();
         grass.dispose(); env.dispose();
         renderer.dispose(); renderer.domElement.remove();
-        delete node.dataset.ready; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback;
+        delete node.dataset.ready; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode;
       };
-    }).catch(() => {
-      if (!disposed) node.dataset.fallback = 'true';
+    }).catch((error: unknown) => {
+      if (!disposed) {
+        console.error('[GlassDisc] Three.js scene initialization failed', error);
+        node.dataset.fallback = 'true';
+      }
     });
     return () => { disposed = true; cleanup(); delete node.dataset.fallback; };
   }, []);
 
-  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '程序化草地上的浅蓝微透明玻璃飞盘，从远处沿外弯弧线飞来，停稳后可随指针转动，查看正面、侧边和底面' : 'A pale, lightly translucent glass disc approaches over a procedural grass field on an outside-in curve; once it settles, moving the pointer turns it to show its top, rim and underside'}>
+  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '程序化草地上的暖珊瑚色微透明玻璃飞盘，从远处沿外弯弧线飞来，停稳后点击可转动查看各面，再次点击锁定朝向，锁定后拖动甩出，随后自动飞回' : 'A warm coral, lightly translucent glass disc approaches over a procedural grass field on an outside-in curve; once it settles, click to inspect its faces, click again to lock its orientation, then drag and release to throw'}>
     <svg className="aero-fallback" viewBox="0 0 800 500" aria-hidden="true">
-      <defs><linearGradient id="disc-fallback"><stop stopColor="#eefcff"/><stop offset=".45" stopColor="#b9e6f0"/><stop offset="1" stopColor="#fbffff"/></linearGradient></defs>
-      <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill="url(#disc-fallback)" fillOpacity=".78" stroke="#66b8ce" strokeWidth="2"/>
-        {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#d8f3fc':'#55a9c0'} strokeWidth="1"/>)}</g>
+      <defs><linearGradient id="disc-fallback"><stop stopColor="#fff7ea"/><stop offset=".45" stopColor="#ffab97"/><stop offset="1" stopColor="#fff4dd"/></linearGradient></defs>
+      <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill="url(#disc-fallback)" fillOpacity=".78" stroke="#d98569" strokeWidth="2"/>
+        {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff5df':'#eea46f'} strokeWidth="1"/>)}</g>
     </svg>
     <span className="aero-disc-hint" aria-hidden="true">
-      <span className="aero-hint-desktop">{lang === 'zh' ? '移动鼠标，转动飞盘看看每一面' : 'Move your mouse to turn the disc and see every side'}</span>
-      <span className="aero-hint-touch">{lang === 'zh' ? '左右拖动，转动飞盘' : 'Drag sideways to turn the disc'}</span>
+      <span className="aero-hint-desktop">{lang === 'zh' ? '点击转动，再点锁定，拖动甩出' : 'Click to inspect, click to lock, then drag to throw'}</span>
+      <span className="aero-hint-touch">{lang === 'zh' ? '轻点查看，再点锁定，拖动甩出' : 'Tap to inspect, tap to lock, then swipe to throw'}</span>
     </span>
   </div>;
 }

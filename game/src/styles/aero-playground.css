@@ -1,0 +1,180 @@
+/* Approved sunny-playground direction. Scoped to the homepage so the existing
+   game HUD and Tactics Lab keep their own layout and interaction styles. */
+.aero-home.aero-playground {
+  --aero-paper: #fffdf4;
+  --aero-ink: #24465a;
+  --aero-accent: #167e95;
+  --aero-line: #24465a;
+  --aero-soft: #496676;
+  --play-yellow: #ffe27a;
+  --play-shadow: 3px 3px 0 #24465a;
+  height: 100svh;
+  min-height: 420px;
+  overflow: clip;
+}
+.aero-playground .aero-hero {
+  background: linear-gradient(180deg, #97d1ed 0%, #d5ebed 50%, #d8e9cd 57%, #b4cc8e 76%, #83aa69 100%);
+}
+.aero-playground .aero-header {
+  position: absolute;
+  inset: 0 0 auto;
+  width: 100%;
+  max-width: none;
+  height: auto;
+  padding: max(24px, env(safe-area-inset-top)) max(24px, env(safe-area-inset-right)) 0 max(24px, env(safe-area-inset-left));
+  gap: 0;
+  justify-content: flex-end;
+  align-items: flex-start;
+  pointer-events: none;
+}
+.aero-playground .aero-header nav {
+  pointer-events: auto;
+  background: var(--aero-paper);
+  border: 2px solid var(--aero-ink);
+  box-shadow: var(--play-shadow);
+  border-radius: 14px;
+}
+.aero-playground .aero-header nav {
+  display: flex;
+  flex-wrap: nowrap;
+  padding: 4px 5px;
+  gap: 1px;
+  align-items: center;
+}
+.aero-playground .aero-header nav a,
+.aero-playground .aero-header nav button {
+  min-height: 44px;
+  padding: 8px 10px;
+  color: var(--aero-ink);
+  font-size: 13px;
+  font-weight: 650;
+  white-space: nowrap;
+  border-radius: 9px;
+  gap: 6px;
+  transition: background 160ms ease, transform 120ms ease;
+}
+.aero-playground .aero-header nav a:hover,
+.aero-playground .aero-header nav button:hover { background: #e8f4ef; }
+.aero-playground .aero-header nav button.aero-primary {
+  background: var(--play-yellow);
+  color: var(--aero-ink);
+  border: 1.5px solid var(--aero-ink);
+  box-shadow: 2px 2px 0 var(--aero-ink);
+  padding: 8px 15px;
+  margin: 0 3px 2px 4px;
+  font-weight: 800;
+}
+.aero-playground .aero-header nav button.aero-primary:hover { background: #ffda54; }
+.aero-playground .aero-header nav button.aero-primary:active { transform: translate(2px, 2px); box-shadow: none; }
+.aero-playground .aero-nav-sep { background: #c5d5d7; margin: 10px 6px; }
+.aero-playground .aero-pages-menu {
+  background: var(--aero-paper);
+  border: 2px solid var(--aero-ink);
+  box-shadow: var(--play-shadow);
+  border-radius: 12px;
+  min-width: 264px;
+}
+.aero-playground .aero-header .aero-pages-menu a { align-items: flex-start; white-space: normal; padding: 12px; }
+.aero-playground .aero-header .aero-pages-menu a small { font-size: 12px; line-height: 1.5; }
+.aero-playground .aero-object[data-interactive='true'] { cursor: grab; }
+.aero-playground .aero-object[data-mode='inspect'][data-interactive='true'] { cursor: move; }
+.aero-playground .aero-object[data-dragging='true'] { cursor: grabbing; }
+.aero-playground .aero-disc-hint {
+  display: block;
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: max(26px, env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  padding: 12px 20px;
+  max-width: calc(100% - 32px);
+  border: 1.5px solid var(--aero-ink);
+  border-radius: 30px;
+  background: var(--aero-paper);
+  box-shadow: 2px 3px 0 var(--aero-ink);
+  color: var(--aero-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.6;
+  text-align: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 200ms ease;
+}
+.aero-playground .aero-object[data-interactive='true'] .aero-disc-hint { opacity: 1; }
+.aero-playground .aero-hint-touch { display: none; }
+.aero-playground-caption {
+  position: absolute;
+  left: max(26px, env(safe-area-inset-left));
+  bottom: max(39px, env(safe-area-inset-bottom));
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #fffdf4;
+  font-size: 12px;
+  font-weight: 650;
+  text-shadow: 0 1px 4px #24465a;
+  pointer-events: none;
+}
+.aero-caption-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--play-yellow); }
+.aero-playground-controls {
+  position: absolute;
+  right: max(26px, env(safe-area-inset-right));
+  bottom: max(26px, env(safe-area-inset-bottom));
+  z-index: 4;
+  display: flex;
+  gap: 10px;
+}
+.aero-playground .aero-play-control {
+  background: var(--aero-paper);
+  border: 1.5px solid var(--aero-ink);
+  border-radius: 12px;
+  box-shadow: 2px 3px 0 var(--aero-ink);
+  padding: 10px 14px;
+  min-height: 46px;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.aero-playground .aero-play-control:hover { background: #fff1bc; }
+.aero-playground .aero-play-control:active { transform: translate(2px, 3px); box-shadow: none; }
+.aero-playground .aero-play-control[aria-pressed='true'] { background: var(--play-yellow); }
+.aero-play-control svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.aero-playground .aero-skip { position: absolute; top: -100px; left: 24px; z-index: 110; background: var(--aero-paper); border: 2px solid var(--aero-ink); padding: 12px; border-radius: 8px; }
+.aero-playground .aero-skip:focus { top: 100px; }
+@media (min-width: 1181px) {
+  .aero-playground .aero-pages-inline { display: flex; }
+  .aero-playground .aero-nav-pages { display: none; }
+}
+@media (max-width: 1180px) {
+  .aero-playground .aero-pages-inline, .aero-playground .aero-nav-sep { display: none; }
+  .aero-playground .aero-nav-pages { display: block; }
+  .aero-playground-caption { display: none; }
+  .aero-playground .aero-disc-hint { bottom: max(90px, calc(env(safe-area-inset-bottom) + 70px)); width: max-content; }
+}
+@media (max-width: 640px) {
+  .aero-playground .aero-header { padding: max(16px, env(safe-area-inset-top)) 16px 0; justify-content: flex-end; }
+  .aero-playground .aero-header nav { width: 100%; justify-content: space-between; gap: 0; border-radius: 12px; padding: 3px; }
+  .aero-playground .aero-header nav a, .aero-playground .aero-header nav button { font-size: 12px; padding: 6px; min-height: 44px; gap: 4px; }
+  .aero-playground .aero-header nav button.aero-primary { padding: 6px 9px; margin-left: 1px; }
+  .aero-playground .aero-header .aero-pages-menu a { padding: 10px; }
+  .aero-playground .aero-pages-menu { min-width: min(264px, calc(100vw - 42px)); }
+  .aero-playground-controls { bottom: max(22px, env(safe-area-inset-bottom)); right: 18px; gap: 10px; }
+  .aero-playground .aero-disc-hint { font-size: 11px; padding: 10px 16px; bottom: max(90px, calc(env(safe-area-inset-bottom) + 70px)); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .aero-playground .aero-header { padding: 12px 16px 0; flex-direction: row; gap: 12px; }
+  .aero-playground .aero-header nav { width: auto; }
+  .aero-playground .aero-header .aero-brand { min-height: 48px; font-size: 15px; }
+  .aero-playground .aero-disc-hint { bottom: 20px; left: 20px; transform: none; max-width: 55%; font-size: 10px; }
+}
+@media (pointer: coarse) {
+  .aero-playground .aero-hint-desktop { display: none; }
+  .aero-playground .aero-hint-touch { display: inline; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aero-playground .aero-disc-hint { display: none; }
+  .aero-playground a, .aero-playground button { transition: none; }
+}

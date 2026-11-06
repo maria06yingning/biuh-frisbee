@@ -139,7 +139,6 @@ export default function Why() {
   return (
     <PageShell
       slug="/why"
-      art="why"
       title={zh ? <>为什么，<br />我们爱飞盘。</> : <>Why we<br />love the disc.</>}
       lede={[
         '规则、犯规、精神都讲完了。这一页不讲条文，只聊聊：一张塑料盘，为什么能让那么多人一到周末就往草地上跑。',

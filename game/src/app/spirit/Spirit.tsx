@@ -100,7 +100,6 @@ export default function Spirit() {
   return (
     <PageShell
       slug="/spirit"
-      art="spirit"
       title={zh ? <>没有哨子，<br />只有对话。</> : <>No whistle,<br />just a conversation.</>}
       lede={[
         '飞盘精神（Spirit of the Game）是这项运动的核心。它和公平竞赛相似，但在极限飞盘里被看得更重——因为这里没有裁判，规则由每个人共同守护。',
