@@ -66,6 +66,11 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
   return (
     <header className="aero-header">
       <nav aria-label={zh ? '主导航' : 'Main navigation'}>
+        {/* Home link is always available; content links follow it on wide screens. */}
+        <Link href="/" aria-current={onHome ? 'page' : undefined}>
+          {zh ? '首页' : 'Home'}
+        </Link>
+
         {/* Content pages: inline on wide screens */}
         <span className="aero-pages-inline">
           {PAGES.map((p) => (
@@ -88,6 +93,10 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
             {zh ? '页面' : 'Pages'} <span aria-hidden="true">▾</span>
           </button>
           <span className="aero-pages-menu" id={menuId} hidden={!menu}>
+            <Link href="/" aria-current={onHome ? 'page' : undefined} onClick={() => setMenu(false)}>
+              <b>{zh ? '首页' : 'Home'}</b>
+              <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+            </Link>
             {PAGES.map((p) => (
               <Link
                 key={p.slug}

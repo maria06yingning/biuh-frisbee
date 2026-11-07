@@ -1,7 +1,16 @@
 import type { FlightPoint } from './disc-flight';
 
 export type ThrowSample = { x: number; y: number; time: number };
-export type ThrowImpulse = { x: number; y: number; power: number };
+export type ThrowStyle = 'flat' | 'oi' | 'io' | 'hammer';
+export type ThrowImpulse = { x: number; y: number; force: number; angle: number };
+
+/** Select the release style from the disc's face orientation and tilt relative to travel. */
+export function classifyThrowStyle(faceUp: number, edgeTilt: number): ThrowStyle {
+  if (faceUp < -0.12) return 'hammer';
+  if (edgeTilt > 0.2) return 'oi';
+  if (edgeTilt < -0.2) return 'io';
+  return 'flat';
+}
 const clamp = (n: number, a: number, b: number) => Math.max(a, Math.min(b, n));
 const smooth = (t: number) => t * t * (3 - 2 * t);
 
@@ -17,7 +26,12 @@ export function getThrowImpulse(samples: ThrowSample[], width: number, height: n
   const vy = -(end.y - first.y) / height / dt;
   const speed = Math.hypot(vx, vy);
   if (speed < 0.25) return null;
-  return { x: vx / speed, y: vy / speed, power: clamp(speed / 2.4, 0.12, 1) };
+  const x = vx / speed;
+  const y = vy / speed;
+  const angle = Math.atan2(-(end.y - first.y), Math.abs(end.x - first.x));
+  // Ignore the minimum flick threshold, then map a firm swipe to a strong throw.
+  const force = clamp((speed - 0.18) / 1.9, 0.08, 1);
+  return { x, y, force, angle };
 }
 
 function bezier(points: FlightPoint[], t: number): FlightPoint {
@@ -29,18 +43,27 @@ function bezier(points: FlightPoint[], t: number): FlightPoint {
 /** A banked, spinning throw across the meadow and a smooth return. Fixed size, perspective only.
  * All control points stay above -0.85, so even the rim's 2.2-unit radius clears the grass.
  */
-export function createUserThrow(start: FlightPoint, impulse: ThrowImpulse, aspect: number) {
-  const power = clamp(impulse.power, 0, 1);
-  const outwardDuration = 1.4 + power * 0.6;
-  const returnDuration = 2.1;
+export function createUserThrow(start: FlightPoint, impulse: ThrowImpulse, aspect: number, style: ThrowStyle = 'flat') {
+  const force = clamp(impulse.force, 0, 1);
+  const hammer = style === 'hammer';
+  const curveSign = style === 'oi' ? 1 : style === 'io' ? -1 : 0;
+  const outwardDuration = (hammer ? 1.65 : 1.25) + force * 1.05;
+  const returnDuration = 1.8 + force * 0.45;
   const duration = outwardDuration + returnDuration;
   const spread = clamp(aspect, 0.45, 2.5);
   const direction = impulse.x;
   const lift = Math.max(0, impulse.y);
-  const far = { x: direction * (7 + power * 14) * spread, y: 2.5 + lift * 4, z: -45 - power * 40 };
+  const curveSide = Math.abs(direction) < 0.12 ? 1 : Math.sign(direction);
+  const curve = curveSign * curveSide * (1.8 + force * 6.2) * spread;
+  const travelDepth = 22 + force * 58;
+  const far = {
+    x: direction * (3 + force * 18) * spread,
+    y: hammer ? 4 + force * 5 + lift * 2 : 1.8 + force * 2.4 + lift * 4.2,
+    z: start.z - travelDepth,
+  };
   const outgoing = [start,
-    { x: start.x + direction * (5 + power * 9) * spread, y: Math.max(-0.85, start.y + impulse.y * 2.5), z: start.z - 12 },
-    { x: far.x * 1.15, y: far.y + 2, z: far.z * 0.65 }, far];
+    { x: start.x + direction * (2 + force * 8) * spread + curve, y: Math.max(-0.85, start.y + impulse.y * (hammer ? 4.2 : 3.2)), z: start.z - Math.max(8, travelDepth * 0.24) },
+    { x: far.x * 1.15 - curve * 0.72, y: far.y + (hammer ? 5 : 2), z: start.z + (far.z - start.z) * 0.65 }, far];
   const incoming = [far,
     { x: far.x + (direction >= 0 ? -1 : 1) * 10 * spread, y: far.y + 1.8, z: far.z + 12 },
     { x: -direction * 4 * spread, y: 1.6, z: -10 },
@@ -53,12 +76,13 @@ export function createUserThrow(start: FlightPoint, impulse: ThrowImpulse, aspec
       const u = clamp(returning ? (time - outwardDuration) / returnDuration : time / outwardDuration, 0, 1);
       const progress = returning ? smooth(u) : Math.sin(u * Math.PI / 2);
       const position = bezier(returning ? incoming : outgoing, progress);
-      const catchEase = returning ? smooth(clamp((u - 0.62) / 0.38, 0, 1)) : 0;
+      // Keep the release attitude for the entire outbound and return arcs. Only blend back
+      // to the resting pose during the final 10% as the disc reaches the catch point.
+      const orientationBlend = returning ? smooth(clamp((u - 0.9) / 0.1, 0, 1)) : 0;
       return {
         position,
-        pitch: 0.13 * (1 - catchEase) + 0.82 * catchEase,
-        bank: -direction * (0.25 + power * 0.25) * (1 - catchEase) - 0.18 * catchEase,
-        spinRate: (18 + power * 30) * (1 - catchEase),
+        orientationBlend,
+        spinRate: ((hammer ? 28 : 18) + force * (hammer ? 38 : 30)) * (1 - orientationBlend),
         returning,
         done: time >= duration,
       };

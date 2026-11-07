@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pick, type Bi } from '@/content/shared';
-import PageShell, { Section, Term } from '@/components/PageShell';
+import PageShell, { Section } from '@/components/PageShell';
 
 /* ───────── Interactive "what happens after a call" (WFDF Rules 15/16) ───────── */
 type Outcome = 'accepted' | 'contested' | 'retracted' | 'nostop';
@@ -56,7 +56,34 @@ function CallFlow() {
   ];
 
   return (
-    <div>
+    <div className="ap-call-practice">
+      <div className="ap-call-scenario">
+        <svg viewBox="0 0 520 150" aria-hidden="true">
+          <rect width="520" height="150" rx="16" fill="#e5efcf" />
+          <path d="M0 116 Q120 94 260 118 T520 110 V150 H0Z" fill="#c4dda2" />
+          <g transform="translate(155 58)">
+            <circle cy="-16" r="13" fill="#e7b88e" stroke="#1b1a2e" strokeWidth="2" />
+            <path d="M-12-20 Q-9-38 5-32 Q15-27 12-14" fill="#3c2f3b" stroke="#1b1a2e" strokeWidth="2" />
+            <path d="M-12 0 Q0-8 12 0 L17 42 H-17Z" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2" />
+            <path d="M12 7 L38-3" stroke="#e7b88e" strokeWidth="8" strokeLinecap="round" />
+          </g>
+          <g transform="translate(270 58)">
+            <circle cy="-16" r="13" fill="#8a5842" stroke="#1b1a2e" strokeWidth="2" />
+            <path d="M-13-19 Q-10-36 4-33 Q15-28 12-13" fill="#f0cb59" stroke="#1b1a2e" strokeWidth="2" />
+            <path d="M-12 0 Q0-8 12 0 L17 42 H-17Z" fill="#69c6b7" stroke="#1b1a2e" strokeWidth="2" />
+            <path d="M-12 6 L-39-2" stroke="#8a5842" strokeWidth="8" strokeLinecap="round" />
+          </g>
+          <path d="M200 53 l12-15 6 12 14-3-7 14 8 8-17 1-7 12-5-15-13-5Z" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="2" />
+          <g transform="translate(393 42) rotate(-12)"><ellipse rx="24" ry="8" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2" /><ellipse rx="13" ry="4" fill="none" stroke="#fff8e6" strokeWidth="1.5" /></g>
+          <path d="M355 31 Q382 12 407 24" fill="none" stroke="#1b1a2e" strokeWidth="2" strokeDasharray="4 5" />
+          <path d="M62 35 Q45 16 73 15 Q99 15 87 35Z" fill="#fff8e6" stroke="#1b1a2e" strokeWidth="2" />
+          <text x="74" y="29" textAnchor="middle" fontSize="12" fontWeight="800" fill="#1b1a2e">Foul!</text>
+        </svg>
+        <div>
+          <strong>{zh ? '情景：接盘时发生接触，盘落地。' : 'Scenario: contact on the play; the disc falls.'}</strong>
+          <p>{zh ? '接盘者喊出接盘犯规。选择对方的回应，看看通常如何恢复比赛。' : 'The receiver calls a receiving foul. Choose the response to see how play resumes.'}</p>
+        </div>
+      </div>
       <ol className="ap-rail">
         {steps.map((s, i) => (
           <li key={i}>
@@ -121,39 +148,106 @@ const VIOLATIONS: { tag: Bi; t: Bi; d: Bi }[] = [
   { tag: ['开盘', 'Pull'], t: ['越位 / 抢跑', 'Offside · false start'], d: ['开盘时防守方提前过线（offside）或进攻方提前离线（false start）。必须在进攻方碰盘前喊出。', 'At the pull, the defense crosses early (offside) or the offense leaves early (false start). Call it before the offense touches the disc.'] },
 ];
 
+function FoulScene({ index, danger = false }: { index: number; danger?: boolean }) {
+  return (
+    <svg className="ap-foul-scene" viewBox="0 0 300 118" aria-hidden="true">
+      <rect width="300" height="118" rx="14" fill={danger ? '#ffddd1' : '#e7f1d4'} />
+      <path d="M0 93 Q70 76 150 93 T300 89 V118 H0Z" fill="#c5dda4" />
+      <g className="ap-scene-player" transform={`translate(${index % 2 ? 102 : 78} 39)`}>
+        <circle cy="0" r="11" fill="#e9bd96" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-10-3 Q-7-17 4-14 Q12-11 10-2" fill="#3d3040" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-10 13 Q0 7 10 13 L14 44 H-14Z" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-8 42 L-13 57 M8 42 L14 57 M-9 20 L-24 31 M9 20 L25 29" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      <g className="ap-scene-player ap-scene-player-alt" transform={`translate(${index % 2 ? 207 : 220} 40)`}>
+        <circle cy="0" r="11" fill="#956149" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-11-3 Q-8-17 4-14 Q11-11 10-2" fill="#efca58" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-10 13 Q0 7 10 13 L14 44 H-14Z" fill="#66c8b4" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-8 42 L-13 57 M8 42 L14 57 M-9 20 L-27 29 M9 20 L-17 27" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      {danger ? <path d="M145 22 l9 12 9-12-4 18 12 6-15 1-3 16-4-16-14-1 11-7Z" fill="#ff5a4a" stroke="#1b1a2e" strokeWidth="2" /> : <g className="ap-scene-disc" transform={`translate(${145 + (index % 3) * 12} 29) rotate(-13)`}><ellipse rx="20" ry="7" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2" /><ellipse rx="11" ry="3.5" fill="none" stroke="#fff8e6" strokeWidth="1.5" /></g>}
+      <path d="M140 69 Q150 60 163 69" fill="none" stroke="#1b1a2e" strokeWidth="2" strokeDasharray="3 4" />
+    </svg>
+  );
+}
+
+function FoulExplorer() {
+  const { lang } = useI18n();
+  const zh = lang === 'zh';
+  const groups: { label: Bi; items: { tag: Bi; t: Bi; d: Bi; kind: string; index: number; danger?: boolean }[] }[] = [
+    { label: ['身体接触', 'Contact fouls'], items: FOULS.map((item, index) => ({ ...item, kind: 'foul', index })) },
+    { label: ['标记与比赛违规', 'Marking & violations'], items: VIOLATIONS.map((item, index) => ({ ...item, kind: 'violation', index })) },
+    { label: ['先分清三类', 'Three types of breach'], items: KINDS.map((item, index) => ({ ...item, kind: 'kind', index })) },
+  ];
+  const [group, setGroup] = useState(0);
+  const [open, setOpen] = useState<number | null>(0);
+  const items = groups[group].items;
+  return (
+    <div className="ap-codex">
+      <div className="ap-codex-tabs" role="tablist" aria-label={zh ? '犯规与违例分类' : 'Foul and violation categories'}>
+        {groups.map((item, index) => <button key={index} type="button" role="tab" aria-selected={group === index} onClick={() => { setGroup(index); setOpen(null); }}>{pick(lang, item.label)}</button>)}
+      </div>
+      <div className="ap-codex-list">
+        {items.map((item, index) => {
+          const expanded = open === index;
+          const panelId = `foul-panel-${group}-${index}`;
+          return (
+            <article key={`${group}-${index}`} className={`ap-codex-entry${expanded ? ' is-open' : ''}`}>
+              <button className="ap-codex-trigger" type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setOpen(expanded ? null : index)}>
+                <span className="ap-codex-mark ap-codex-dot" aria-hidden="true">{item.kind === 'foul' ? '!' : item.kind === 'violation' ? '↗' : 'i'}</span>
+                <span><small>{pick(lang, item.tag)}</small><b>{pick(lang, item.t)}</b></span>
+                <span className="ap-codex-plus" aria-hidden="true">{expanded ? '−' : '+'}</span>
+              </button>
+              <div className="ap-codex-panel" id={panelId} hidden={!expanded}>
+                <FoulScene index={item.index} danger={'danger' in item && Boolean(item.danger)} />
+                <p className="ap-codex-copy">{pick(lang, item.d)}</p>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+function HandSignals() {
+  const { lang } = useI18n();
+  const zh = lang === 'zh';
+  const items: { title: Bi; note: Bi; icon: string }[] = [
+    { title: ['违例', 'Violation'], note: ['双手举起，张开成 V 形。', 'Raise both hands in a V.'], icon: 'v' },
+    { title: ['争议', 'Contest'], note: ['双方拳头相碰，表示有争议。', 'Bump fists to signal a contest.'], icon: 'fist' },
+    { title: ['犯规', 'Foul'], note: ['一臂平伸，另一前臂横向示意。', 'One arm extended, the other forearm makes the call.'], icon: 'foul' },
+  ];
+  return <div className="ap-signal-grid">{items.map((item) => <article className="ap-signal-card" key={item.icon}>
+    <svg viewBox="0 0 100 82" aria-hidden="true">
+      <path d="M50 73 V45" stroke="#c9825e" strokeWidth="10" strokeLinecap="round" />
+      {item.icon === 'v' && <><path d="M48 48 L29 17 M52 48 L71 17" stroke="#c9825e" strokeWidth="9" strokeLinecap="round" /><circle cx="28" cy="14" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/><circle cx="72" cy="14" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/></>}
+      {item.icon === 'fist' && <><path d="M49 50 L24 35 M51 50 L76 35" stroke="#c9825e" strokeWidth="9" strokeLinecap="round"/><rect x="15" y="24" width="18" height="16" rx="6" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/><rect x="67" y="24" width="18" height="16" rx="6" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/></>}
+      {item.icon === 'foul' && <><path d="M49 49 L17 49 M51 46 L74 22" stroke="#c9825e" strokeWidth="9" strokeLinecap="round"/><circle cx="13" cy="49" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/><circle cx="78" cy="18" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/></>}
+      <path d="M39 75 Q50 67 61 75" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="2" />
+    </svg>
+    <h3>{pick(lang, item.title)}</h3><p>{pick(lang, item.note)}</p>
+  </article>)}</div>;
+}
+
 export default function Fouls() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   return (
-    <PageShell
-      slug="/fouls"
-      title={zh ? <>喊出来，<br />再说清楚。</> : <>Call it,<br />then explain.</>}
-      lede={[
-        '极限飞盘没有裁判。犯规和违例由场上球员自己叫停，再由当事双方一起解决。这页讲清楚：有哪些犯规和违例，以及一次叫停之后会发生什么。',
-        'Ultimate has no referees. Players make the calls themselves, and the players involved resolve them together. Here’s what the calls are — and what happens after one.',
-      ]}
-    >
+    <PageShell slug="/fouls">
       <Section
         id="kinds"
-        label={zh ? '01 · 三种违反' : '01 · Three kinds of breach'}
-        heading={zh ? '犯规、违规、违例。' : 'Fouls, infractions, violations.'}
-        intro={zh ? '先分清这三类，后面的流程才讲得通。' : 'Tell them apart first; the rest follows.'}
+        label={zh ? '互动图鉴' : 'Explore the guide'}
+        heading={zh ? '点开一个动作，看看怎么判。' : 'Open a play to see how it is called.'}
+        intro={zh ? '按类别浏览；展开条目查看情景示意和规则说明。' : 'Browse by category, then open an entry for its scene and explanation.'}
         full
       >
-        <div className="ap-cards">
-          {KINDS.map((k, i) => (
-            <article key={i} className="ap-card">
-              <span className="ap-tag">{pick(lang, k.tag)}</span>
-              <h3>{pick(lang, k.t)}</h3>
-              <p>{pick(lang, k.d)}</p>
-            </article>
-          ))}
-        </div>
+        <FoulExplorer />
       </Section>
 
       <Section
         id="flow"
-        label={zh ? '02 · 叫停之后' : '02 · After a call'}
+        label={zh ? '情景练习' : 'Try a scenario'}
         heading={zh ? '一次叫停，怎么收场？' : 'A call — then what?'}
         intro={zh ? '选一个对方的回应，看看比赛怎么继续。' : 'Pick a response to see how play resumes.'}
         full
@@ -162,66 +256,24 @@ export default function Fouls() {
       </Section>
 
       <Section
-        id="fouls"
-        label={zh ? '03 · 常见犯规' : '03 · Common fouls'}
-        heading={zh ? '都和身体接触有关。' : 'All about contact.'}
-        full
-      >
-        <div className="ap-cards">
-          {FOULS.map((c, i) => (
-            <article key={i} className={`ap-card${c.danger ? ' is-danger' : ''}`}>
-              <span className="ap-tag">{pick(lang, c.tag)}</span>
-              <h3>{pick(lang, c.t)}</h3>
-              <p>{pick(lang, c.d)}</p>
-            </article>
-          ))}
-        </div>
-      </Section>
-
-      <Section
-        id="violations"
-        label={zh ? '04 · 常见违规与违例' : '04 · Infractions & violations'}
-        heading={zh ? '不涉及接触的那些。' : 'The ones without contact.'}
-        full
-      >
-        <div className="ap-cards">
-          {VIOLATIONS.map((c, i) => (
-            <article key={i} className="ap-card">
-              <span className="ap-tag">{pick(lang, c.tag)}</span>
-              <h3>{pick(lang, c.t)}</h3>
-              <p>{pick(lang, c.d)}</p>
-            </article>
-          ))}
-        </div>
-      </Section>
-
-      <Section
-        id="speak"
-        label={zh ? '05 · 怎么叫停' : '05 · How to make a call'}
-        heading={zh ? '说事实，不说情绪。' : 'State facts, not feelings.'}
+        id="signals"
+        label={zh ? '场上怎么沟通' : 'Calls on the field'}
+        heading={zh ? '把动作和手势一起记住。' : 'Learn the words and the signals.'}
       >
         <div className="ap-prose">
           <p>
             {zh
-              ? <>叫停的人要能简短说出<strong>客观依据</strong>：“我看到你出手时轴心脚抬起来了。”如果你连自己看到什么都说不清，就不该叫。</>
-              : <>If you call, be ready to state the <strong>objective evidence</strong> briefly: “I saw your pivot foot lift as you threw.” If you can’t, you shouldn’t call.</>}
+              ? <>叫停的人要能简短说出<strong>客观依据</strong>，给对方说明视角的机会，并保持尊重。只在足以影响结果或涉及安全时叫停。</>
+              : <>State the <strong>objective evidence</strong> briefly, let the other player explain their view, and stay respectful. Call only when a breach affects the outcome or safety.</>}
           </p>
-          <p>
-            {zh
-              ? <>给对方说话的机会，听他的视角，用尊重的语气——哪怕有语言障碍，也可以用手势比划。只在<strong>足以影响结果</strong>或涉及安全时才叫停。</>
-              : <>Give your opponent a chance to speak, listen, and use respectful words — gestures are fine across a language barrier. Only call when a breach is <strong>big enough to change the outcome</strong> or affects safety.</>}
-          </p>
-          <p>
-            {zh
-              ? <>WFDF 鼓励用标准<Term zh="手势" en="hand signals" />沟通：V 形双手 = 违例，双拳相碰 = 争议，一臂平伸、另一前臂横砍 = 犯规。</>
-              : <>WFDF encourages the standard hand signals: a “V” for a violation, two fists bumped for a contest, one arm chopped by the other forearm for a foul.</>}
-          </p>
+          <p>{zh ? '标准手势让场上所有人迅速明白发生了什么。' : 'Standard signals help everyone on the field understand what happened.'}</p>
         </div>
+        <HandSignals />
       </Section>
 
       <Section
         id="advisor"
-        label={zh ? '06 · 比赛顾问' : '06 · Game advisors'}
+        label={zh ? '补充说明' : 'A note'}
         heading={zh ? '他们不是裁判。' : 'They’re not referees.'}
       >
         <div className="ap-prose">
@@ -232,8 +284,8 @@ export default function Fouls() {
           </p>
           <p>
             {zh
-              ? '这正是极限飞盘的底色：规则是共享的，责任在你。下一页，我们聊聊支撑这一切的飞盘精神。'
-              : 'That’s the heart of ultimate: the rules are shared, the responsibility is yours. Next, the Spirit of the Game that holds it all together.'}
+              ? '规则是共享的，责任在每位球员手里。'
+              : 'The rules are shared; responsibility belongs to every player.'}
           </p>
         </div>
       </Section>

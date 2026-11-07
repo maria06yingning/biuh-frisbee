@@ -1,10 +1,8 @@
-/* Content pages (Rules / Fouls / Spirit / Why).
-   These continue the live homepage ("Aero") visual language from aero-home.css:
-   paper #f5f9fa, ink #132d41, accent #195de6, hairline #d1dfe6, UF Display type,
-   a 12-column 1600px grid, the sky→meadow gradient band and quiet arrow links.
-   The page root carries both .aero-home (tokens, type, header, buttons) and
-   .aero-page (this file). Selectors that restyle buttons/links are prefixed with
-   .aero-page so they beat the generic `.aero-home button / a` rules. */
+/* Structural layout for Rules / Fouls / Spirit / Why.
+   The shared visual theme is applied by aero-playful.css: game paper/ink colors,
+   team accents, thick outlines and hard shadows. The page root carries both
+   .aero-home (base layout) and .aero-page (this file); scoped selectors keep
+   content-page structure separate from the full-screen homepage and game HUD. */
 
 .aero-page {
   min-height: 100svh;

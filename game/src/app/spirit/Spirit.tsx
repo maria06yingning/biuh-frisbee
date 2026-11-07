@@ -69,12 +69,12 @@ function SpiritCircle() {
   });
   return (
     <svg viewBox="0 0 300 300" aria-hidden="true">
-      <circle cx="150" cy="150" r="118" fill="none" stroke="var(--aero-line)" strokeWidth="1.5" strokeDasharray="2 7" />
+      <circle cx="150" cy="150" r="118" fill="none" stroke="#1b1a2e" strokeWidth="2" strokeDasharray="3 7" />
       {dots.map((d, i) => (
-        <circle key={i} cx={d.x} cy={d.y} r="13" fill={d.us ? '#195de6' : '#76ac56'} />
+        <circle key={i} cx={d.x} cy={d.y} r="13" fill={d.us ? '#14c2d8' : '#ff5a4a'} stroke="#1b1a2e" strokeWidth="2.5" />
       ))}
-      <ellipse cx="150" cy="150" rx="34" ry="12" fill="#bbe7f1" stroke="#66b8ce" strokeWidth="1.5" />
-      <ellipse cx="150" cy="150" rx="20" ry="6" fill="none" stroke="#4eb5d2" strokeWidth="1" />
+      <ellipse cx="150" cy="150" rx="34" ry="12" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="2.5" />
+      <ellipse cx="150" cy="150" rx="20" ry="6" fill="none" stroke="#1b1a2e" strokeWidth="1.5" />
     </svg>
   );
 }
@@ -98,17 +98,10 @@ export default function Spirit() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   return (
-    <PageShell
-      slug="/spirit"
-      title={zh ? <>没有哨子，<br />只有对话。</> : <>No whistle,<br />just a conversation.</>}
-      lede={[
-        '飞盘精神（Spirit of the Game）是这项运动的核心。它和公平竞赛相似，但在极限飞盘里被看得更重——因为这里没有裁判，规则由每个人共同守护。',
-        'The Spirit of the Game is at the core of ultimate. It’s like fair play, but weighted far more heavily — because there are no referees, and every player guards the rules.',
-      ]}
-    >
+    <PageShell slug="/spirit">
       <Section
         id="preamble"
-        label={zh ? '01 · 规则的第一章' : '01 · The first chapter'}
+        label={zh ? '规则的第一章' : 'The first chapter'}
         heading={zh ? '责任，交给每个人。' : 'The responsibility is yours.'}
       >
         <figure className="ap-quote">
@@ -134,7 +127,7 @@ export default function Spirit() {
 
       <Section
         id="why"
-        label={zh ? '02 · 为什么重要' : '02 · Why it matters'}
+        label={zh ? '场上的信任' : 'Trust on the field'}
         heading={zh ? '你同时是球员和裁判。' : 'You’re a player and a referee.'}
       >
         <div className="ap-prose">
@@ -153,7 +146,7 @@ export default function Spirit() {
 
       <Section
         id="dos"
-        label={zh ? '03 · 做与不做' : '03 · Do & don’t'}
+        label={zh ? '一些具体的选择' : 'Small choices that matter'}
         heading={zh ? '好精神，和明显的违背。' : 'Good Spirit, and clear breaches.'}
         full
       >
@@ -177,7 +170,7 @@ export default function Spirit() {
 
       <Section
         id="score"
-        label={zh ? '04 · 飞盘精神评分' : '04 · Spirit scoring'}
+        label={zh ? '赛后聊一聊' : 'After the game'}
         heading={zh ? '给对手打个分，也给自己。' : 'Rate the other team — and yourself.'}
         intro={zh ? '试着给五个维度各打 0–4 分，看看总分。' : 'Give each of the five a 0–4 and watch the total.'}
       >
@@ -186,7 +179,7 @@ export default function Spirit() {
 
       <Section
         id="circle"
-        label={zh ? '05 · 精神圈' : '05 · Spirit circles'}
+        label={zh ? '精神圈' : 'Spirit circle'}
         heading={zh ? '比赛结束，站成一圈。' : 'After the game, a shared circle.'}
       >
         <div className="ap-duo is-circle">
@@ -210,7 +203,7 @@ export default function Spirit() {
 
       <Section
         id="here"
-        label={zh ? '06 · 在本站' : '06 · On this site'}
+        label={zh ? '在本站的游戏里' : 'Inside the game'}
         heading={zh ? '游戏里也有飞盘精神。' : 'Spirit lives in the game, too.'}
       >
         <div className="ap-prose">

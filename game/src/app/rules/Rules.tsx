@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pick, type Bi } from '@/content/shared';
 import PageShell, { Section, Term } from '@/components/PageShell';
@@ -25,16 +25,16 @@ function FieldDiagram() {
     <div className="ap-duo is-field">
       <div className="ap-figure ap-duo-a">
         <svg viewBox="0 0 108 45" role="img" aria-label={zh ? '极限飞盘球场俯视图：100 × 37 米，两端各 18 米得分区' : 'Top-down ultimate field: 100 × 37 m with an 18 m end zone at each end'}>
-          <rect className="ap-fz" x="22" y="4" width="64" height="37" fill="#9fc27a" style={{ opacity: dim('central') }} />
+          <rect className="ap-fz" x="22" y="4" width="64" height="37" fill="#8fd17e" style={{ opacity: dim('central') }} />
           <g className="ap-fz" style={{ opacity: dim('ez') }}>
-            <rect x="4" y="4" width="18" height="37" fill="#86b6e2" />
-            <rect x="86" y="4" width="18" height="37" fill="#86b6e2" />
+            <rect x="4" y="4" width="18" height="37" fill="#bff6ff" />
+            <rect x="86" y="4" width="18" height="37" fill="#bff6ff" />
           </g>
-          <line x1="22" y1="4" x2="22" y2="41" stroke="#fff" strokeWidth="0.5" />
-          <line x1="86" y1="4" x2="86" y2="41" stroke="#fff" strokeWidth="0.5" />
+          <line x1="22" y1="4" x2="22" y2="41" stroke="#1b1a2e" strokeWidth="0.7" />
+          <line x1="86" y1="4" x2="86" y2="41" stroke="#1b1a2e" strokeWidth="0.7" />
           <rect className="ap-fz" x="4" y="4" width="100" height="37" fill="none" stroke={active === 'line' ? '#c23b22' : '#fff'} strokeWidth={active === 'line' ? 1.2 : 0.6} style={{ opacity: dim('line') }} />
           {/* Brick marks: 18 m from each goal line (x = 40, 68), midway between the sidelines. */}
-          <g className="ap-fz" stroke={active === 'brick' ? '#195de6' : '#2c3e32'} strokeWidth={active === 'brick' ? 1.3 : 0.7} style={{ opacity: dim('brick') }}>
+          <g className="ap-fz" stroke={active === 'brick' ? '#14c2d8' : '#1b1a2e'} strokeWidth={active === 'brick' ? 1.3 : 0.7} style={{ opacity: dim('brick') }}>
             <path d="M39 22.5 h2 M40 21.5 v2" />
             <path d="M67 22.5 h2 M68 21.5 v2" />
           </g>
@@ -54,103 +54,6 @@ function FieldDiagram() {
             <span>{pick(lang, k.desc)}</span>
           </button>
         ))}
-      </div>
-    </div>
-  );
-}
-
-/* ───────── Interactive stall-count demo (WFDF Rules 9.1, 13.2.2) ───────── */
-type StallPhase = 'idle' | 'counting' | 'thrown' | 'stalled';
-
-function StallDemo() {
-  const { lang } = useI18n();
-  const zh = lang === 'zh';
-  const [phase, setPhase] = useState<StallPhase>('idle');
-  const [count, setCount] = useState(0);
-  const [thrownAt, setThrownAt] = useState(0);
-  const timer = useRef<number>(0);
-  const countRef = useRef(0);
-
-  useEffect(() => () => window.clearInterval(timer.current), []);
-
-  const start = () => {
-    window.clearInterval(timer.current);
-    countRef.current = 1;
-    setCount(1);
-    setPhase('counting');
-    timer.current = window.setInterval(() => {
-      const next = countRef.current + 1;
-      countRef.current = next;
-      setCount(next);
-      // A stall-out happens as the marker starts to say "ten".
-      if (next >= 10) {
-        window.clearInterval(timer.current);
-        setPhase('stalled');
-      }
-    }, 1000);
-  };
-  const release = () => {
-    window.clearInterval(timer.current);
-    setThrownAt(countRef.current);
-    setPhase('thrown');
-  };
-  const reset = () => {
-    window.clearInterval(timer.current);
-    countRef.current = 0;
-    setCount(0);
-    setPhase('idle');
-  };
-
-  const C = 2 * Math.PI * 52;
-  const frac = phase === 'idle' ? 0 : Math.min(count, 10) / 10;
-
-  return (
-    <div className="ap-stall">
-      <svg className="ap-stall-ring" viewBox="0 0 140 140" aria-hidden="true">
-        <circle cx="70" cy="70" r="52" fill="none" stroke="var(--aero-line)" strokeWidth="10" />
-        <circle
-          className="ap-stall-arc"
-          cx="70"
-          cy="70"
-          r="52"
-          fill="none"
-          stroke={phase === 'stalled' ? '#c23b22' : 'var(--aero-accent)'}
-          strokeWidth="10"
-          strokeLinecap="round"
-          strokeDasharray={C}
-          strokeDashoffset={C * (1 - frac)}
-          transform="rotate(-90 70 70)"
-        />
-        <text className="ap-stall-word" x="70" y="52" textAnchor="middle">
-          {phase === 'idle' ? '' : 'STALLING'}
-        </text>
-        <text className="ap-stall-num" x="70" y="88" textAnchor="middle">
-          {phase === 'idle' ? '–' : count}
-        </text>
-      </svg>
-
-      <p className={`ap-stall-msg${phase === 'stalled' ? ' is-bad' : phase === 'thrown' ? ' is-good' : ''}`} aria-live="polite">
-        {phase === 'idle' && (zh ? '标记者从 1 数到 10，每个数至少隔 1 秒。赶在他喊出“10”之前把盘传出去。' : 'The marker counts 1 to 10, at least a second apart. Throw before they say “ten.”')}
-        {phase === 'counting' && (zh ? `Stalling ${count}……快传！` : `Stalling ${count}… throw it!`)}
-        {phase === 'thrown' && (zh ? `在“${thrownAt}”时出手——安全，比赛继续。` : `Released on “${thrownAt}” — safe, play continues.`)}
-        {phase === 'stalled' && (zh ? '计数到限（stall-out）：“10”喊出时盘还在手里，盘权转换。' : 'Stall-out: the disc was still in hand at “ten” — turnover.')}
-      </p>
-
-      <div className="ap-cta-row">
-        {phase === 'counting' ? (
-          <button type="button" className="aero-primary" onClick={release}>
-            {zh ? '传盘！' : 'Throw!'}
-          </button>
-        ) : (
-          <button type="button" className="aero-primary" onClick={start}>
-            {phase === 'idle' ? (zh ? '开始读秒' : 'Start the count') : zh ? '再来一次' : 'Again'}
-          </button>
-        )}
-        {phase !== 'idle' && (
-          <button type="button" className="ap-ghost" onClick={reset}>
-            {zh ? '重置' : 'Reset'}
-          </button>
-        )}
       </div>
     </div>
   );
@@ -210,6 +113,89 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
   },
 ];
 
+const RULE_TOPICS: { label: Bi; indices: number[] }[] = [
+  { label: ['得分与目标', 'Scoring'], indices: [0] },
+  { label: ['持盘与推进', 'Possession & movement'], indices: [1, 2, 3, 4] },
+  { label: ['转换与恢复', 'Turnovers & restarts'], indices: [5, 6] },
+  { label: ['安全与公平', 'Safety & fairness'], indices: [7, 8, 9] },
+  { label: ['常见转换', 'Common turnovers'], indices: [-1, -2, -3, -4, -5, -6] },
+];
+
+function RuleScene({ index }: { index: number }) {
+  const discX = [280, 165, 210, 180, 260, 305, 200, 240, 190, 270][index] ?? 220;
+  const discY = [34, 32, 26, 28, 40, 27, 40, 27, 30, 24][index] ?? 30;
+  const turn = index === 1 || index === 2 || index === 3 ? 'rotate(-18)' : 'rotate(-7)';
+  return (
+    <svg className="ap-rule-scene" viewBox="0 0 360 112" aria-hidden="true">
+      <rect x="0" y="0" width="360" height="112" rx="14" fill="#e7f1d4" />
+      <path d="M0 82 Q90 72 180 84 T360 80 V112 H0Z" fill="#c6dda6" />
+      <path d="M95 76 C130 30 224 26 270 68" fill="none" stroke="#1b1a2e" strokeWidth="2" strokeDasharray="5 6" />
+      <g className="ap-scene-player" transform="translate(78 44)">
+        <circle cx="0" cy="0" r="13" fill="#f0bd8b" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-12-4 Q-8-20 5-13 Q13-10 12-3" fill="#43334a" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-11 16 Q0 8 11 16 L16 49 H-16Z" fill="#ff806d" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-9 47 L-15 65 M9 47 L15 65 M-11 23 L-27 37 M11 23 L27 34" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      <g className="ap-scene-player ap-scene-player-alt" transform="translate(275 45)">
+        <circle cx="0" cy="0" r="13" fill="#8c5945" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-13-4 Q-9-20 5-13 Q12-9 12-2" fill="#f2cf63" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-11 16 Q0 8 11 16 L16 49 H-16Z" fill="#58c6d4" stroke="#1b1a2e" strokeWidth="2" />
+        <path d="M-9 47 L-15 65 M9 47 L15 65 M-11 23 L-26 34 M11 23 L27 37" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" />
+      </g>
+      <g className="ap-scene-disc" transform={`translate(${discX} ${discY}) ${turn}`}>
+        <ellipse rx="22" ry="8" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2" />
+        <ellipse rx="12" ry="4" fill="none" stroke="#fff9e9" strokeWidth="1.5" />
+        <circle r="2.5" fill="#ffd564" />
+      </g>
+      <path d="M160 20 l7 7 -7 7 -7-7Z" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="1.5" />
+      <circle cx="322" cy="27" r="5" fill="#ff826e" stroke="#1b1a2e" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+function RuleManual() {
+  const { lang } = useI18n();
+  const zh = lang === 'zh';
+  const [topic, setTopic] = useState(0);
+  const [open, setOpen] = useState<number | null>(0);
+  const rules = RULE_TOPICS[topic].indices;
+  return (
+    <div className="ap-codex">
+      <div className="ap-codex-tabs" role="tablist" aria-label={zh ? '规则主题' : 'Rule topics'}>
+        {RULE_TOPICS.map((item, i) => (
+          <button key={i} type="button" role="tab" aria-selected={topic === i} onClick={() => { setTopic(i); setOpen(null); }}>
+            {pick(lang, item.label)}
+          </button>
+        ))}
+      </div>
+      <div className="ap-codex-list">
+        {rules.map((index) => {
+          const turnover = index < 0;
+          const item = turnover ? TURNOVERS[-index - 1] : CORE[index];
+          const expanded = open === index;
+          const panelId = `rule-panel-${index}`;
+          return (
+            <article key={index} className={`ap-codex-entry${expanded ? ' is-open' : ''}`}>
+              <button className="ap-codex-trigger" type="button" aria-expanded={expanded} aria-controls={panelId} onClick={() => setOpen(expanded ? null : index)}>
+                <span className="ap-codex-mark" aria-hidden="true">{turnover ? '↻' : String(index + 1).padStart(2, '0')}</span>
+                <span>{pick(lang, item.t)}</span>
+                <span className="ap-codex-plus" aria-hidden="true">{expanded ? '−' : '+'}</span>
+              </button>
+              <div className="ap-codex-panel" id={panelId} hidden={!expanded}>
+                <RuleScene index={Math.abs(index) % CORE.length} />
+                <div className="ap-codex-copy">
+                  <p>{pick(lang, item.d)}</p>
+                  {!turnover && <p className="ap-codex-aside">{pick(lang, CORE[index].why)}</p>}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
 const TURNOVERS: { t: Bi; d: Bi }[] = [
   { t: ['传丢（throwaway）', 'Throwaway'], d: ['传出去没人接住，盘落地。', 'A pass nobody catches hits the ground.'] },
   { t: ['掉盘（drop）', 'Drop'], d: ['接盘失误，盘落地。', 'A catchable pass is dropped.'] },
@@ -231,17 +217,10 @@ export default function Rules() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   return (
-    <PageShell
-      slug="/rules"
-      title={zh ? <>规则很短，<br />判断很多。</> : <>Short rules,<br />lots of decisions.</>}
-      lede={[
-        '极限飞盘（ultimate frisbee）是 7 人一队、非身体接触、球员自己当裁判的运动。下面这些内容依据 WFDF《极限飞盘规则 2025–2028》，先看一张盘怎么变成一场比赛。',
-        'Ultimate is a seven-a-side, non-contact sport that players officiate themselves. What follows tracks the WFDF Rules of Ultimate 2025–2028 — starting with how one disc becomes a game.',
-      ]}
-    >
+    <PageShell slug="/rules">
       <Section
         id="overview"
-        label={zh ? '01 · 一句话' : '01 · In one sentence'}
+        label={zh ? '比赛目标' : 'The objective'}
         heading={zh ? '在对方得分区接住盘，就得分。' : 'Catch it in their end zone to score.'}
         intro={zh ? '其余的规则，都是在保证这件事公平、流畅地发生。' : 'Everything else keeps that fair and flowing.'}
       >
@@ -262,7 +241,7 @@ export default function Rules() {
 
       <Section
         id="field"
-        label={zh ? '02 · 球场' : '02 · The field'}
+        label={zh ? '场地地图' : 'The field'}
         heading={zh ? '100 × 37 米，两端各留 18 米。' : '100 × 37 m, 18 m at each end.'}
         intro={zh ? '点一点右边，看看每个区域是什么。' : 'Tap a label to light up each zone.'}
       >
@@ -271,7 +250,7 @@ export default function Rules() {
 
       <Section
         id="flow"
-        label={zh ? '03 · 一分怎么打' : '03 · How a point plays'}
+        label={zh ? '一分的节奏' : 'A point in motion'}
         heading={zh ? '每一分都从开盘开始。' : 'Every point starts with a pull.'}
         full
       >
@@ -287,53 +266,17 @@ export default function Rules() {
 
       <Section
         id="core"
-        label={zh ? '04 · 十条核心' : '04 · The core rules'}
-        heading={zh ? '记住这些，就能上场。' : 'Know these, and you can play.'}
-        intro={zh ? '每条都配一句“为什么这样设计”。' : 'Each one with a line on why it exists.'}
-      >
-        <ol className="ap-numbers">
-          {CORE.map((r, i) => (
-            <li key={i}>
-              <span className="ap-num" aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
-              <div>
-                <h3>{pick(lang, r.t)}</h3>
-                <p>{pick(lang, r.d)}</p>
-                <span className="ap-why">{pick(lang, r.why)}</span>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Section>
-
-      <Section
-        id="stall"
-        label={zh ? '05 · 持盘计数' : '05 · The stall count'}
-        heading={zh ? '试试看：10 秒内传出去。' : 'Try it: throw within ten.'}
-        intro={zh ? '从“1”数起、每个数至少 1 秒，所以真正的窗口其实略多于 9 秒。' : 'It starts at “one” a second apart, so the real window is just over nine seconds.'}
-      >
-        <StallDemo />
-      </Section>
-
-      <Section
-        id="turnovers"
-        label={zh ? '06 · 盘权转换' : '06 · Turnovers'}
-        heading={zh ? '六种常见的丢权方式。' : 'Six ways possession flips.'}
+        label={zh ? '规则手册' : 'Rulebook'}
+        heading={zh ? '从一个场景开始看规则。' : 'Explore the rules through play.'}
+        intro={zh ? '按主题浏览，点开条目看动作图解与规则说明。' : 'Choose a topic, then open a rule for its scene and explanation.'}
         full
       >
-        <div className="ap-cards">
-          {TURNOVERS.map((c, i) => (
-            <article key={i} className="ap-card">
-              <span className="ap-tag">{String.fromCharCode(65 + i)}</span>
-              <h3>{pick(lang, c.t)}</h3>
-              <p>{pick(lang, c.d)}</p>
-            </article>
-          ))}
-        </div>
+        <RuleManual />
       </Section>
 
       <Section
         id="sources"
-        label={zh ? '07 · 来源与诚实标注' : '07 · Sources & honesty'}
+        label={zh ? '规则来源' : 'Sources'}
         heading={zh ? '以官方规则为准。' : 'The official rules win.'}
       >
         <div className="ap-prose">

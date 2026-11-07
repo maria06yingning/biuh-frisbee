@@ -146,6 +146,7 @@ const BLADE_VERTEX = `
   uniform vec2 uWind;
   uniform vec3 uSun;
   uniform vec3 uDiscPosition;
+  uniform vec2 uDiscVelocity;
   uniform float uDiscInfluence;
   varying float vUp;
   varying float vTone;
@@ -170,13 +171,24 @@ const BLADE_VERTEX = `
     float gust = wave * (0.45 + 0.55 * envelope) + flutter;
     float bend = aLean * (0.68 + 0.32 * gust) * t * t;
 
-    // The disc's downwash parts the grass along its path.
+    // The disc pushes a soft local gust along its travel direction, then leaves a tapered wake.
+    // A radial pressure ripple parts the nearest blades; the trailing flow carries the bend onward.
     vec2 away = aOrigin.xz - uDiscPosition.xz;
-    float dist = length(away);
-    vec2 awayDir = dist > 0.001 ? away / dist : vec2(0.0, 1.0);
-    float ripple = exp(-dist * 0.3) * uDiscInfluence * aHeight * 0.18 * t * t;
+    float distSq = dot(away, away);
+    float dist = sqrt(max(distSq, 0.0001));
+    vec2 awayDir = away / dist;
+    float speed = length(uDiscVelocity);
+    vec2 travelDir = speed > 0.15 ? uDiscVelocity / speed : uWind;
+    float heightFade = exp(-max(uDiscPosition.y - (-7.4), 0.0) * 0.12);
+    float localGust = exp(-distSq * 0.028) * uDiscInfluence * heightFade;
+    float discAlong = dot(away, travelDir);
+    float crossTrack = abs(away.x * travelDir.y - away.y * travelDir.x);
+    float wake = exp(-crossTrack * crossTrack * 0.045 - max(-discAlong, 0.0) * 0.075)
+      * step(discAlong, -0.01) * smoothstep(0.15, 0.8, speed) * uDiscInfluence;
+    vec2 discFlow = travelDir * (localGust * 0.75 + wake * 0.95) + awayDir * localGust * 0.35;
+    float ripple = localGust * aHeight * 0.12 * t * t;
 
-    vec2 offset = uWind * bend + awayDir * ripple;
+    vec2 offset = uWind * bend + discFlow * aHeight * 0.2 * t * t + awayDir * ripple;
     // Bending only ever lowers the tip, so the TIP_CAP clearance holds while swaying.
     float droop = 0.35 * dot(offset, offset) / max(aHeight, 0.05);
     vec3 world = aOrigin + across + vec3(offset.x, t * aHeight - droop, offset.y);
@@ -354,6 +366,7 @@ export function createProceduralGrassField(T: ThreeModule) {
     uTime: { value: 0 },
     uWind: { value: new T.Vector2(1, 0.16).normalize() },
     uDiscPosition: { value: new T.Vector3() },
+    uDiscVelocity: { value: new T.Vector2() },
     uDiscInfluence: { value: 0 },
     uSun, uHaze, uFogNear, uFogScale, uFogFull,
   };
@@ -460,9 +473,10 @@ export function createProceduralGrassField(T: ThreeModule) {
       clumpAttribute.needsUpdate = true;
     },
 
-    update(time: number, motion: boolean, discPosition: DiscPosition, influence: number) {
+    update(time: number, motion: boolean, discPosition: DiscPosition, influence: number, discVelocity: { x: number; z: number }) {
       if (motion) bladeUniforms.uTime.value = time;
       bladeUniforms.uDiscPosition.value.set(discPosition.x, discPosition.y, discPosition.z);
+      bladeUniforms.uDiscVelocity.value.set(discVelocity.x, discVelocity.z);
       bladeUniforms.uDiscInfluence.value = motion ? influence : 0;
     },
 

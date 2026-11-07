@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <clipPath id="scene"><rect x="8" y="8" width="1184" height="614"/></clipPath>
+  </defs>
+  <g clip-path="url(#scene)">
+    <rect x="8" y="8" width="1184" height="614" fill="#f6ecd2"/>
+    <path d="M8 8h1184v136H8z" fill="#8fd0e4"/>
+    <path d="M8 144h1184v112H8z" fill="#b6e0e6"/>
+    <path d="M8 256h1184v120H8z" fill="#dcebe0"/>
+    <path d="M8 376h1184v246H8z" fill="#f8e0b6"/>
+    <circle cx="1010" cy="177" r="66" fill="#ffd23f" stroke="#1b1a2e" stroke-width="7"/>
+    <g fill="#fff8e6">
+      <ellipse cx="221" cy="181" rx="76" ry="24"/><ellipse cx="173" cy="174" rx="37" ry="29"/><ellipse cx="222" cy="160" rx="45" ry="38"/><ellipse cx="264" cy="176" rx="37" ry="28"/>
+      <ellipse cx="515" cy="237" rx="54" ry="18"/><ellipse cx="483" cy="230" rx="29" ry="22"/><ellipse cx="520" cy="222" rx="33" ry="26"/><ellipse cx="550" cy="234" rx="27" ry="20"/>
+    </g>
+    <path d="M8 390q177-32 362-4t357-1q226-28 465 5v232H8z" fill="#8fd17e" stroke="#1b1a2e" stroke-width="7"/>
+    <path d="M8 486q206-48 405-7t385-3q201-42 394 2v144H8z" fill="#65b96d"/>
+    <path d="M8 562q233-41 435-4t405-1q174-31 344 0v65H8z" fill="#4f965d"/>
+    <path d="M28 615l65-110m-9 117 82-137m17 133 68-110m12 111 94-150m13 156 68-112m-3 114 93-150m20 149 73-122m12 130 77-132m8 131 74-112m12 115 79-143m7 143 72-122m-3 128 69-108" fill="none" stroke="#f6ecd2" stroke-width="5" stroke-linecap="round" opacity=".85"/>
+    <g transform="translate(800 348) rotate(-16)">
+      <ellipse cx="0" cy="34" rx="202" ry="75" fill="#1b1a2e" opacity=".24"/>
+      <path d="M-202 0a202 75 0 0 0 404 0v17a202 75 0 0 1-404 0z" fill="#378fb2" stroke="#1b1a2e" stroke-width="9" stroke-linejoin="round"/>
+      <ellipse cx="0" cy="0" rx="202" ry="75" fill="#a9e1f1" stroke="#1b1a2e" stroke-width="9"/>
+      <ellipse cx="0" cy="0" rx="170" ry="58" fill="none" stroke="#fff8e6" stroke-width="7"/>
+      <ellipse cx="0" cy="0" rx="129" ry="40" fill="none" stroke="#14c2d8" stroke-width="5"/>
+      <path d="M-131-25q79-45 180-15" fill="none" stroke="#fff8e6" stroke-width="13" stroke-linecap="round"/>
+      <path d="M-157 21q72 39 157 22" fill="none" stroke="#378fb2" stroke-width="7" stroke-linecap="round"/>
+    </g>
+  </g>
+  <rect x="8" y="8" width="1184" height="614" fill="none" stroke="#1b1a2e" stroke-width="8"/>
+</svg>

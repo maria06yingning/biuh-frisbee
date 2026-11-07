@@ -7,6 +7,15 @@ import '@/styles/story.css';
 export const metadata: Metadata = {
   title: '极限飞盘 · Ultimate Field',
   description: '第一人称极限飞盘体验 · A first-person ultimate frisbee experience',
+  manifest: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/site.webmanifest`,
+  icons: {
+    icon: [
+      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/favicon.svg`, type: 'image/svg+xml', sizes: 'any' },
+      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon-192.png`, type: 'image/png', sizes: '192x192' },
+      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon-512.png`, type: 'image/png', sizes: '512x512' },
+    ],
+    apple: [{ url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' }],
+  },
 };
 
 export const viewport: Viewport = {

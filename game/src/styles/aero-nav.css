@@ -85,10 +85,10 @@
 .aero-page-footer .afo-cite { grid-column: 9 / -1; }
 .aero-page-footer .afo-cite a { min-height: 0; padding: 0; display: inline; color: var(--aero-accent); text-decoration: underline; text-underline-offset: 2px; }
 
-@media (max-width: 1080px) {
+@media (max-width: 1260px) {
   .aero-pages-inline, .aero-nav-sep { display: none; }
 }
-@media (min-width: 1081px) {
+@media (min-width: 1261px) {
   .aero-nav-pages { display: none; }
 }
 @media (max-width: 768px) {

@@ -4,7 +4,7 @@ import { useEffect, useRef } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { createOutsideInFlight, DISC_FLIGHT_DURATION } from './disc-flight';
 import { createProceduralGrassField } from './procedural-grass';
-import { createUserThrow, getThrowImpulse, type ThrowSample } from './disc-throw';
+import { classifyThrowStyle, createUserThrow, getThrowImpulse, type ThrowSample } from './disc-throw';
 
 /** The homepage disc and its procedural field share one lightweight Three.js scene. */
 export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean; replayToken?: number }) {
@@ -99,6 +99,11 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       let last = performance.now(), lastRender = 0, active = true, contextLost = false;
       let seenReplay = replay.current, wasPaused = pause.current, ready = false;
       let tx = 0, ty = 0, px = 0, py = 0, spinAngle = 0;
+      let throwWind = 0;
+      let lastGrassTime = 0;
+      let hasGrassPosition = false;
+      const lastGrassPosition = new T.Vector3();
+      const grassVelocity = new T.Vector2();
       // A gentle drift toward the cursor (world units, recomputed on resize). Downward travel is
       // capped so that, however the disc is turned, its lowest point stays above the meadow.
       let rangeX = 2.4, rangeUp = 0.9, rangeDown = 0.85;
@@ -120,8 +125,12 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       let userThrow: ReturnType<typeof createUserThrow> | null = null;
       let throwTime = 0;
       const throwStartRotation = new T.Quaternion();
+      const throwRestRotation = new T.Quaternion().setFromEuler(new T.Euler(0.82, 0, -0.18, 'YXZ'));
       const raycaster = new T.Raycaster();
       const pointer = new T.Vector2();
+      // A spherical pick volume makes the disc easy to select even when its face
+      // is turned edge-on; the rendered lathe geometry becomes too thin to hit.
+      const discPickSphere = new T.Sphere(new T.Vector3(), 2.7);
       const dragPlane = new T.Plane();
       const dragHit = new T.Vector3();
       const dragOffset = new T.Vector3();
@@ -140,7 +149,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         // back through its rim to the underside (as if it flew overhead), moving down turns the
         // top face toward the viewer, and moving left/right swings it round until the rim shows.
         baseTurn.setFromEuler(baseEuler.set(pose.pitch, pose.yaw, pose.bank, 'YXZ'));
-        tipTurn.setFromAxisAngle(AXIS_X, sy * (sy < 0 ? 1.75 : 0.8));
+        tipTurn.setFromAxisAngle(AXIS_X, sy * (sy < 0 ? 2.75 : 0.8));
         sideTurn.setFromAxisAngle(AXIS_Y, sx * 1.7);
         attitude.quaternion.copy(sideTurn).multiply(tipTurn).multiply(baseTurn);
         if (pose.ready && !userThrow) {
@@ -151,9 +160,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         if (userThrow) {
           const thrown = userThrow.sample(throwTime);
           attitude.position.set(thrown.position.x, thrown.position.y, thrown.position.z);
-          baseTurn.setFromEuler(baseEuler.set(thrown.pitch, 0, thrown.bank, 'YXZ'));
-          const launchBlend = Math.min(1, throwTime / 0.22);
-          attitude.quaternion.copy(throwStartRotation).slerp(baseTurn, launchBlend * launchBlend * (3 - 2 * launchBlend));
+          attitude.quaternion.copy(throwStartRotation).slerp(throwRestRotation, thrown.orientationBlend);
         }
         spinner.rotation.y = spinAngle;
         if (ready !== pose.ready || !node.dataset.flight) {
@@ -167,8 +174,19 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         return pose;
       };
       const applyGrass = (pose: { x: number; y: number; z: number }, motion: boolean) => {
-        const influence = pose.z < -0.5 && !ready ? Math.max(0, Math.min(1, 1 - elapsed / DISC_FLIGHT_DURATION)) : 0;
-        grass.update(windTime, motion, pose, influence);
+        const now = performance.now();
+        const dt = lastGrassTime > 0 ? (now - lastGrassTime) / 1000 : 0;
+        if (hasGrassPosition && dt > 0.001 && dt < 0.2) {
+          grassVelocity.set((pose.x - lastGrassPosition.x) / dt, (pose.z - lastGrassPosition.z) / dt);
+        } else {
+          grassVelocity.set(0, 0);
+        }
+        lastGrassPosition.set(pose.x, pose.y, pose.z);
+        lastGrassTime = now;
+        hasGrassPosition = true;
+        const arrivalGust = pose.z < -0.5 && !ready ? Math.max(0, Math.min(1, 1 - elapsed / DISC_FLIGHT_DURATION)) : 0;
+        const influence = Math.max(arrivalGust, throwWind);
+        grass.update(windTime, motion, pose, influence, { x: grassVelocity.x, z: grassVelocity.y });
       };
       const resize = () => {
         const { width, height } = node.getBoundingClientRect();
@@ -235,7 +253,8 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         if (touchId !== null || !event.isPrimary || event.button !== 0 || !ready || userThrow || pause.current || reduced) return;
         aimRay(event);
         attitude.updateWorldMatrix(true, true);
-        if (!raycaster.intersectObject(spinner, true).length) return;
+        attitude.getWorldPosition(discPickSphere.center);
+        if (!raycaster.ray.intersectsSphere(discPickSphere)) return;
         event.preventDefault();
         touchId = event.pointerId;
         pressMode = inspecting ? 'inspect' : 'locked';
@@ -277,7 +296,12 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
           tx = px; ty = py;
         } else if (impulse) {
           throwStartRotation.copy(lockedRotation);
-          userThrow = createUserThrow(dragPosition, impulse, camera.aspect);
+          const faceNormal = new T.Vector3(0, 1, 0).applyQuaternion(lockedRotation).normalize();
+          const travelDirection = new T.Vector3(impulse.x, 0, -1).normalize();
+          const travelSide = new T.Vector3().crossVectors(travelDirection, AXIS_Y).normalize();
+          const edgeTilt = faceNormal.dot(travelSide);
+          const throwStyle = classifyThrowStyle(faceNormal.y, edgeTilt);
+          userThrow = createUserThrow(dragPosition, impulse, camera.aspect, throwStyle);
           throwTime = 0;
         } else if (pressMode === 'locked' && validRelease && movedDuringPress) {
           // A gentle reposition keeps the chosen orientation instead of entering inspection.
@@ -322,7 +346,8 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
           lockedRotation.setFromEuler(baseEuler.set(0.82, 0, -0.18, 'YXZ'));
           if (touchId !== null && node.hasPointerCapture(touchId)) node.releasePointerCapture(touchId);
           touchId = null; gesture = [];
-          windTime = 0; tx = ty = px = py = spinAngle = 0;
+          windTime = 0; throwWind = 0; hasGrassPosition = false; lastGrassTime = 0;
+          tx = ty = px = py = spinAngle = 0;
         }
         if (wasPaused !== pause.current) wasPaused = pause.current;
         if (active && !document.hidden && !contextLost) {
@@ -333,6 +358,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
             if (userThrow) {
               throwTime += dt;
               const thrown = userThrow.sample(throwTime);
+              throwWind = thrown.returning ? 0.34 : 1;
               spinAngle += thrown.spinRate * dt;
               if (thrown.done) {
                 userThrow = null; inspecting = false;
@@ -341,6 +367,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
                 tx = ty = px = py = 0;
               }
             } else {
+              throwWind = Math.max(0, throwWind - dt * 0.9);
               spinAngle += pose.spinRate * dt;
             }
             if (pose.ready && !userThrow && inspecting) {
@@ -390,8 +417,8 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff5df':'#eea46f'} strokeWidth="1"/>)}</g>
     </svg>
     <span className="aero-disc-hint" aria-hidden="true">
-      <span className="aero-hint-desktop">{lang === 'zh' ? '点击转动，再点锁定，拖动甩出' : 'Click to inspect, click to lock, then drag to throw'}</span>
-      <span className="aero-hint-touch">{lang === 'zh' ? '轻点查看，再点锁定，拖动甩出' : 'Tap to inspect, tap to lock, then swipe to throw'}</span>
+      <span className="aero-hint-desktop">{lang === 'zh' ? '点击查看并调整盘体倾斜，再点锁定后甩出；甩得越快飞得越远，倒盘为 Hammer' : 'Inspect and tilt, lock, then throw; a faster flick travels farther, upside-down makes a Hammer'}</span>
+      <span className="aero-hint-touch">{lang === 'zh' ? '轻点查看并调整盘体倾斜，再轻点锁定后甩出；甩得越快飞得越远' : 'Tap to inspect and tilt, tap to lock, then swipe; a faster flick travels farther'}</span>
     </span>
   </div>;
 }

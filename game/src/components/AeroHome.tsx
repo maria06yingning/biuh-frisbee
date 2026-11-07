@@ -22,10 +22,6 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
     <SiteHeader onPlay={onPlay} onLab={onLab} onCodex={onCodex} />
     <section className="aero-hero" id="aero-top" aria-label={zh ? '晴空飞盘游乐场' : 'The sunny disc playground'}>
       <GlassDisc paused={paused} replayToken={replayToken} />
-      <div className="aero-playground-caption" aria-hidden="true">
-        <span className="aero-caption-dot" />
-        {zh ? '一张盘，无数可能。' : 'A little disc. Every possibility.'}
-      </div>
       <div className="aero-playground-controls" id="aero-controls" tabIndex={-1} role="group" aria-label={zh ? '飞盘试玩控制' : 'Disc playground controls'}>
         <button className="aero-play-control" type="button" onClick={replayFlight}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>

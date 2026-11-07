@@ -1,133 +1,147 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pick, withBase, type Bi } from '@/content/shared';
 import PageShell, { Section } from '@/components/PageShell';
 
-/* Seven reasons, each with a short personal note. */
+/* One person, one pass, one personal reason to love ultimate. */
 const REASONS: { t: Bi; d: Bi }[] = [
   {
-    t: ['门槛低到只要一张盘', 'All it takes is a disc'],
-    d: [
-      '一张盘、一块草地、几个人，就能开打。不需要球门、球网，也不用先学会复杂的装备。操场、海滩、公园都是球场。',
-      'One disc, a patch of grass, a few friends — that’s a game. No goals, no nets, no gear to learn first. Campus fields, beaches and parks all work.',
-    ],
+    t: ['一张盘，就能开场', 'All it takes is a disc'],
+    d: ['一张盘、一块草地、几个人，就能开打。不需要球门、球网，也不用先学会复杂的装备。操场、海滩、公园都是球场。', 'One disc, a patch of grass, a few friends — that’s a game. No goals, no nets, no gear to learn first. Campus fields, beaches and parks all work.'],
   },
   {
-    t: ['男女同场', 'Mixed, on the same field'],
-    d: [
-      '混合组是飞盘最常见的打法之一，男女队员同场竞技、互相传盘。在中国的正式联赛里，双方场上男女比例一致，常见 4 : 3。',
-      'Mixed is one of the most common ways to play, with women and men on the field together. In Chinese leagues both teams field the same ratio, often 4 : 3.',
-    ],
+    t: ['不同的人，同一块场地', 'Different people, one shared field'],
+    d: ['混合组是飞盘常见的打法之一，男女队员同场竞技、互相传盘。每个人都能成为进攻的一部分。', 'Mixed is one of the common ways to play, with women and men sharing the field and the disc. Everyone can be part of the attack.'],
   },
   {
-    t: ['每个人都会碰到盘', 'Everyone touches the disc'],
-    d: [
-      '持盘者不能跑，进攻只能靠传。所以盘必须在所有人之间流动——没有谁能一个人带着它冲到底。',
-      'The thrower can’t run, so the only way forward is the pass. The disc has to move through everyone; no one carries it the whole way alone.',
-    ],
+    t: ['盘会经过每个人的手', 'The disc travels through everyone'],
+    d: ['持盘者不能跑，进攻只能靠传。所以盘必须在队友之间流动——没有谁能一个人带着它冲到底。', 'The thrower can’t run, so the only way forward is the pass. The disc has to move through teammates; no one carries it all the way alone.'],
   },
   {
-    t: ['一传一接的自由', 'The freedom of the throw'],
-    d: [
-      '飞盘在空中会转、会飘、会拐弯。读懂风、读懂弧线，再在空当里一跃把它接住——那一刻很难用别的运动替代。',
-      'A disc spins, floats and curves. Reading the wind and the arc, then leaping into space to pull it down — few other sports give you that moment.',
-    ],
+    t: ['接住一记好传，真像飞起来', 'A great catch feels like flying'],
+    d: ['飞盘在空中会转、会飘、会拐弯。读懂风和弧线，再在空当里一跃把它接住——那一刻很难用别的运动替代。', 'A disc spins, floats and curves. Read the wind and its arc, leap into space and pull it down — few other sports give you that moment.'],
   },
   {
-    t: ['默契是练出来的', 'Teamwork you can feel'],
-    d: [
-      '切入（cut）、回传、横向转移……好的进攻像一段对话。你跑向空当，队友在你到之前就已经出手。',
-      'Cuts, resets, swings — a good offense is a conversation. You break for space, and the throw is already in the air before you arrive.',
-    ],
+    t: ['默契，是一段看得见的对话', 'Teamwork becomes a conversation'],
+    d: ['切入、回传、横向转移……你跑向空当，队友在你到之前就已经出手。好的配合不用多说，飞盘已经在路上。', 'Cuts, resets, swings — you break for space, and the throw is already in the air before you arrive. Good teamwork speaks through the disc.'],
   },
   {
-    t: ['在自我裁决里学会信任', 'Trust, learned by self-officiating'],
-    d: [
-      '没有裁判，你得相信对手，对手也得相信你。会叫停、会讲道理、也会撤回自己的叫停，这些本事在场下同样有用。',
-      'With no referee, you trust your opponent and they trust you. Calling, explaining, even retracting your own call — those skills travel well off the field.',
-    ],
+    t: ['没有裁判，也可以彼此信任', 'Trust, built without a referee'],
+    d: ['没有裁判，你得相信对手，对手也得相信你。会叫停、会讲道理，也会撤回自己的叫停，这些本事在场下同样有用。', 'With no referee, you trust your opponent and they trust you. Calling, explaining, even retracting a call — those skills travel well off the field.'],
   },
   {
-    t: ['比赛完，大家还是朋友', 'Friends after the final point'],
-    d: [
-      '赛后两队交替围成精神圈，互相称赞、把小摩擦说开。很多人是因为一场比赛，认识了一整个城市的飞盘圈。',
-      'After the game, both teams form one spirit circle to praise and to clear the air. Plenty of people meet a whole city’s disc community through one match.',
-    ],
+    t: ['比赛结束，朋友还在', 'The game ends; the community stays'],
+    d: ['赛后两队交替围成精神圈，互相称赞、把小摩擦说开。很多人是因为一场比赛，认识了一整个城市的飞盘圈。', 'After the game, both teams form a Spirit circle to praise and clear the air. Plenty of people find a whole city’s disc community through one match.'],
   },
 ];
 
-/* "Pass it on": a disc hops between seven players around a loop. */
-function PassItOn() {
+type Player = { x: number; y: number; skin: string; hair: string; shirt: string; hairStyle: number; shorts: string };
+const PLAYERS: Player[] = [
+  { x: 150, y: 100, skin: '#c77f5e', hair: '#352a36', shirt: '#ff816f', hairStyle: 0, shorts: '#f6ecd2' },
+  { x: 410, y: 65, skin: '#f0c69b', hair: '#6b4938', shirt: '#ffd23f', hairStyle: 1, shorts: '#466d87' },
+  { x: 672, y: 112, skin: '#8b563f', hair: '#23212b', shirt: '#66c8b2', hairStyle: 2, shorts: '#fff8e6' },
+  { x: 700, y: 280, skin: '#edc092', hair: '#9a573d', shirt: '#8b83d8', hairStyle: 3, shorts: '#e76f51' },
+  { x: 465, y: 322, skin: '#ad6b51', hair: '#25222b', shirt: '#57b5dd', hairStyle: 4, shorts: '#ffd23f' },
+  { x: 205, y: 310, skin: '#f1c79d', hair: '#ba754d', shirt: '#f3a4b8', hairStyle: 5, shorts: '#54865e' },
+  { x: 95, y: 240, skin: '#d99b71', hair: '#443248', shirt: '#e6a84e', hairStyle: 6, shorts: '#638f91' },
+];
+
+function PlayerFigure({ player, active, index }: { player: Player; active: boolean; index: number }) {
+  const { x, y, skin, hair, shirt, shorts, hairStyle } = player;
+  return (
+    <g className={`ap-love-player${active ? ' is-holder' : ''}`} transform={`translate(${x} ${y})`}>
+      <ellipse cx="0" cy="39" rx="31" ry="7" fill="#486b42" opacity=".17" />
+      {active && <circle className="ap-love-halo" cx="0" cy="0" r="42" fill="#fff5b6" opacity=".85" />}
+      {/* Legs and shoes */}
+      <path d="M-12 29 L-16 49 L-25 58 M12 29 L17 47 L27 53" fill="none" stroke={shorts} strokeWidth="8" strokeLinecap="round" />
+      <path d="M-29 59 l11 0 M22 54 l11 2" fill="none" stroke="#342e3a" strokeWidth="5" strokeLinecap="round" />
+      {/* Arms */}
+      <path d="M-15 4 Q-30 15 -27 26 M15 4 Q28 14 26 25" fill="none" stroke={skin} strokeWidth="8" strokeLinecap="round" />
+      <path d="M-15 1 Q0 -6 15 1 L18 29 Q0 37 -18 29Z" fill={shirt} stroke="#1b1a2e" strokeWidth="2.5" />
+      {/* Neck, face and hair */}
+      <path d="M-5 -14 L-5 -8 M5 -14 L5 -8" stroke={skin} strokeWidth="5" />
+      <circle cx="0" cy="-22" r="15" fill={skin} stroke="#1b1a2e" strokeWidth="2" />
+      {hairStyle % 3 === 0 && <path d="M-15 -22 Q-17 -41 0 -39 Q17 -38 15 -21 L9 -27 Q0 -18 -8 -26Z" fill={hair} stroke="#1b1a2e" strokeWidth="2" />}
+      {hairStyle % 3 === 1 && <path d="M-15 -22 Q-17 -38 -4 -39 Q2 -44 8 -37 Q18 -32 14 -18 Q9 -25 5 -27 Q-2 -20 -12 -24Z" fill={hair} stroke="#1b1a2e" strokeWidth="2" />}
+      {hairStyle % 3 === 2 && <path d="M-15 -24 Q-13 -42 1 -39 Q16 -37 16 -22 L10 -25 L7 -18 L1 -25 L-6 -18 L-10 -25Z" fill={hair} stroke="#1b1a2e" strokeWidth="2" />}
+      <circle cx="-5" cy="-21" r="1.4" fill="#1b1a2e" />
+      <circle cx="5" cy="-21" r="1.4" fill="#1b1a2e" />
+      <path d="M-3 -15 Q0 -12 3 -15" fill="none" stroke="#1b1a2e" strokeWidth="1.5" strokeLinecap="round" />
+      <text x="0" y="76" textAnchor="middle" className="ap-love-player-label">{String(index + 1).padStart(2, '0')}</text>
+    </g>
+  );
+}
+
+function PassTheLove() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const [holder, setHolder] = useState(0);
-  const [passes, setPasses] = useState(0);
-  const [auto, setAuto] = useState(false);
-  const [reduced, setReduced] = useState(false);
+  const [target, setTarget] = useState<number | null>(null);
+  const [flying, setFlying] = useState(false);
+  const timer = useRef<number | null>(null);
+  const discHolder = flying && target !== null ? target : holder;
+  const current = PLAYERS[holder];
+  const next = (holder + 1) % PLAYERS.length;
+  const disc = PLAYERS[discHolder];
 
-  useEffect(() => {
-    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
-    const apply = () => setReduced(mq.matches);
-    apply();
-    mq.addEventListener('change', apply);
-    return () => mq.removeEventListener('change', apply);
-  }, []);
-
-  const N = 7;
-  const players = Array.from({ length: N }, (_, i) => {
-    const a = (i / N) * Math.PI * 2 - Math.PI / 2;
-    return { x: 200 + Math.cos(a) * 140, y: 150 + Math.sin(a) * 104 };
-  });
+  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
 
   const pass = () => {
-    // Never pass to yourself; skip one or two so the disc crosses the circle.
-    setHolder((h) => (h + 2 + Math.floor(Math.random() * 3)) % N);
-    setPasses((p) => p + 1);
+    if (flying) return;
+    setTarget(next);
+    setFlying(true);
+    timer.current = window.setTimeout(() => {
+      setHolder(next);
+      setTarget(null);
+      setFlying(false);
+      timer.current = null;
+    }, 520);
   };
 
-  useEffect(() => {
-    if (!auto || reduced) return;
-    const id = window.setInterval(pass, 900);
-    return () => window.clearInterval(id);
-  }, [auto, reduced]);
+  const handleKey = (event: KeyboardEvent<SVGGElement>) => {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      pass();
+    }
+  };
 
-  const p = players[holder];
   return (
-    <div className="ap-duo">
-      <div className="ap-figure ap-duo-a">
-        <svg viewBox="0 0 400 300" role="img" aria-label={zh ? `飞盘在七名队员之间传递，已传 ${passes} 次` : `A disc passing among seven players, ${passes} passes so far`}>
-          <rect x="0" y="0" width="400" height="300" fill="#eef5ef" />
-          <ellipse cx="200" cy="150" rx="140" ry="104" fill="none" stroke="var(--aero-line)" strokeWidth="1.5" strokeDasharray="2 7" />
-          {players.map((pl, i) => (
-            <g key={i}>
-              <circle cx={pl.x} cy={pl.y} r="16" fill={i === holder ? '#195de6' : '#76ac56'} />
-              <text x={pl.x} y={pl.y + 4.5} textAnchor="middle" fontSize="13" fontWeight="600" fill="#fff">{i + 1}</text>
-            </g>
-          ))}
-          <g className="ap-pass-disc" style={{ transform: `translate(${p.x}px, ${p.y - 30}px)` }}>
-            <ellipse rx="18" ry="6.5" fill="#bbe7f1" stroke="#66b8ce" strokeWidth="1.5" />
-            <ellipse rx="10" ry="3.2" fill="none" stroke="#4eb5d2" strokeWidth="1" />
-          </g>
-        </svg>
-      </div>
-      <div className="ap-duo-b">
-        <p className="ap-count" aria-live="polite">
-          {passes}
-          <small>{zh ? '次传递' : 'passes'}</small>
-        </p>
-        <p className="ap-pass-copy">
-          {zh ? '持盘者不能跑，所以盘只能靠传向前走。点一下，把它传下去。' : 'The thrower can’t run, so the disc only moves by passing. Tap to pass it on.'}
-        </p>
-        <div className="ap-cta-row">
-          <button type="button" className="aero-primary" onClick={pass}>{zh ? '传下去' : 'Pass it on'}</button>
-          {!reduced && (
-            <button type="button" className="ap-ghost" aria-pressed={auto} onClick={() => setAuto((a) => !a)}>
-              {auto ? (zh ? '停下' : 'Stop') : (zh ? '自动传递' : 'Auto-pass')}
-            </button>
-          )}
+    <div className="ap-love-pass">
+      <p className="ap-love-instruction">{zh ? '点一下飞盘，让它传给下一个人。' : 'Tap the disc to pass it to the next person.'}</p>
+      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员之间传盘' : 'A disc being passed between teammates'}>
+        <rect x="0" y="0" width="800" height="410" rx="22" fill="#f8f0d9" />
+        <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
+        <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />
+        <path d="M0 355 Q100 315 190 355 M610 330 Q700 295 800 335" fill="none" stroke="#fff8e6" strokeWidth="7" strokeLinecap="round" opacity=".8" />
+        <path d={`M${current.x} ${current.y - 49} Q${(current.x + PLAYERS[next].x) / 2} ${Math.min(current.y, PLAYERS[next].y) - 105} ${PLAYERS[next].x} ${PLAYERS[next].y - 49}`} fill="none" stroke="#ff826e" strokeWidth="3" strokeDasharray="6 8" opacity={flying ? .9 : .35} />
+        {PLAYERS.map((player, index) => <PlayerFigure key={index} player={player} index={index} active={index === holder} />)}
+        <g
+          className={`ap-love-disc${flying ? ' is-flying' : ''}`}
+          transform={`translate(${disc.x} ${disc.y - 52}) rotate(-12)`}
+          role="button"
+          tabIndex={0}
+          aria-label={zh ? '把飞盘传给下一个人' : 'Pass the disc to the next person'}
+          onClick={pass}
+          onKeyDown={handleKey}
+          aria-disabled={flying}
+        >
+          <ellipse className="ap-love-disc-hit" rx="36" ry="24" fill="transparent" />
+          <ellipse rx="28" ry="10" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2.5" />
+          <ellipse rx="16" ry="5" fill="none" stroke="#fff9e9" strokeWidth="2" />
+          <circle r="3" fill="#ffd564" />
+          <path d="M-8 0 Q0 -4 8 0" fill="none" stroke="#1b1a2e" strokeWidth="1.3" opacity=".7" />
+        </g>
+        <text x="400" y="395" textAnchor="middle" className="ap-love-field-note">{zh ? '一张盘，轮到每个人。' : 'One disc. Everyone gets a turn.'}</text>
+      </svg>
+      <div className="ap-love-bubble" aria-live="polite" key={holder}>
+        <span className="ap-love-quote-mark" aria-hidden="true">“</span>
+        <div>
+          <p className="ap-love-reason">{pick(lang, REASONS[holder].d)}</p>
+          <h3>{pick(lang, REASONS[holder].t)}</h3>
         </div>
+        <span className="ap-love-turn">{String(holder + 1).padStart(2, '0')} / {String(PLAYERS.length).padStart(2, '0')}</span>
       </div>
     </div>
   );
@@ -137,69 +151,27 @@ export default function Why() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   return (
-    <PageShell
-      slug="/why"
-      title={zh ? <>为什么，<br />我们爱飞盘。</> : <>Why we<br />love the disc.</>}
-      lede={[
-        '规则、犯规、精神都讲完了。这一页不讲条文，只聊聊：一张塑料盘，为什么能让那么多人一到周末就往草地上跑。',
-        'Rules, fouls and Spirit are covered. This page skips the fine print and asks one thing: why does a plastic disc pull so many people onto the grass every weekend?',
-      ]}
-    >
+    <PageShell slug="/why">
       <Section
-        id="moment"
-        label={zh ? '01 · 那一刻' : '01 · The moment'}
-        heading={zh ? '盘在空中的那一秒。' : 'The second the disc hangs in the air.'}
-      >
-        <div className="ap-prose">
-          <p className="ap-lead">
-            {zh
-              ? '你甩开防守冲向空当，回头时盘已经在飞。它慢慢转着、浮着，好像在等你。你起跳，指尖扣住它——整个场边都在为你喊。'
-              : 'You shake your defender and break for space, and when you turn the disc is already flying — spinning, floating, almost waiting. You leave the ground, close your hands on it, and the whole sideline shouts.'}
-          </p>
-          <p>
-            {zh
-              ? '飞盘让很多人第一次觉得：运动不只是比谁更快更壮，也是比谁更会读空间、更会合作、更懂得尊重对手。'
-              : 'For a lot of people, ultimate is the first sport that isn’t only about who’s faster or stronger — it’s about reading space, working together, and respecting the people across from you.'}
-          </p>
-        </div>
-      </Section>
-
-      <Section
-        id="reasons"
-        label={zh ? '02 · 七个理由' : '02 · Seven reasons'}
-        heading={zh ? '我们爱它，因为……' : 'We love it because…'}
+        id="pass-the-love"
+        label={zh ? '草地上的几种回答' : 'A few answers from the field'}
+        heading={zh ? '每个人，都有自己的理由。' : 'Everyone has their own reason.'}
+        intro={zh ? '点击飞盘，听听接到它的人怎么说。' : 'Tap the disc and hear from whoever catches it.'}
         full
       >
-        <div className="ap-reasons">
-          {REASONS.map((r, i) => (
-            <article key={i} className="ap-reason">
-              <span className="ap-reason-n">{String(i + 1).padStart(2, '0')}</span>
-              <h3>{pick(lang, r.t)}</h3>
-              <p>{pick(lang, r.d)}</p>
-            </article>
-          ))}
-        </div>
-      </Section>
-
-      <Section
-        id="pass"
-        label={zh ? '03 · 传下去' : '03 · Pass it on'}
-        heading={zh ? '一张盘，把人连在一起。' : 'One disc, connecting everyone.'}
-        full
-      >
-        <PassItOn />
+        <PassTheLove />
       </Section>
 
       <Section
         id="world"
-        label={zh ? '04 · 不止一块草地' : '04 · Bigger than one field'}
-        heading={zh ? '从校园，到世界运动会。' : 'From campus to the World Games.'}
+        label={zh ? '飞盘的大家庭' : 'The wider community'}
+        heading={zh ? '从校园，到世界各地。' : 'From campus fields to the world.'}
       >
         <div className="ap-prose">
           <p>
             {zh
-              ? <>世界飞盘联合会（WFDF）成立于 1985 年，如今有 131 个会员协会，覆盖超过 127 个国家和地区，并获得国际奥委会承认。2025 年成都世界运动会上，团队飞盘以男女混合的形式登场。</>
-              : <>The World Flying Disc Federation (WFDF), founded in 1985, now has 131 member associations across more than 127 countries and is recognised by the IOC. At the 2025 World Games in Chengdu, ultimate was played in the mixed division.</>}
+              ? <>世界飞盘联合会（WFDF）成立于 1985 年，拥有来自许多国家和地区的会员协会，并获得国际奥委会承认。团队飞盘也登上了世界运动会的赛场。</>
+              : <>The World Flying Disc Federation (WFDF), founded in 1985, has member associations across the world and is recognised by the IOC. Ultimate has also taken the field at the World Games.</>}
           </p>
           <p>
             {zh
@@ -211,8 +183,8 @@ export default function Why() {
 
       <Section
         id="start"
-        label={zh ? '05 · 现在就开始' : '05 · Start now'}
-        heading={zh ? '先在这里传几次。' : 'Throw a few here first.'}
+        label={zh ? '下一步' : 'Your next move'}
+        heading={zh ? '想试试？从这里上场。' : 'Want to try it? Step onto the field.'}
       >
         <div className="ap-prose">
           <p>
@@ -228,9 +200,7 @@ export default function Why() {
               {zh ? '去战术实验室' : 'Open the Tactics Lab'} <span aria-hidden="true">→</span>
             </a>
           </div>
-          <p className="ap-hint">
-            {zh ? '游戏需要电脑和鼠标，战术实验室支持触屏。' : 'The game needs a computer and mouse. The Tactics Lab supports touch.'}
-          </p>
+          <p className="ap-hint">{zh ? '游戏需要电脑和鼠标，战术实验室支持触屏。' : 'The game needs a computer and mouse. The Tactics Lab supports touch.'}</p>
         </div>
       </Section>
     </PageShell>

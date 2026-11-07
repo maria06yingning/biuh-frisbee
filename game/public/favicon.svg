@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <clipPath id="tile"><rect x="10" y="10" width="492" height="492" rx="92"/></clipPath>
+  </defs>
+  <g clip-path="url(#tile)">
+    <rect x="10" y="10" width="492" height="492" fill="#f6ecd2"/>
+    <path d="M10 10h492v134H10z" fill="#8fd0e4"/>
+    <path d="M10 144h492v122H10z" fill="#dcebe0"/>
+    <circle cx="387" cy="93" r="39" fill="#ffd23f" stroke="#1b1a2e" stroke-width="7"/>
+    <path d="M10 281q117-22 226 0t266-2v223H10z" fill="#8fd17e" stroke="#1b1a2e" stroke-width="8"/>
+    <path d="M10 376q126-29 263-2t229-2v130H10z" fill="#5eaa62"/>
+    <path d="M30 468l30-56m2 83 44-83m26 89 33-61m24 71 37-74m30 74 34-64m39 64 29-83m40 87 35-76m35 73 35-63m16 69 31-53" fill="none" stroke="#f6ecd2" stroke-width="5" stroke-linecap="round" opacity=".82"/>
+    <g transform="translate(247 256) rotate(-18)">
+      <ellipse cx="0" cy="24" rx="151" ry="62" fill="#1b1a2e" opacity=".24"/>
+      <path d="M-151 0a151 62 0 0 0 302 0v13a151 62 0 0 1-302 0z" fill="#378fb2" stroke="#1b1a2e" stroke-width="8" stroke-linejoin="round"/>
+      <ellipse cx="0" cy="0" rx="151" ry="62" fill="#a9e1f1" stroke="#1b1a2e" stroke-width="8"/>
+      <ellipse cx="0" cy="0" rx="125" ry="44" fill="none" stroke="#f6ecd2" stroke-width="6"/>
+      <path d="M-103-20q62-34 139-13" fill="none" stroke="#fff8e6" stroke-width="12" stroke-linecap="round"/>
+      <path d="M-118 13q57 30 126 20" fill="none" stroke="#14c2d8" stroke-width="7" stroke-linecap="round"/>
+    </g>
+  </g>
+  <rect x="10" y="10" width="492" height="492" rx="92" fill="none" stroke="#1b1a2e" stroke-width="12"/>
+</svg>

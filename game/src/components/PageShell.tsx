@@ -11,20 +11,14 @@ import '@/styles/aero-playful.css';
 /** Hero + body + "next page" + footer, shared by Rules / Fouls / Spirit / Why. */
 export default function PageShell({
   slug,
-  title,
-  lede,
   children,
 }: {
   slug: PageLink['slug'];
-  art?: never;
-  title: ReactNode;
-  lede: Bi;
   children: ReactNode;
 }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const i = PAGES.findIndex((p) => p.slug === slug);
-  const page = PAGES[i];
   const next: { slug: string; num: string; label: Bi } =
     i < PAGES.length - 1 ? PAGES[i + 1] : { slug: '/', num: '01', label: ['回到首页', 'Back to the start'] };
 
@@ -35,16 +29,8 @@ export default function PageShell({
       </a>
       <SiteHeader current={slug} />
 
-      <main id="ap-main">
-        <section className="ap-hero" aria-labelledby="ap-title">
-          <div className="ap-hero-inner">
-            <span className="ap-eyebrow">{page.num} — {pick(lang, page.tagline)}</span>
-            <h1 id="ap-title">{title}</h1>
-            <p className="ap-hero-lede">{pick(lang, lede)}</p>
-          </div>
-        </section>
-
-        <div className="ap-body">{children}</div>
+      <main id="ap-main" className="ap-body">
+        {children}
 
         <nav className="ap-next" aria-label={zh ? '下一页' : 'Next page'}>
           <Link href={next.slug}>
@@ -106,15 +92,13 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="ap-section">
-      <div className={full ? 'ap-section-full' : 'ap-section-grid'}>
-        <div className="ap-section-head">
-          {label && <span className="ap-label">{label}</span>}
-          <h2>{heading}</h2>
-          {intro && <p>{intro}</p>}
-        </div>
-        <div className="ap-section-body">{children}</div>
+    <section id={id} className={`ap-section${full ? ' ap-full' : ''}`}>
+      <div className="ap-section-head">
+        {label && <span className="ap-label">{label}</span>}
+        <h2>{heading}</h2>
+        {intro && <p>{intro}</p>}
       </div>
+      <div className="ap-section-body">{children}</div>
     </section>
   );
 }
