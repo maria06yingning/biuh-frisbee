@@ -63,30 +63,52 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       sun.position.copy(grass.sunDirection).multiplyScalar(12); scene.add(sun);
       const fill = new T.DirectionalLight(0xc9dfe5, 0.85);
       fill.position.set(-4, 3, 6); scene.add(fill);
+      const daySun = new T.Color(0xffedc8), duskSun = new T.Color(0xffa064), moonSun = new T.Color(0x748eb8);
+      const daySky = new T.Color(0xe9f1ec), nightSky = new T.Color(0x8798b8);
+      const dayFill = new T.Color(0xc9dfe5), nightFill = new T.Color(0x526990);
+      const dayGround = new T.Color(0x596545), nightGround = new T.Color(0x222d47);
+      const lightScratch = new T.Color();
+      const smooth = (value: number, from: number, to: number) => {
+        const t = Math.max(0, Math.min(1, (value - from) / (to - from)));
+        return t * t * (3 - 2 * t);
+      };
+      const updateLighting = (time: number) => {
+        const cycle = ((time / 38 + 0.08) % 1 + 1) % 1;
+        const dusk = smooth(cycle, 0.02, 0.18) * (1 - smooth(cycle, 0.23, 0.34));
+        const night = smooth(cycle, 0.16, 0.3) * (1 - smooth(cycle, 0.8, 0.98));
+        sun.color.copy(lightScratch.copy(daySun).lerp(duskSun, dusk).lerp(moonSun, night));
+        sun.intensity = 3 * (1 - night) + 0.1 * night;
+        fill.color.copy(lightScratch.copy(dayFill).lerp(nightFill, night));
+        fill.intensity = 0.85 * (1 - night) + 0.42 * night;
+        hemisphere.color.copy(lightScratch.copy(daySky).lerp(nightSky, night));
+        hemisphere.groundColor.copy(lightScratch.copy(dayGround).lerp(nightGround, night));
+        hemisphere.intensity = 1.5 * (1 - night) + 0.75 * night;
+      };
+      updateLighting(0);
 
       // Keep attitude and axial spin separate so the disc banks without tumbling.
       const attitude = new T.Group();
       const spinner = new T.Group();
       attitude.add(spinner); scene.add(attitude);
-      // Coral-tinted glass: keep the original transmission, roughness, IOR and geometry.
+      // Rose-magenta glass disc; preserve the site's transmission, roughness, IOR and geometry.
       const glass = new T.MeshPhysicalMaterial({
-        color: 0xffa18f, metalness: 0.015, roughness: 0.1,
+        color: 0xff3d7f, metalness: 0.015, roughness: 0.1,
         transmission: 0.68, thickness: 0.22, ior: 1.46,
         clearcoat: 1, clearcoatRoughness: 0.08,
-        attenuationColor: new T.Color(0xef9a85), attenuationDistance: 1.35,
+        attenuationColor: new T.Color(0xff3d7f), attenuationDistance: 1.35,
         transparent: true, opacity: 0.95, side: T.DoubleSide,
       });
       const section = [[0,0.11],[0.6,0.115],[1.3,0.1],[1.72,0.07],[1.88,0.035],[2,0],[2.12,-0.08],[2.19,-0.18],[2.18,-0.29],[2.1,-0.34],[2.02,-0.29],[1.98,-0.17],[1.86,-0.09],[1.5,-0.035],[0.6,0.025],[0,0.035]];
       spinner.add(new T.Mesh(new T.LatheGeometry(section.map(([x, y]) => new T.Vector2(x, y)), 144), glass));
-      const blue = new T.MeshPhysicalMaterial({ color: 0xf3ac79, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1 });
+      const pink = new T.MeshPhysicalMaterial({ color: 0xff3d7f, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1 });
       const white = new T.MeshPhysicalMaterial({ color: 0xfff8e8, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.84 });
       for (let i = 0; i < 14; i++) {
-        const ring = new T.Mesh(new T.TorusGeometry(1.76 + i * 0.028, i % 4 === 0 ? 0.008 : 0.0045, 6, 128), i % 3 === 0 ? blue : white);
+        const ring = new T.Mesh(new T.TorusGeometry(1.76 + i * 0.028, i % 4 === 0 ? 0.008 : 0.0045, 6, 128), i % 3 === 0 ? pink : white);
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.055 - Math.pow(i / 13, 2) * 0.24;
         spinner.add(ring);
       }
-      const etching = new T.MeshStandardMaterial({ color: 0xdc8467, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide });
+      const etching = new T.MeshStandardMaterial({ color: 0xff3d7f, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide });
       for (const [start, arc] of [[0.3, 0.8], [3.4, 0.4]]) {
         const mark = new T.Mesh(new T.RingGeometry(1.56, 1.576, 48, 1, start, arc), etching);
         mark.rotation.x = -Math.PI / 2; mark.position.y = 0.089;
@@ -104,6 +126,8 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       let hasGrassPosition = false;
       const lastGrassPosition = new T.Vector3();
       const grassVelocity = new T.Vector2();
+      const grassPointerPosition = new T.Vector2();
+      let grassPointerInfluence = 0;
       // A gentle drift toward the cursor (world units, recomputed on resize). Downward travel is
       // capped so that, however the disc is turned, its lowest point stays above the meadow.
       let rangeX = 2.4, rangeUp = 0.9, rangeDown = 0.85;
@@ -132,6 +156,8 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       // is turned edge-on; the rendered lathe geometry becomes too thin to hit.
       const discPickSphere = new T.Sphere(new T.Vector3(), 2.7);
       const dragPlane = new T.Plane();
+      const grassPointerPlane = new T.Plane(new T.Vector3(0, 1, 0), 7.4);
+      const grassPointerHit = new T.Vector3();
       const dragHit = new T.Vector3();
       const dragOffset = new T.Vector3();
       const dragPosition = new T.Vector3();
@@ -186,7 +212,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         hasGrassPosition = true;
         const arrivalGust = pose.z < -0.5 && !ready ? Math.max(0, Math.min(1, 1 - elapsed / DISC_FLIGHT_DURATION)) : 0;
         const influence = Math.max(arrivalGust, throwWind);
-        grass.update(windTime, motion, pose, influence, { x: grassVelocity.x, z: grassVelocity.y });
+        grass.update(windTime, motion, pose, influence, { x: grassVelocity.x, z: grassVelocity.y }, { x: grassPointerPosition.x, z: grassPointerPosition.y }, grassPointerInfluence);
       };
       const resize = () => {
         const { width, height } = node.getBoundingClientRect();
@@ -231,6 +257,12 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
       };
       const move = (event: PointerEvent) => {
         if (!ready || userThrow || pause.current || reduced) return;
+        aimRay(event);
+        if (raycaster.ray.intersectPlane(grassPointerPlane, grassPointerHit)
+          && grassPointerHit.z < 14 && grassPointerHit.z > -160 && Math.abs(grassPointerHit.x) < 120) {
+          grassPointerPosition.set(grassPointerHit.x, grassPointerHit.z);
+          grassPointerInfluence = 1;
+        }
         if (touchId !== null) {
           if (event.pointerId !== touchId) return;
           const first = gesture[0];
@@ -271,6 +303,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         node.dataset.dragging = 'false';
       };
       const leave = () => {
+        grassPointerInfluence = 0;
         // Leaving the scene pauses inspection at its current angle; it never resets a locked pose.
         if (touchId === null && inspecting) { tx = px; ty = py; }
       };
@@ -354,6 +387,8 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
           if (!pause.current && !reduced) {
             elapsed = Math.min(DISC_FLIGHT_DURATION, elapsed + dt);
             windTime += dt;
+            updateLighting(windTime);
+            grassPointerInfluence = Math.max(0, grassPointerInfluence - dt * 0.72);
             const pose = sampleFlight(elapsed);
             if (userThrow) {
               throwTime += dt;
@@ -396,7 +431,7 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
         renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
         renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
         spinner.traverse(object => { if (object instanceof T.Mesh) object.geometry.dispose(); });
-        glass.dispose(); blue.dispose(); white.dispose(); etching.dispose();
+        glass.dispose(); pink.dispose(); white.dispose(); etching.dispose();
         grass.dispose(); env.dispose();
         renderer.dispose(); renderer.domElement.remove();
         delete node.dataset.ready; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode;
@@ -410,11 +445,10 @@ export default function GlassDisc({ paused, replayToken = 0 }: { paused: boolean
     return () => { disposed = true; cleanup(); delete node.dataset.fallback; };
   }, []);
 
-  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '程序化草地上的暖珊瑚色微透明玻璃飞盘，从远处沿外弯弧线飞来，停稳后点击可转动查看各面，再次点击锁定朝向，锁定后拖动甩出，随后自动飞回' : 'A warm coral, lightly translucent glass disc approaches over a procedural grass field on an outside-in curve; once it settles, click to inspect its faces, click again to lock its orientation, then drag and release to throw'}>
+  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '程序化草地上的玫红色半透明玻璃飞盘，从远处沿外弯弧线飞来，停稳后点击可转动查看各面，再次点击锁定朝向，锁定后拖动甩出，随后自动飞回' : 'A rose-magenta translucent glass disc approaches over a procedural grass field on an outside-in curve; once it settles, click to inspect its faces, click again to lock its orientation, then drag and release to throw'}>
     <svg className="aero-fallback" viewBox="0 0 800 500" aria-hidden="true">
-      <defs><linearGradient id="disc-fallback"><stop stopColor="#fff7ea"/><stop offset=".45" stopColor="#ffab97"/><stop offset="1" stopColor="#fff4dd"/></linearGradient></defs>
-      <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill="url(#disc-fallback)" fillOpacity=".78" stroke="#d98569" strokeWidth="2"/>
-        {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff5df':'#eea46f'} strokeWidth="1"/>)}</g>
+      <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill="#ff3d7f" fillOpacity=".92" stroke="#1b1a2e" strokeWidth="5"/>
+        {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff8e8':'#ff3d7f'} strokeWidth={i%3 ? 2:3}/>)}</g>
     </svg>
     <span className="aero-disc-hint" aria-hidden="true">
       <span className="aero-hint-desktop">{lang === 'zh' ? '点击查看并调整盘体倾斜，再点锁定后甩出；甩得越快飞得越远，倒盘为 Hammer' : 'Inspect and tilt, lock, then throw; a faster flick travels farther, upside-down makes a Hammer'}</span>

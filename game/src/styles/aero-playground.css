@@ -16,7 +16,11 @@
   overflow: clip;
 }
 .aero-playground .aero-hero {
-  background: linear-gradient(180deg, #97d1ed 0%, #d5ebed 50%, #d8e9cd 57%, #b4cc8e 76%, #83aa69 100%);
+  background:
+    radial-gradient(circle at 78% 47%, rgba(255, 221, 164, .92) 0 2.6%, transparent 2.9%),
+    radial-gradient(ellipse at 24% 86%, #42563a 0 20%, transparent 20.5%),
+    radial-gradient(ellipse at 76% 91%, #304634 0 28%, transparent 28.5%),
+    linear-gradient(180deg, #655f78 0%, #ab7980 35%, #f1ae79 52%, #8b7650 54%, #263c34 100%);
 }
 .aero-playground .aero-header {
   position: absolute;

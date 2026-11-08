@@ -1,5 +1,7 @@
 import type * as Three from 'three';
 import { createMeadowFlowers } from './meadow-flowers';
+import { createMeadowLandscape } from './meadow-landscape';
+import { terrainHeight, TERRAIN_GLSL } from './meadow-terrain';
 
 type ThreeModule = typeof Three;
 type DiscPosition = { x: number; y: number; z: number };
@@ -20,10 +22,10 @@ const FOG_NEAR = 18;        // Aerial haze starts here and thickens exponentiall
 const FOG_SCALE = 400;
 const FOG_FULL = 660;       // completes just inside the camera's far plane (700), so the meadow
                             // melts into the sky at the horizon without any visible edge.
-/** Direction toward the sun: upper right and slightly behind the field, so the grass is back-lit. */
-const SUN_DIRECTION: readonly [number, number, number] = [0.46, 0.5, -0.74];
-/** Bright pale-blue horizon haze (display values) shared by the sky and the fogged meadow. */
-const HAZE: readonly [number, number, number] = [0.88, 0.95, 0.94];
+/** Low evening sun behind the distant ridge, matching the reference's horizon glow. */
+const SUN_DIRECTION: readonly [number, number, number] = [0.42, 0.2, -0.89];
+/** Warm sunset horizon haze, blended toward cool moonlit blue after dusk. */
+const HAZE: readonly [number, number, number] = [0.94, 0.77, 0.61];
 
 function createRandom(seed: number) {
   let value = seed >>> 0;
@@ -51,9 +53,13 @@ function smoothstep(edge0: number, edge1: number, value: number) {
 
 // Haze picks up a warm glow toward the sun, so distant grass and sky brighten on the sun side.
 const HAZE_GLSL = `
+  uniform float uDusk;
+  uniform float uNight;
   vec3 hazeToward(vec3 dir) {
     float sunScatter = pow(max(dot(dir, uSun), 0.0), 7.0);
-    return uHaze + vec3(0.15, 0.09, 0.035) * sunScatter;
+    vec3 warm = mix(uHaze, vec3(0.99, 0.55, 0.3), uDusk);
+    vec3 nightHaze = mix(vec3(0.09, 0.13, 0.22), vec3(0.24, 0.13, 0.2), uDusk);
+    return mix(warm, nightHaze, uNight) + mix(vec3(0.15, 0.09, 0.035), vec3(0.025, 0.025, 0.07), uNight) * sunScatter;
   }
 `;
 const FOG_GLSL = `
@@ -93,37 +99,56 @@ const SKY_VERTEX = `
 const SKY_FRAGMENT = `
   uniform vec3 uSun;
   uniform vec3 uHaze;
+  uniform float uTime;
   varying vec3 vDir;
   ${HAZE_GLSL}
   ${NOISE_GLSL}
   void main() {
     vec3 d = normalize(vDir);
+    float cycle = mod(uTime / 38.0 + 0.08, 1.0);
+    float dusk = smoothstep(0.02, 0.18, cycle) * (1.0 - smoothstep(0.23, 0.34, cycle));
+    float night = smoothstep(0.16, 0.3, cycle) * (1.0 - smoothstep(0.8, 0.98, cycle));
     vec3 haze = hazeToward(d);
-    // Clear, welcoming summer daylight with a soft warm horizon.
-    vec3 zenith = vec3(0.55, 0.79, 0.94);
-    vec3 sky = mix(uHaze, zenith, smoothstep(0.0, 0.34, max(d.y, 0.0))) + (haze - uHaze);
-    float sunHalo = pow(max(dot(d, uSun), 0.0), 9.0);
-    sky += vec3(0.1, 0.065, 0.025) * sunHalo;
+    vec3 dayZenith = vec3(0.55, 0.79, 0.94);
+    vec3 duskZenith = vec3(0.52, 0.31, 0.39);
+    vec3 nightZenith = vec3(0.045, 0.07, 0.15);
+    vec3 zenith = mix(dayZenith, duskZenith, dusk);
+    zenith = mix(zenith, nightZenith, night);
+    vec3 horizon = mix(uHaze, vec3(1.0, 0.48, 0.24), dusk);
+    horizon = mix(horizon, vec3(0.04, 0.055, 0.11), night);
+    vec3 sky = mix(horizon, zenith, smoothstep(0.0, 0.34, max(d.y, 0.0))) + (haze - horizon);
+    float sunDot = dot(d, uSun);
+    float sunHalo = pow(max(sunDot, 0.0), 9.0);
+    float sunDisk = smoothstep(0.9994, 0.99982, sunDot) * (1.0 - night);
+    sky += mix(vec3(0.16, 0.085, 0.025), vec3(0.28, 0.12, 0.025), dusk) * sunHalo;
+    sky = mix(sky, vec3(1.0, 0.82, 0.55), sunDisk);
+    vec3 moonDirection = normalize(vec3(-0.35, 0.38, -0.86));
+    float moonDot = dot(d, moonDirection);
+    float moonDisk = smoothstep(0.99962, 0.99986, moonDot) * night;
+    sky = mix(sky, vec3(0.83, 0.86, 0.8), moonDisk);
+    float star = step(0.9994, hash21(floor(d.xz * vec2(210.0, 160.0) + vec2(d.y * 97.0))));
+    sky += vec3(0.65, 0.7, 0.82) * star * night * smoothstep(0.52, 0.78, d.y);
 
-    // Very soft, stretched cloud wisps—procedural and sparse, with no hills or hard silhouettes.
+    // Sparse cloud wisps catch the sunset, then fade into the night sky.
     float skyDepth = max(d.y + 0.24, 0.18);
     vec2 cloudUv = d.xz / skyDepth;
     float cloudBroad = valueNoise(cloudUv * vec2(0.38, 1.35) + vec2(8.4, 3.2));
     float cloudFine = valueNoise(cloudUv * vec2(0.9, 3.1) + vec2(-4.7, 6.1));
     float cloudField = cloudBroad * 0.72 + cloudFine * 0.28;
     float cloudMask = smoothstep(0.53, 0.72, cloudField)
-      * smoothstep(0.015, 0.09, d.y) * (1.0 - smoothstep(0.38, 0.65, d.y));
-    vec3 cloudTint = mix(vec3(0.98, 0.98, 0.95), vec3(1.0, 0.97, 0.88), clamp(sunHalo * 2.2, 0.0, 1.0));
+      * smoothstep(0.015, 0.09, d.y) * (1.0 - smoothstep(0.38, 0.65, d.y)) * (1.0 - night * 0.75);
+    vec3 cloudTint = mix(vec3(0.98, 0.98, 0.95), vec3(1.0, 0.66, 0.4), clamp(sunHalo * 2.2, 0.0, 1.0));
     sky = mix(sky, cloudTint, cloudMask * 0.72);
   #ifdef VISIBLE_DOME
     vec3 below = haze;
   #else
     vec3 below = mix(vec3(0.36, 0.58, 0.26), vec3(0.16, 0.38, 0.12), smoothstep(0.0, 0.5, -d.y));
   #endif
+    below = mix(below, vec3(0.055, 0.075, 0.13), night);
     vec3 color = mix(below, sky, smoothstep(-0.03, 0.0, d.y));
     vec3 skyLinear = pow(max(color, 0.0), vec3(2.2));
   #ifndef VISIBLE_DOME
-    skyLinear += vec3(4.0, 3.35, 1.85) * pow(max(dot(d, uSun), 0.0), 150.0);
+    skyLinear += vec3(4.0, 2.5, 1.0) * pow(max(sunDot, 0.0), 150.0) * (1.0 - night);
   #endif
     gl_FragColor = vec4(skyLinear, 1.0);
     #include <colorspace_fragment>
@@ -148,6 +173,8 @@ const BLADE_VERTEX = `
   uniform vec3 uDiscPosition;
   uniform vec2 uDiscVelocity;
   uniform float uDiscInfluence;
+  uniform vec3 uPointerPosition;
+  uniform float uPointerInfluence;
   varying float vUp;
   varying float vTone;
   varying float vClump;
@@ -188,7 +215,13 @@ const BLADE_VERTEX = `
     vec2 discFlow = travelDir * (localGust * 0.75 + wake * 0.95) + awayDir * localGust * 0.35;
     float ripple = localGust * aHeight * 0.12 * t * t;
 
-    vec2 offset = uWind * bend + discFlow * aHeight * 0.2 * t * t + awayDir * ripple;
+    vec2 pointerAway = aOrigin.xz - uPointerPosition.xz;
+    float pointerDistance = length(pointerAway);
+    vec2 pointerDirection = pointerAway / max(pointerDistance, 0.001);
+    float pointerFalloff = exp(-pointerDistance * 0.16) * uPointerInfluence;
+    float pointerRipple = sin(pointerDistance * 2.0 - uTime * 4.2 + aPhase) * pointerFalloff;
+    vec2 pointerFlow = pointerDirection * (pointerFalloff * 0.55 + max(pointerRipple, 0.0) * 0.45);
+    vec2 offset = uWind * bend + discFlow * aHeight * 0.2 * t * t + awayDir * ripple + pointerFlow * aHeight * 0.42 * t * t;
     // Bending only ever lowers the tip, so the TIP_CAP clearance holds while swaying.
     float droop = 0.35 * dot(offset, offset) / max(aHeight, 0.05);
     vec3 world = aOrigin + across + vec3(offset.x, t * aHeight - droop, offset.y);
@@ -221,19 +254,23 @@ const BLADE_FRAGMENT = `
 
   void main() {
     float t = vUp;
-    // A lighter spring palette; keep the original layered blade shading and texture.
-    vec3 root = vec3(0.20, 0.35, 0.23);
-    vec3 shade = vec3(0.37, 0.56, 0.31);
-    vec3 body = vec3(0.58, 0.73, 0.41);
+    // Olive-gold dusk grass shifts to cool blue-green under moonlight.
+    vec3 root = vec3(0.17, 0.23, 0.11);
+    vec3 shade = vec3(0.34, 0.4, 0.18);
+    vec3 body = vec3(0.59, 0.59, 0.29);
+    vec3 nightRoot = vec3(0.035, 0.07, 0.1);
+    vec3 nightShade = vec3(0.075, 0.15, 0.18);
+    vec3 nightBody = vec3(0.22, 0.31, 0.32);
     vec3 color = mix(root, shade, smoothstep(0.0, 0.28, t));
     color = mix(color, body, smoothstep(0.22, 0.62, t));
+    color = mix(color, mix(mix(nightRoot, nightShade, smoothstep(0.0, 0.28, t)), nightBody, smoothstep(0.22, 0.62, t)), uNight);
 
     // Broad warm/cool patches across the field plus per-blade tone.
     color += vec3(0.045, 0.035, -0.018) * (vClump - 0.5);
     color *= (0.9 + 0.24 * vClump) * (0.95 + 0.1 * vTone);
 
-    // Fresh sunlit tips: warm daylight, with green still dominant over gold.
-    vec3 tip = vec3(0.84, 0.87, 0.57);
+    // Sunlit tips hold the warm evening light; moonlit tips cool into blue-green.
+    vec3 tip = mix(vec3(0.84, 0.77, 0.4), vec3(0.32, 0.42, 0.4), uNight);
     color = mix(color, tip, smoothstep(0.68, 1.0, t) * (0.34 + 0.34 * vTone));
     color += vec3(0.13, 0.105, 0.045) * smoothstep(0.52, 1.0, t) * (0.12 + vBack);
     // Restrained warm edge light on the sun-facing side of each blade.
@@ -250,8 +287,10 @@ const BLADE_FRAGMENT = `
 const GROUND_VERTEX = `
   varying vec3 vWorld;
   varying float vDepth;
+  ${TERRAIN_GLSL}
   void main() {
     vec4 world = modelMatrix * vec4(position, 1.0);
+    world.y += terrainHeight(world.xz);
     vec4 mv = viewMatrix * world;
     vWorld = world.xyz;
     vDepth = -mv.z;
@@ -275,10 +314,10 @@ const GROUND_FRAGMENT = `
     // Fine detail fades out before it can shimmer at a grazing angle.
     float n = mix(broad, field, 1.0 - smoothstep(150.0, 280.0, d));
     n = mix(n, n * 0.75 + grain * 0.25, 1.0 - smoothstep(30.0, 60.0, d));
-    vec3 nearColor = mix(vec3(0.37, 0.51, 0.28), vec3(0.57, 0.70, 0.39), n);
-    // Keep the carpet in the same spring greens as the blades before it fades into haze.
-    vec3 farColor = mix(vec3(0.56, 0.70, 0.41), vec3(0.68, 0.78, 0.51), n);
+    vec3 nearColor = mix(vec3(0.28, 0.34, 0.16), vec3(0.56, 0.54, 0.25), n);
+    vec3 farColor = mix(vec3(0.49, 0.47, 0.28), vec3(0.72, 0.59, 0.35), n);
     vec3 color = mix(nearColor, farColor, smoothstep(70.0, 170.0, d));
+    color = mix(color, color * vec3(0.26, 0.34, 0.56), uNight);
     vec3 dir = normalize(vWorld - cameraPosition);
     color = mix(color, hazeToward(dir), fogAmount(d));
     gl_FragColor = vec4(pow(max(color, 0.0), vec3(2.2)), 1.0);
@@ -362,13 +401,19 @@ export function createProceduralGrassField(T: ThreeModule) {
   const uFogNear = { value: FOG_NEAR };
   const uFogScale = { value: FOG_SCALE };
   const uFogFull = { value: FOG_FULL };
+  const uTime = { value: 0 };
+  const uDusk = { value: 0 };
+  const uNight = { value: 0 };
+  const uPointerPosition = { value: new T.Vector3() };
+  const uPointerInfluence = { value: 0 };
   const bladeUniforms = {
-    uTime: { value: 0 },
+    uTime,
     uWind: { value: new T.Vector2(1, 0.16).normalize() },
     uDiscPosition: { value: new T.Vector3() },
     uDiscVelocity: { value: new T.Vector2() },
     uDiscInfluence: { value: 0 },
-    uSun, uHaze, uFogNear, uFogScale, uFogFull,
+    uPointerPosition, uPointerInfluence, uNight,
+    uSun, uHaze, uDusk, uFogNear, uFogScale, uFogFull,
   };
 
   const bladeMaterial = new T.ShaderMaterial({
@@ -383,13 +428,13 @@ export function createProceduralGrassField(T: ThreeModule) {
   blades.renderOrder = 0;
 
   const groundMaterial = new T.ShaderMaterial({
-    uniforms: { uSun, uHaze, uFogNear, uFogScale, uFogFull },
+    uniforms: { uSun, uHaze, uDusk, uNight, uFogNear, uFogScale, uFogFull },
     vertexShader: GROUND_VERTEX,
     fragmentShader: GROUND_FRAGMENT,
     toneMapped: false,
   });
   // Wide enough to reach the camera's far plane in every direction, where the haze is complete.
-  const groundGeometry = new T.PlaneGeometry(1600, 1600);
+  const groundGeometry = new T.PlaneGeometry(1600, 1600, 256, 256);
   const ground = new T.Mesh(groundGeometry, groundMaterial);
   ground.rotation.x = -Math.PI / 2;
   ground.position.set(0, BASE_Y - 0.02, 0); // A hair below the roots: no z-fighting.
@@ -397,7 +442,7 @@ export function createProceduralGrassField(T: ThreeModule) {
   ground.frustumCulled = false;
 
   const makeSkyMaterial = (visible: boolean) => new T.ShaderMaterial({
-    uniforms: { uSun, uHaze },
+    uniforms: { uSun, uHaze, uTime, uDusk, uNight },
     defines: visible ? { VISIBLE_DOME: '' } : {},
     vertexShader: SKY_VERTEX,
     fragmentShader: SKY_FRAGMENT,
@@ -411,10 +456,11 @@ export function createProceduralGrassField(T: ThreeModule) {
   dome.renderOrder = -10; // Backdrop: drawn first and writes no depth, so everything covers it.
   dome.frustumCulled = false;
 
-  const flowers = createMeadowFlowers(T, BASE_Y, smallViewport ? 12 : 24);
+  const flowers = createMeadowFlowers(T, BASE_Y, smallViewport ? 28 : 72);
+  const landscape = createMeadowLandscape(T, BASE_Y);
   const group = new T.Group();
   group.name = 'procedural-grass-field';
-  group.add(dome, blades, ground, flowers.group);
+  group.add(dome, ground, blades, landscape.group, flowers.group);
 
   const forward = new T.Vector3();
 
@@ -457,10 +503,11 @@ export function createProceduralGrassField(T: ThreeModule) {
         // A short lawn (1.1-2.8 tall); clumps and fine noise keep it uneven and lively.
         const height = Math.min(MAX_HEIGHT, (1.1 + clump * 0.8 + fine * 0.35 + heightSeeds[i] * 0.55) * fade);
         const stride = i * 3;
+        const groundY = BASE_Y + terrainHeight(x, z);
         origins[stride] = x;
-        origins[stride + 1] = BASE_Y;
+        origins[stride + 1] = groundY;
         origins[stride + 2] = z;
-        heights[i] = height;
+        heights[i] = Math.min(height, Math.max(0.12, TIP_CAP - groundY));
         // Far blades widen a little so the distant carpet stays solid instead of shimmering.
         widths[i] = (0.04 + widthSeeds[i] * 0.03) * (1 + d / 45);
         leans[i] = height * (0.16 + leanSeeds[i] * 0.16 + clump * 0.08);
@@ -473,15 +520,24 @@ export function createProceduralGrassField(T: ThreeModule) {
       clumpAttribute.needsUpdate = true;
     },
 
-    update(time: number, motion: boolean, discPosition: DiscPosition, influence: number, discVelocity: { x: number; z: number }) {
-      if (motion) bladeUniforms.uTime.value = time;
+    update(time: number, motion: boolean, discPosition: DiscPosition, influence: number, discVelocity: { x: number; z: number }, pointerPosition: { x: number; z: number }, pointerInfluence: number) {
+      const cycle = ((time / 38 + 0.08) % 1 + 1) % 1;
+      const dusk = smoothstep(0.02, 0.18, cycle) * (1 - smoothstep(0.23, 0.34, cycle));
+      const night = smoothstep(0.16, 0.3, cycle) * (1 - smoothstep(0.8, 0.98, cycle));
+      uTime.value = time;
+      uDusk.value = dusk;
+      uNight.value = night;
+      uPointerPosition.value.set(pointerPosition.x, BASE_Y, pointerPosition.z);
+      uPointerInfluence.value = motion ? pointerInfluence : 0;
       bladeUniforms.uDiscPosition.value.set(discPosition.x, discPosition.y, discPosition.z);
       bladeUniforms.uDiscVelocity.value.set(discVelocity.x, discVelocity.z);
       bladeUniforms.uDiscInfluence.value = motion ? influence : 0;
+      landscape.update(time, night);
     },
 
     dispose() {
       flowers.dispose();
+      landscape.dispose();
       bladeGeometry.dispose();
       bladeMaterial.dispose();
       groundGeometry.dispose();

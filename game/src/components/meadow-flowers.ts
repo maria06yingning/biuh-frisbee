@@ -1,4 +1,5 @@
 import type * as Three from 'three';
+import { terrainHeight } from './meadow-terrain';
 
 type ThreeModule = typeof Three;
 
@@ -15,6 +16,7 @@ export function createMeadowFlowers(T: ThreeModule, baseY: number, count: number
   const petalMaterial = new T.MeshStandardMaterial({ color: 0xfff9df, roughness: 0.8, side: T.DoubleSide });
   const centerMaterial = new T.MeshStandardMaterial({ color: 0xffd564, roughness: 0.7, side: T.DoubleSide });
   const stemMaterial = new T.MeshStandardMaterial({ color: 0x658d4c, roughness: 0.9 });
+  const petalPalette = [0xfff9df, 0xf2d2be, 0xe8a6a4, 0xc9b8d7].map(color => new T.Color(color));
   const petals = new T.InstancedMesh(petalGeometry, petalMaterial, count * 5);
   const centers = new T.InstancedMesh(centerGeometry, centerMaterial, count);
   const stems = new T.InstancedMesh(stemGeometry, stemMaterial, count);
@@ -50,7 +52,9 @@ export function createMeadowFlowers(T: ThreeModule, baseY: number, count: number
         const z = camera.position.z - distance;
         const stemHeight = 2.35 + height * 0.36;
         const flowerScale = 0.8 + spin * 0.4;
-        root.position.set(x, baseY + stemHeight, z);
+        const groundY = baseY + terrainHeight(x, z);
+        const flowerColor = petalPalette[Math.min(petalPalette.length - 1, Math.floor(spin * petalPalette.length))];
+        root.position.set(x, groundY + stemHeight, z);
         root.rotation.set(-0.85, (spin - 0.5) * 0.4, spin * Math.PI * 2);
         root.scale.setScalar(flowerScale);
         root.updateMatrix();
@@ -62,6 +66,7 @@ export function createMeadowFlowers(T: ThreeModule, baseY: number, count: number
           local.updateMatrix();
           matrix.multiplyMatrices(root.matrix, local.matrix);
           petals.setMatrixAt(i * 5 + petal, matrix);
+          petals.setColorAt(i * 5 + petal, flowerColor);
         }
         local.position.set(0, 0, 0.008);
         local.rotation.set(0, 0, 0);
@@ -69,13 +74,14 @@ export function createMeadowFlowers(T: ThreeModule, baseY: number, count: number
         local.updateMatrix();
         matrix.multiplyMatrices(root.matrix, local.matrix);
         centers.setMatrixAt(i, matrix);
-        local.position.set(x, baseY + stemHeight / 2, z);
+        local.position.set(x, groundY + stemHeight / 2, z);
         local.rotation.set(0, 0, 0);
         local.scale.set(1, stemHeight, 1);
         local.updateMatrix();
         stems.setMatrixAt(i, local.matrix);
       }
       for (const mesh of [petals, centers, stems]) mesh.instanceMatrix.needsUpdate = true;
+      if (petals.instanceColor) petals.instanceColor.needsUpdate = true;
     },
     dispose() {
       for (const mesh of [petals, centers, stems]) mesh.dispose();
