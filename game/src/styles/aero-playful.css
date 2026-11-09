@@ -872,3 +872,69 @@
   .aero-playful .ap-score { padding: 10px 12px; }
   .aero-playful .ap-score-row { grid-template-columns: 1fr; gap: 10px; }
 }
+
+/* Five official Spirit-score sectors, as a flat illustrated disc. */
+.aero-playful .ap-spirit-wheel-layout { display:grid; grid-template-columns:minmax(260px,1.05fr) minmax(280px,.95fr); gap:clamp(18px,3vw,32px); align-items:center; }
+.aero-playful .ap-spirit-wheel-wrap { padding:clamp(12px,2vw,24px); background:var(--uf-paper); border:3px solid var(--uf-ink); box-shadow:5px 5px 0 var(--uf-ink); }
+.aero-playful .ap-spirit-wheel { display:block; width:100%; height:auto; overflow:visible; }
+.aero-playful .ap-spirit-sector { cursor:pointer; outline:none; }
+.aero-playful .ap-spirit-sector path:first-child { transition:filter .12s ease,stroke-width .12s ease; }
+.aero-playful .ap-spirit-sector:hover path:first-child { filter:brightness(1.06); }
+.aero-playful .ap-spirit-sector:focus-visible path:first-child { stroke:#fff8e6; stroke-width:8; }
+.aero-playful .ap-spirit-sector-label { pointer-events:none; }
+.aero-playful .ap-spirit-wheel-detail { --spirit-color:var(--uf-cyan); padding:clamp(18px,3vw,28px); background:var(--uf-paper); border:3px solid var(--uf-ink); border-top:12px solid var(--spirit-color); box-shadow:4px 4px 0 var(--uf-ink); }
+.aero-playful .ap-spirit-wheel-number { display:inline-block; padding:4px 8px; background:var(--spirit-color); border:2px solid var(--uf-ink); font-size:12px; font-weight:900; }
+.aero-playful .ap-spirit-wheel-detail h3 { margin:16px 0 10px; font-size:clamp(21px,2.5vw,30px); font-weight:900; }
+.aero-playful .ap-spirit-official-q { margin:0 0 14px; padding:12px 14px; background:#f6ecd2; border-left:5px solid var(--spirit-color); font-size:18px; font-weight:900; line-height:1.45; }
+.aero-playful .ap-spirit-wheel-detail p:not(.ap-spirit-official-q) { margin:0 0 16px; line-height:1.7; font-weight:600; }
+.aero-playful .ap-spirit-wheel-detail small,.aero-playful .ap-spirit-source { font-size:12px; line-height:1.65; font-weight:700; }
+.aero-playful .ap-spirit-source { margin:18px 0 0; }
+.aero-playful .ap-score-row.is-selected { padding-inline:10px; background:var(--uf-paper); border-left:6px solid var(--uf-yellow); }
+.aero-playful .ap-score-row.is-selected h3::before { content:'▶ '; color:var(--uf-ink); }
+
+/* Rule-specific diagrams share visual grammar, not the same scene. */
+.aero-playful .ap-specific-diagram { display:block; width:100%; height:auto; background:var(--uf-paper); }
+.aero-playful .ap-diagram-source { display:block; margin:10px 0 4px; font-size:11px; line-height:1.5; font-weight:800; color:var(--aero-soft); }
+.aero-playful .ap-codex-panel .ap-specific-diagram { border:3px solid var(--uf-ink); border-radius:6px; box-shadow:4px 4px 0 var(--uf-ink); }
+
+/* Pausable six-beat point flow. The scene stays still until the reader starts it. */
+.aero-playful .ap-point-flow { display:grid; gap:16px; }
+.aero-playful .ap-point-flow-legend { display:flex; flex-wrap:wrap; gap:10px 20px; align-items:center; font-size:13px; font-weight:900; }
+.aero-playful .ap-point-flow-legend span { display:inline-flex; align-items:center; gap:7px; }
+.aero-playful .ap-point-flow-legend i { display:inline-block; width:17px; height:17px; border:2px solid var(--uf-ink); }
+.aero-playful .ap-point-flow-legend i.is-offense { border-radius:50%; background:var(--uf-cyan); }
+.aero-playful .ap-point-flow-legend i.is-defense { border-radius:3px; background:var(--uf-coral); }
+.aero-playful .ap-point-flow-legend i.is-disc { width:21px; height:11px; border-radius:50%; background:var(--uf-yellow); }
+.aero-playful .ap-point-flow-figure { margin:0; background:var(--uf-paper); border:3px solid var(--uf-ink); box-shadow:5px 5px 0 var(--uf-ink); overflow:hidden; }
+.aero-playful .ap-point-flow-figure > svg { display:block; width:100%; height:auto; }
+.aero-playful .ap-point-flow-figure figcaption { display:grid; gap:5px; padding:14px 18px; border-top:3px solid var(--uf-ink); line-height:1.6; }
+.aero-playful .ap-point-flow-figure figcaption strong { font-size:18px; font-weight:900; }
+.aero-playful .ap-point-flow-figure figcaption span { font-weight:600; }
+.aero-playful .ap-point-flow-controls { display:flex; flex-wrap:wrap; align-items:center; gap:8px; }
+.aero-playful .ap-point-flow-controls > button,.aero-playful .ap-point-flow-beats button { min-width:42px; min-height:42px; padding:8px 12px; border:3px solid var(--uf-ink); border-radius:5px; background:var(--uf-paper); color:var(--uf-ink); box-shadow:3px 3px 0 var(--uf-ink); font-size:14px; font-weight:800; line-height:1.2; cursor:pointer; }
+.aero-playful .ap-point-flow-controls > button:first-child { background:var(--uf-yellow); }
+.aero-playful .ap-point-flow-controls button[disabled] { opacity:.45; cursor:not-allowed; }
+.aero-playful .ap-point-flow-beats { display:flex; flex-wrap:wrap; gap:6px; }
+.aero-playful .ap-point-flow-beats button[aria-current='step'] { background:var(--uf-cyan); transform:translate(2px,2px); box-shadow:1px 1px 0 var(--uf-ink); }
+.aero-playful .ap-point-flow-reduced { flex-basis:100%; font-size:12px; font-weight:700; }
+.aero-playful .ap-point-flow-note { margin:0; font-size:12px; line-height:1.65; font-weight:700; }
+.aero-playful .ap-point-flow-figure svg .ap-flow-player,.aero-playful .ap-point-flow-figure svg .ap-flow-disc { transform-box:view-box; transform-origin:0 0; }
+@media (prefers-reduced-motion: reduce) {
+  .aero-playful .ap-spirit-sector path:first-child { transition:none; }
+  .aero-playful .ap-flow-player,.aero-playful .ap-flow-disc { transition:none !important; }
+}
+@media (max-width: 760px) {
+  .aero-playful .ap-spirit-wheel-layout { grid-template-columns:minmax(0,1fr); }
+  .aero-playful .ap-spirit-wheel-wrap { max-width:520px; margin-inline:auto; }
+  .aero-playful .ap-spirit-wheel-detail { width:100%; }
+  .aero-playful .ap-point-flow-figure figcaption { padding:10px 12px; }
+  .aero-playful .ap-point-flow-figure figcaption strong { font-size:16px; }
+}
+.aero-playful .ap-call-scenario .ap-specific-diagram { border:3px solid var(--uf-ink); border-radius:6px; box-shadow:4px 4px 0 var(--uf-ink); }
+.aero-playful .ap-call-steps { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin:0 0 18px; }
+.aero-playful .ap-call-steps button { display:grid; align-content:start; gap:8px; min-width:0; min-height:120px; padding:12px; border:3px solid var(--uf-ink); border-radius:5px; background:var(--uf-paper); color:var(--uf-ink); box-shadow:3px 3px 0 var(--uf-ink); text-align:left; cursor:pointer; }
+.aero-playful .ap-call-steps button[aria-current='step'] { background:var(--uf-yellow); transform:translate(2px,2px); box-shadow:1px 1px 0 var(--uf-ink); }
+.aero-playful .ap-call-steps b { font-size:14px; line-height:1.4; font-weight:900; }
+.aero-playful .ap-call-steps span { font-size:12px; line-height:1.55; font-weight:600; }
+@media (max-width: 760px) { .aero-playful .ap-call-steps { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+@media (max-width: 420px) { .aero-playful .ap-call-steps { grid-template-columns:1fr; } .aero-playful .ap-call-steps button { min-height:0; } }

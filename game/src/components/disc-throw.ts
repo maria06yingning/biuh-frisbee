@@ -4,6 +4,9 @@ export type ThrowSample = { x: number; y: number; time: number };
 export type ThrowStyle = 'flat' | 'oi' | 'io' | 'hammer';
 export type ThrowImpulse = { x: number; y: number; force: number; angle: number };
 
+/** Height of the disc's centre above the ground when it lies on the meadow. */
+export const DISC_REST_HEIGHT = 0.55;
+
 /** Select the release style from the disc's face orientation and tilt relative to travel. */
 export function classifyThrowStyle(faceUp: number, edgeTilt: number): ThrowStyle {
   if (faceUp < -0.12) return 'hammer';
@@ -40,50 +43,69 @@ function bezier(points: FlightPoint[], t: number): FlightPoint {
   return points.reduce((p, v, i) => ({ x: p.x + v.x * weights[i], y: p.y + v.y * weights[i], z: p.z + v.z * weights[i] }), { x: 0, y: 0, z: 0 });
 }
 
-/** A banked, spinning throw across the meadow and a smooth return. Fixed size, perspective only.
- * All control points stay above -0.85, so even the rim's 2.2-unit radius clears the grass.
+/**
+ * A banked, spinning throw that ends on the ground at its landing point. The disc stays there
+ * until the user walks to it and picks it up, or sends it back with the one-click return.
  */
-export function createUserThrow(start: FlightPoint, impulse: ThrowImpulse, aspect: number, style: ThrowStyle = 'flat') {
+export function createUserThrow(
+  start: FlightPoint,
+  impulse: ThrowImpulse,
+  aspect: number,
+  style: ThrowStyle = 'flat',
+  groundAt: (x: number, z: number) => number = () => -7.4,
+) {
   const force = clamp(impulse.force, 0, 1);
   const hammer = style === 'hammer';
   const curveSign = style === 'oi' ? 1 : style === 'io' ? -1 : 0;
-  const outwardDuration = (hammer ? 1.65 : 1.25) + force * 1.05;
-  const returnDuration = 1.8 + force * 0.45;
-  const duration = outwardDuration + returnDuration;
+  const duration = (hammer ? 1.65 : 1.25) + force * 1.05;
   const spread = clamp(aspect, 0.45, 2.5);
   const direction = impulse.x;
   const lift = Math.max(0, impulse.y);
   const curveSide = Math.abs(direction) < 0.12 ? 1 : Math.sign(direction);
   const curve = curveSign * curveSide * (1.8 + force * 6.2) * spread;
   const travelDepth = 22 + force * 58;
-  const far = {
-    x: direction * (3 + force * 18) * spread,
-    y: hammer ? 4 + force * 5 + lift * 2 : 1.8 + force * 2.4 + lift * 4.2,
-    z: start.z - travelDepth,
-  };
-  const outgoing = [start,
+  const landX = start.x + direction * (3 + force * 18) * spread;
+  const landZ = start.z - travelDepth;
+  const landY = groundAt(landX, landZ) + DISC_REST_HEIGHT;
+  const path = [start,
     { x: start.x + direction * (2 + force * 8) * spread + curve, y: Math.max(-0.85, start.y + impulse.y * (hammer ? 4.2 : 3.2)), z: start.z - Math.max(8, travelDepth * 0.24) },
-    { x: far.x * 1.15 - curve * 0.72, y: far.y + (hammer ? 5 : 2), z: start.z + (far.z - start.z) * 0.65 }, far];
-  const incoming = [far,
-    { x: far.x + (direction >= 0 ? -1 : 1) * 10 * spread, y: far.y + 1.8, z: far.z + 12 },
-    { x: -direction * 4 * spread, y: 1.6, z: -10 },
-    { x: 0, y: 0, z: 0 }];
+    { x: landX + (landX - start.x) * 0.15 - curve * 0.72, y: landY + 2.2 + force * 2.6 + lift * 3.4 + (hammer ? 3 : 0), z: start.z + (landZ - start.z) * 0.65 },
+    { x: landX, y: landY, z: landZ }];
 
   return {
     duration,
+    landing: { x: landX, y: landY, z: landZ },
     sample(time: number) {
-      const returning = time >= outwardDuration;
-      const u = clamp(returning ? (time - outwardDuration) / returnDuration : time / outwardDuration, 0, 1);
-      const progress = returning ? smooth(u) : Math.sin(u * Math.PI / 2);
-      const position = bezier(returning ? incoming : outgoing, progress);
-      // Keep the release attitude for the entire outbound and return arcs. Only blend back
-      // to the resting pose during the final 10% as the disc reaches the catch point.
-      const orientationBlend = returning ? smooth(clamp((u - 0.9) / 0.1, 0, 1)) : 0;
+      const u = clamp(time / duration, 0, 1);
+      const progress = Math.sin(u * Math.PI / 2);
       return {
-        position,
-        orientationBlend,
-        spinRate: ((hammer ? 28 : 18) + force * (hammer ? 38 : 30)) * (1 - orientationBlend),
-        returning,
+        position: bezier(path, progress),
+        orientationBlend: 0,
+        spinRate: (hammer ? 28 : 18) + force * (hammer ? 38 : 30) - u * 24,
+        done: time >= duration,
+      };
+    },
+  };
+}
+
+/** Return to the hand at the player's current world position, without moving the player. */
+export function createReturnFlight(start: FlightPoint, target: FlightPoint = { x: 0, y: 0, z: 0 }) {
+  const distance = Math.hypot(target.x - start.x, target.y - start.y, target.z - start.z);
+  const duration = clamp(distance / 30, 0.45, 1.9);
+  const lift = Math.min(5, distance * 0.12);
+  const path = [{ ...start },
+    { x: start.x + (target.x - start.x) * 0.3, y: Math.max(start.y, target.y) + lift, z: start.z + (target.z - start.z) * 0.3 },
+    { x: start.x + (target.x - start.x) * 0.8, y: target.y + lift * 0.4, z: start.z + (target.z - start.z) * 0.8 },
+    { ...target }];
+  return {
+    duration,
+    sample(time: number) {
+      const u = clamp(time / duration, 0, 1);
+      const e = smooth(u);
+      return {
+        position: bezier(path, e),
+        orientationBlend: e,
+        spinRate: 20 * (1 - e),
         done: time >= duration,
       };
     },

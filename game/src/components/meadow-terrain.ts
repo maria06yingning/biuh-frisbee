@@ -1,26 +1,20 @@
-function smoothstep(edge0: number, edge1: number, value: number) {
-  const t = Math.max(0, Math.min(1, (value - edge0) / (edge1 - edge0)));
-  return t * t * (3 - 2 * t);
-}
+/* A broad meadow shoulder rather than a small isolated mound. CPU and GPU share the same
+ * expression so plants, walking and disc landings all follow the visible surface. */
+export const HILL_CENTER = { x: 0, z: -58 } as const;
 
-/** Broad rolling ridges that stay nearly level around the interactive disc's landing zone. */
 export function terrainHeight(x: number, z: number) {
-  const depth = Math.max(-z - 8, 0);
-  const envelope = smoothstep(0, 1, depth / 48);
-  const ridgeA = Math.sin(x * 0.028 + Math.sin(z * 0.017) * 1.35 + 0.55);
-  const ridgeB = Math.sin(z * 0.036 - x * 0.015 + 1.2);
-  const ridgeC = Math.sin(x * 0.014 + z * 0.008 - 1.8);
-  return envelope * (2.2 * ridgeA + 0.8 * ridgeB + 0.45 * ridgeC);
+  const dx = (x - HILL_CENTER.x) / 35;
+  const dz = (z - HILL_CENTER.z) / 30;
+  return Math.exp(-(dx * dx + dz * dz)) * 4.4
+    + Math.sin(x * 0.065 + 0.4) * Math.sin(z * 0.052) * 0.42
+    + Math.sin(x * 0.19 + z * 0.12) * 0.07;
 }
 
-/** Keep GPU ground displacement exactly aligned with terrainHeight() used by plants and trees. */
 export const TERRAIN_GLSL = `
   float terrainHeight(vec2 p) {
-    float depth = max(-p.y - 8.0, 0.0);
-    float envelope = smoothstep(0.0, 48.0, depth);
-    float ridgeA = sin(p.x * 0.028 + sin(p.y * 0.017) * 1.35 + 0.55);
-    float ridgeB = sin(p.y * 0.036 - p.x * 0.015 + 1.2);
-    float ridgeC = sin(p.x * 0.014 + p.y * 0.008 - 1.8);
-    return envelope * (2.2 * ridgeA + 0.8 * ridgeB + 0.45 * ridgeC);
+    vec2 d = (p - vec2(${HILL_CENTER.x.toFixed(1)}, ${HILL_CENTER.z.toFixed(1)})) / vec2(35.0, 30.0);
+    return exp(-dot(d, d)) * 4.4
+      + sin(p.x * 0.065 + 0.4) * sin(p.y * 0.052) * 0.42
+      + sin(p.x * 0.19 + p.y * 0.12) * 0.07;
   }
 `;

@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pick, type Bi } from '@/content/shared';
 import PageShell, { Section, Term } from '@/components/PageShell';
+import PointFlow from '@/components/PointFlow';
+import RuleIllustration, { type RuleSceneId } from '@/components/RuleIllustrations';
 
 /* ───────── Interactive top-down field (facts from WFDF Rules 2.x) ───────── */
 type Zone = 'central' | 'ez' | 'brick' | 'line';
@@ -73,12 +75,12 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
   },
   {
     t: ['持盘计数：10 秒', 'The stall count: ten seconds'],
-    d: ['标记者（marker）在 3 米内时，从“stalling 1”数到 10，每个数至少隔 1 秒；没在“10”之前传出就计数到限（stall-out），盘权转换。', 'With the marker within 3 m, the count runs “stalling one … ten,” at least a second apart. Not released before “ten” is a stall-out turnover.'],
+    d: ['标记者（marker）在轴心点 3 米内时，可从“stalling 1”数到 10，相邻数字起始至少间隔 1 秒；未在“10”开始前出手，才构成计数到限（stall-out）。', 'The marker may count when within 3 m of the pivot point. Each number must start at least one second apart; a stall-out occurs if the throw is not released before the start of “ten”.'],
     why: ['逼着每个人不停做决定，比赛永远在动。', 'It forces a decision every few seconds, so the game never stalls.'],
   },
   {
-    t: ['一个标记者', 'One marker at a time'],
-    d: ['持盘者 3 米内只能有 1 名防守者；第二个人没在盯别的进攻者就是双人包夹（double team），属于标记违规（marking infraction）。', 'Only one defender may be within 3 m of the thrower. A second one not guarding someone else is a double team — a marking infraction.'],
+    t: ['双人包夹（double team）', 'Double team'],
+    d: ['除标记者外，另一名防守者若在持盘者轴心点 3 米内，且没有盯防其他进攻者，就构成双人包夹（double team）。仅仅跑过这片区域不算。', 'A defender other than the marker within 3 m of the thrower’s pivot point is a double team only if they are not guarding another offensive player. Merely running through the area is not a double team.'],
     why: ['持盘者需要空间看场、出手，防守靠人数会破坏平衡。', 'The thrower needs room to see and throw; crowding would tip the balance.'],
   },
   {
@@ -121,37 +123,10 @@ const RULE_TOPICS: { label: Bi; indices: number[] }[] = [
   { label: ['常见转换', 'Common turnovers'], indices: [-1, -2, -3, -4, -5, -6] },
 ];
 
-function RuleScene({ index }: { index: number }) {
-  const discX = [280, 165, 210, 180, 260, 305, 200, 240, 190, 270][index] ?? 220;
-  const discY = [34, 32, 26, 28, 40, 27, 40, 27, 30, 24][index] ?? 30;
-  const turn = index === 1 || index === 2 || index === 3 ? 'rotate(-18)' : 'rotate(-7)';
-  return (
-    <svg className="ap-rule-scene" viewBox="0 0 360 112" aria-hidden="true">
-      <rect x="0" y="0" width="360" height="112" rx="14" fill="#e7f1d4" />
-      <path d="M0 82 Q90 72 180 84 T360 80 V112 H0Z" fill="#c6dda6" />
-      <path d="M95 76 C130 30 224 26 270 68" fill="none" stroke="#1b1a2e" strokeWidth="2" strokeDasharray="5 6" />
-      <g className="ap-scene-player" transform="translate(78 44)">
-        <circle cx="0" cy="0" r="13" fill="#f0bd8b" stroke="#1b1a2e" strokeWidth="2" />
-        <path d="M-12-4 Q-8-20 5-13 Q13-10 12-3" fill="#43334a" stroke="#1b1a2e" strokeWidth="2" />
-        <path d="M-11 16 Q0 8 11 16 L16 49 H-16Z" fill="#ff806d" stroke="#1b1a2e" strokeWidth="2" />
-        <path d="M-9 47 L-15 65 M9 47 L15 65 M-11 23 L-27 37 M11 23 L27 34" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" />
-      </g>
-      <g className="ap-scene-player ap-scene-player-alt" transform="translate(275 45)">
-        <circle cx="0" cy="0" r="13" fill="#8c5945" stroke="#1b1a2e" strokeWidth="2" />
-        <path d="M-13-4 Q-9-20 5-13 Q12-9 12-2" fill="#f2cf63" stroke="#1b1a2e" strokeWidth="2" />
-        <path d="M-11 16 Q0 8 11 16 L16 49 H-16Z" fill="#58c6d4" stroke="#1b1a2e" strokeWidth="2" />
-        <path d="M-9 47 L-15 65 M9 47 L15 65 M-11 23 L-26 34 M11 23 L27 37" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" />
-      </g>
-      <g className="ap-scene-disc" transform={`translate(${discX} ${discY}) ${turn}`}>
-        <ellipse rx="22" ry="8" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2" />
-        <ellipse rx="12" ry="4" fill="none" stroke="#fff9e9" strokeWidth="1.5" />
-        <circle r="2.5" fill="#ffd564" />
-      </g>
-      <path d="M160 20 l7 7 -7 7 -7-7Z" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="1.5" />
-      <circle cx="322" cy="27" r="5" fill="#ff826e" stroke="#1b1a2e" strokeWidth="1.5" />
-    </svg>
-  );
-}
+const RULE_SCENES: RuleSceneId[] = ['goal', 'travel', 'stall', 'marker', 'directions', 'turnover', 'restart', 'contact', 'self-officiate', 'spirit'];
+const TURNOVER_SCENES: RuleSceneId[] = ['throwaway', 'drop', 'interception', 'block', 'out', 'stall-out'];
+const RULE_SOURCES = ['14.1', '18.2', '9.1、9.3、13.2.2', '18.1.1.5', 'Introduction、7.1–7.3', '13.1–13.2', '8.5、13.7–13.11', '12.6、15.1', '1.1、1.3', '1.2–1.6'];
+const TURNOVER_SOURCES = ['13.1.1', '12.1.1、13.1.1', '13.1.2', '13.1.1', '11.1、11.8、13.8', '9.1、13.2.2'];
 
 function RuleManual() {
   const { lang } = useI18n();
@@ -182,7 +157,12 @@ function RuleManual() {
                 <span className="ap-codex-plus" aria-hidden="true">{expanded ? '−' : '+'}</span>
               </button>
               <div className="ap-codex-panel" id={panelId} hidden={!expanded}>
-                <RuleScene index={Math.abs(index) % CORE.length} />
+                <RuleIllustration
+                  id={turnover ? TURNOVER_SCENES[-index - 1] : RULE_SCENES[index]}
+                  alt={`${pick(lang, item.t)} — ${pick(lang, item.d)}`}
+                  lang={lang}
+                />
+                <small className="ap-diagram-source">{zh ? `WFDF《极限飞盘规则 2025–2028》· 第 ${turnover ? TURNOVER_SOURCES[-index - 1] : RULE_SOURCES[index]} 条` : `WFDF Rules of Ultimate 2025–2028 · Rule ${turnover ? TURNOVER_SOURCES[-index - 1] : RULE_SOURCES[index]}`}</small>
                 <div className="ap-codex-copy">
                   <p>{pick(lang, item.d)}</p>
                   {!turnover && <p className="ap-codex-aside">{pick(lang, CORE[index].why)}</p>}
@@ -203,14 +183,6 @@ const TURNOVERS: { t: Bi; d: Bi }[] = [
   { t: ['封阻（block）', 'Block'], d: ['防守方把盘拍落。', 'A defender knocks the disc down.'] },
   { t: ['出界（out of bounds）', 'Out of bounds'], d: ['盘或接盘者碰到界外。', 'The disc or receiver touches out of bounds.'] },
   { t: ['计数到限（stall-out）', 'Stall-out'], d: ['没在“10”之前把盘传出去。', 'Not released before the marker says “ten.”'] },
-];
-
-const FLOW: { t: Bi; d: Bi }[] = [
-  { t: ['列队', 'Line up'], d: ['双方各站在自己防守的得分线上。', 'Both teams stand on their defending goal lines.'] },
-  { t: ['开盘（pull）', 'The pull'], d: ['防守方把盘远远掷向进攻方，比赛开始。', 'The defense throws the disc downfield to start the point.'] },
-  { t: ['推进', 'Move it'], d: ['跑位、传盘，一路传向对方得分区。', 'Cut and pass the disc toward the far end zone.'] },
-  { t: ['得分或转换', 'Score or turn'], d: ['区内接到盘得分；失误则盘权转换。', 'Catch in the end zone to score; a miss is a turnover.'] },
-  { t: ['再来', 'Reset'], d: ['得分后换端、换攻防，重新开盘。', 'After a goal, swap ends, swap roles, pull again.'] },
 ];
 
 export default function Rules() {
@@ -254,14 +226,7 @@ export default function Rules() {
         heading={zh ? '每一分都从开盘开始。' : 'Every point starts with a pull.'}
         full
       >
-        <ol className="ap-rail">
-          {FLOW.map((s, i) => (
-            <li key={i}>
-              <h3>{pick(lang, s.t)}</h3>
-              <p>{pick(lang, s.d)}</p>
-            </li>
-          ))}
-        </ol>
+        <PointFlow />
       </Section>
 
       <Section

@@ -4,32 +4,25 @@ import { useMemo, useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pick, type Bi } from '@/content/shared';
 import PageShell, { Section } from '@/components/PageShell';
+import SpiritWheel, { SPIRIT_CATS } from '@/components/SpiritWheel';
 
-/* ───────── Interactive Spirit scorecard (WFDF SOTG: five categories, 0–4, 2 = good) ───────── */
-const CATS: { t: Bi; q: Bi }[] = [
-  { t: ['规则知识与运用', 'Rules knowledge & use'], q: ['他们懂规则、也照着做吗？', 'Did they know and use the rules?'] },
-  { t: ['犯规与身体接触', 'Fouls & body contact'], q: ['他们尽量避免身体接触了吗？', 'Did they avoid body contact?'] },
-  { t: ['公正心', 'Fair-mindedness'], q: ['他们公正、客观吗？', 'Were they fair-minded?'] },
-  { t: ['积极态度与自控', 'Positive attitude & self-control'], q: ['他们保持了自控和积极的态度吗？', 'Did they show self-control and a positive attitude?'] },
-  { t: ['沟通', 'Communication'], q: ['他们沟通得当、尊重对方吗？', 'Did they communicate properly and respectfully?'] },
-];
-
-function Scorecard() {
+/* ───────── WFDF Spirit scoring: five official questions, 0–4 each ───────── */
+function Scorecard({ selected, onSelect }: { selected: number; onSelect: (index: number) => void }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const [scores, setScores] = useState<number[]>([2, 2, 2, 2, 2]);
   const total = useMemo(() => scores.reduce((a, b) => a + b, 0), [scores]);
   const note: string =
     total < 10
-      ? zh ? '低于“好”——值得在赛后的精神圈里聊一聊。' : 'Below “good” — worth raising in the spirit circle.'
+      ? zh ? '低于每项“好”的基准；赛后结合具体情境聊一聊。' : 'Below the per-category “good” baseline; discuss specific moments after the game.'
       : total === 10
-      ? zh ? '正好是一场“好”的比赛：每项都给 2 分。' : 'A “good” game: a 2 in every category.'
-      : zh ? '出色的飞盘精神。' : 'Excellent Spirit.';
+      ? zh ? '基准分：五项各 2 分，每项都是“好”。' : 'Baseline: 2 in each category — “good” across all five.'
+      : zh ? '高于基准；回顾哪些具体表现值得肯定。' : 'Above baseline; reflect on the specific actions worth recognising.';
 
   return (
     <div className="ap-score">
-      {CATS.map((c, i) => (
-        <div className="ap-score-row" key={i}>
+      {SPIRIT_CATS.map((c, i) => (
+        <div className={`ap-score-row${selected === i ? ' is-selected' : ''}`} key={i}>
           <div>
             <h3>{pick(lang, c.t)}</h3>
             <p>{pick(lang, c.q)}</p>
@@ -42,7 +35,7 @@ function Scorecard() {
                 className="ap-dot"
                 aria-pressed={scores[i] === v}
                 aria-label={`${pick(lang, c.t)}: ${v}`}
-                onClick={() => setScores((s) => s.map((x, j) => (j === i ? v : x)))}
+                onClick={() => { onSelect(i); setScores((s) => s.map((x, j) => (j === i ? v : x))); }}
               >
                 {v}
               </button>
@@ -55,7 +48,7 @@ function Scorecard() {
         <span className="ap-score-note">{note}</span>
       </div>
       <p className="ap-hint">
-        {zh ? '每项 0–4 分，2 分代表“好”，4 分代表出色。赛后两队互评，也给自己打分。' : 'Each category is 0–4; 2 is “good,” 4 is excellent. After a game, teams rate each other — and themselves.'}
+        {zh ? '每项 0–4 分；2 分是“好”的基准，4 分用于特别出色的表现。赛后评估对手，也回看自己。' : 'Each category is 0–4; 2 is the “good” baseline and 4 recognises exceptional Spirit. Rate the other team and reflect on your own.'}
       </p>
     </div>
   );
@@ -90,13 +83,14 @@ const BAD: Bi[] = [
   ['危险动作和攻击性行为', 'Dangerous play and aggression'],
   ['故意犯规或故意违规', 'Intentional fouling or rule-breaking'],
   ['嘲讽、恐吓对手', 'Taunting or intimidating opponents'],
-  ['不尊重对手的得分庆祝', 'Disrespectful celebration'],
-  ['为了报复对方的叫停而乱叫', 'Retaliatory calls'],
+  ['以言语不尊重对手', 'Disrespectful conversations'],
+  ['把“赢不惜一切代价”放在规则、公平、安全与乐趣之上', 'Win-at-all-costs behaviour over rules, fairness, safety or the joy of play'],
 ];
 
 export default function Spirit() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
+  const [activeCategory, setActiveCategory] = useState(0);
   return (
     <PageShell slug="/spirit">
       <Section
@@ -145,6 +139,17 @@ export default function Spirit() {
       </Section>
 
       <Section
+        id="wheel"
+        label={zh ? 'WFDF 赛后评分的五个维度' : 'WFDF’s five post-game categories'}
+        heading={zh ? '五个问题，回看整场比赛。' : 'Five questions for the whole game.'}
+        intro={zh ? '选择轮盘扇区，查看官方评分问题与场上例子；下方评分表会同步定位到同一项。' : 'Select a sector to read the official scoring question and a field example; the scorecard below follows the same category.'}
+        full
+      >
+        <SpiritWheel selected={activeCategory} onSelect={setActiveCategory} />
+        <p className="ap-spirit-source">{zh ? <>原则、评分问题与行为示例依据 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>。五项 0–4 评分及“2 分为好”的说明参考 <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF 官方评分说明</a>。</> : <>Categories, questions and examples follow the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a>. The 0–4 scale and “2 = good” baseline are referenced from <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF’s scoring announcement</a>.</>}</p>
+      </Section>
+
+      <Section
         id="dos"
         label={zh ? '一些具体的选择' : 'Small choices that matter'}
         heading={zh ? '好精神，和明显的违背。' : 'Good Spirit, and clear breaches.'}
@@ -166,15 +171,16 @@ export default function Spirit() {
             </ul>
           </article>
         </div>
+        <p className="ap-spirit-source">{zh ? <>好精神与违背飞盘精神的例子依据 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>及《极限飞盘规则 2025–2028》第 1.5–1.6 条。</> : <>Examples follow the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a> and Rules of Ultimate 2025–2028, 1.5–1.6.</>}</p>
       </Section>
 
       <Section
         id="score"
         label={zh ? '赛后聊一聊' : 'After the game'}
         heading={zh ? '给对手打个分，也给自己。' : 'Rate the other team — and yourself.'}
-        intro={zh ? '试着给五个维度各打 0–4 分，看看总分。' : 'Give each of the five a 0–4 and watch the total.'}
+        intro={zh ? '每项给 0–4 分；点分数时，轮盘也会跳到对应维度。' : 'Score each category from 0–4; choosing a score also highlights its wheel sector.'}
       >
-        <Scorecard />
+        <Scorecard selected={activeCategory} onSelect={setActiveCategory} />
       </Section>
 
       <Section
