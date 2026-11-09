@@ -181,22 +181,51 @@ function FoulExplorer() {
   );
 }
 
+function SignalArm({ d, skin }: { d: string; skin: string }) {
+  return <><path d={d} fill="none" stroke="#1b1a2e" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/><path d={d} fill="none" stroke={skin} strokeWidth="10" strokeLinecap="round" strokeLinejoin="round"/></>;
+}
+function SignalFist({ x, y, skin, rotate = 0 }: { x: number; y: number; skin: string; rotate?: number }) {
+  return <g transform={`translate(${x} ${y}) rotate(${rotate})`}>
+    <rect x="-9" y="-7" width="18" height="15" rx="4" fill={skin} stroke="#1b1a2e" strokeWidth="2.5"/>
+    <path d="M-5 -3h10M-5 0h10" stroke="#1b1a2e" strokeWidth="1.2" strokeLinecap="round"/>
+  </g>;
+}
+function SignalFigure({ gesture, skin, hair }: { gesture: 'violation'|'contest'|'foul'; skin: string; hair: string }) {
+  return <svg viewBox="0 0 180 210" aria-hidden="true">
+    <ellipse cx="90" cy="199" rx="29" ry="5" fill="#1b1a2e" opacity=".28"/>
+    <path d="M78 139L70 181M102 139L110 181" fill="none" stroke="#1b1a2e" strokeWidth="15" strokeLinecap="round"/>
+    <path d="M78 140L70 181M102 140L110 181" fill="none" stroke={skin} strokeWidth="9" strokeLinecap="round"/>
+    <path d="M69 178l-5 8-12 4h27l-1-8M111 178l5 8 12 4h-27l1-8" fill="#fff8e6" stroke="#1b1a2e" strokeWidth="2.5" strokeLinejoin="round"/>
+    <path d="M68 119h44l-3 24q-19 8-38 0z" fill="#1b1a2e" stroke="#1b1a2e" strokeWidth="3"/>
+    <path d="M72 63Q90 55 108 63L116 123Q90 131 64 123Z" fill="#14c2d8" stroke="#1b1a2e" strokeWidth="3" strokeLinejoin="round"/>
+    <path d="M84 53v10M96 53v10" stroke={skin} strokeWidth="7" strokeLinecap="round"/>
+    <circle cx="90" cy="37" r="17" fill={skin} stroke="#1b1a2e" strokeWidth="3"/>
+    <path d="M73 36Q70 17 88 16Q108 16 107 34L99 28Q88 34 74 31Z" fill={hair} stroke="#1b1a2e" strokeWidth="2.5" strokeLinejoin="round"/>
+    <circle cx="84" cy="39" r="1.6" fill="#1b1a2e"/><circle cx="96" cy="39" r="1.6" fill="#1b1a2e"/>
+    <path d="M86 47q4 3 8 0" fill="none" stroke="#1b1a2e" strokeWidth="1.8" strokeLinecap="round"/>
+    {gesture === 'violation' && <>
+      <SignalArm d="M73 72L57 51L46 22" skin={skin}/><SignalArm d="M107 72L123 51L134 22" skin={skin}/>
+      <SignalFist x={44} y={17} skin={skin} rotate={-18}/><SignalFist x={136} y={17} skin={skin} rotate={18}/>
+    </>}
+    {gesture === 'contest' && <>
+      <SignalArm d="M73 73L63 88L82 99" skin={skin}/><SignalArm d="M107 73L117 88L98 99" skin={skin}/>
+      <SignalFist x={82} y={100} skin={skin} rotate={-5}/><SignalFist x={98} y={100} skin={skin} rotate={5}/>
+    </>}
+    {gesture === 'foul' && <>
+      <SignalArm d="M107 74L131 76L157 76" skin={skin}/><SignalArm d="M73 73L96 61L126 78" skin={skin}/>
+      <SignalFist x={163} y={76} skin={skin}/><SignalFist x={132} y={81} skin={skin} rotate={12}/>
+    </>}
+  </svg>;
+}
 function HandSignals() {
   const { lang } = useI18n();
-  const zh = lang === 'zh';
-  const items: { title: Bi; note: Bi; icon: string }[] = [
-    { title: ['违例', 'Violation'], note: ['双手举起，张开成 V 形。', 'Raise both hands in a V.'], icon: 'v' },
-    { title: ['争议', 'Contest'], note: ['双方拳头相碰，表示有争议。', 'Bump fists to signal a contest.'], icon: 'fist' },
-    { title: ['犯规', 'Foul'], note: ['一臂平伸，另一前臂横向示意。', 'One arm extended, the other forearm makes the call.'], icon: 'foul' },
+  const items: { title: Bi; note: Bi; icon: 'violation'|'contest'|'foul'; skin: string; hair: string }[] = [
+    { title: ['违例（violation）', 'Violation'], note: ['双臂举过头顶成 V 形，双拳闭合。', 'Raise both arms in a V above the head, with closed fists.'], icon: 'violation', skin: '#e6b48d', hair: '#3a2b29' },
+    { title: ['争议（contest）', 'Contest'], note: ['胸前两拳相碰，手背朝外。', 'Bump two fists together in front of the chest, backs of hands facing out.'], icon: 'contest', skin: '#c9825e', hair: '#5a352b' },
+    { title: ['犯规（foul）', 'Foul'], note: ['一臂平伸，另一前臂横切过这只手臂。', 'Hold one arm straight out and chop the other forearm across it.'], icon: 'foul', skin: '#f0c9a2', hair: '#24202b' },
   ];
   return <div className="ap-signal-grid">{items.map((item) => <article className="ap-signal-card" key={item.icon}>
-    <svg viewBox="0 0 100 82" aria-hidden="true">
-      <path d="M50 73 V45" stroke="#c9825e" strokeWidth="10" strokeLinecap="round" />
-      {item.icon === 'v' && <><path d="M48 48 L29 17 M52 48 L71 17" stroke="#c9825e" strokeWidth="9" strokeLinecap="round" /><circle cx="28" cy="14" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/><circle cx="72" cy="14" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/></>}
-      {item.icon === 'fist' && <><path d="M49 50 L24 35 M51 50 L76 35" stroke="#c9825e" strokeWidth="9" strokeLinecap="round"/><rect x="15" y="24" width="18" height="16" rx="6" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/><rect x="67" y="24" width="18" height="16" rx="6" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/></>}
-      {item.icon === 'foul' && <><path d="M49 49 L17 49 M51 46 L74 22" stroke="#c9825e" strokeWidth="9" strokeLinecap="round"/><circle cx="13" cy="49" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/><circle cx="78" cy="18" r="7" fill="#f0c9a2" stroke="#1b1a2e" strokeWidth="2"/></>}
-      <path d="M39 75 Q50 67 61 75" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="2" />
-    </svg>
+    <SignalFigure gesture={item.icon} skin={item.skin} hair={item.hair}/>
     <h3>{pick(lang, item.title)}</h3><p>{pick(lang, item.note)}</p>
   </article>)}</div>;
 }

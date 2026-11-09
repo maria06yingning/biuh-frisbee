@@ -7,12 +7,13 @@ import { createProceduralGrassField } from './procedural-grass';
 import { classifyThrowStyle, createReturnFlight, createUserThrow, getThrowImpulse, type ThrowSample } from './disc-throw';
 import type { MeadowSeason } from './meadow-season';
 import { createMeadowSound, type MeadowSound } from './meadow-audio';
+import { defaultDiscColor } from './disc-palette';
 
 const WALK_SPEED = 7;
+/** Expanded walk limits stay within the existing fixed grass carpet. */
+const WALK_BOUNDS = { minX: -50, maxX: 50, minZ: -135, maxZ: 8 } as const;
 /** Pick-up range: how close the walker must stand to the landed disc. */
 const PICKUP_RANGE = 9;
-/** Distance walked between two footsteps. */
-const STEP_LENGTH = 1.7;
 const BASE_FOV = 36;
 
 export type DiscCommand = { pickup: number; return: number };
@@ -22,6 +23,7 @@ export default function GlassDisc({
   paused,
   replayToken = 0,
   season = 'summer',
+  discColor = defaultDiscColor(season),
   pickupToken = 0,
   returnToken = 0,
   onDiscLanded,
@@ -31,6 +33,7 @@ export default function GlassDisc({
   paused: boolean;
   replayToken?: number;
   season?: MeadowSeason;
+  discColor?: number;
   pickupToken?: number;
   returnToken?: number;
   onDiscLanded?: (landed: boolean) => void;
@@ -41,6 +44,7 @@ export default function GlassDisc({
   const pause = useRef(paused);
   const replay = useRef(replayToken);
   const seasonRef = useRef(season);
+  const discColorRef = useRef(discColor);
   const pickupRef = useRef(pickupToken);
   const returnRef = useRef(returnToken);
   const landedCallback = useRef(onDiscLanded);
@@ -50,6 +54,7 @@ export default function GlassDisc({
   pause.current = paused;
   replay.current = replayToken;
   seasonRef.current = season;
+  discColorRef.current = discColor;
   pickupRef.current = pickupToken;
   returnRef.current = returnToken;
   landedCallback.current = onDiscLanded;
@@ -108,8 +113,6 @@ export default function GlassDisc({
       const dayFill = new T.Color(0xc9dfe5), nightFill = new T.Color(0x526990);
       const dayGround = new T.Color(0x596545), nightGround = new T.Color(0x222d47);
       const lightScratch = new T.Color();
-      let discMaterial: InstanceType<typeof T.MeshPhysicalMaterial> | null = null;
-      let discGlow: InstanceType<typeof T.MeshBasicMaterial> | null = null;
       const updateLighting = (currentSeason: MeadowSeason) => {
         const dusk = currentSeason === 'autumn' ? 0.78 : 0;
         const night = currentSeason === 'night' ? 1 : 0;
@@ -121,8 +124,6 @@ export default function GlassDisc({
         hemisphere.color.copy(lightScratch.copy(daySky).lerp(nightSky, night));
         hemisphere.groundColor.copy(lightScratch.copy(dayGround).lerp(nightGround, night));
         hemisphere.intensity = (1.5 - winter * 0.42) * (1 - night) + 0.75 * night;
-        if (discMaterial) discMaterial.emissiveIntensity = night ? 1.25 : 0;
-        if (discGlow) discGlow.opacity = night ? 0.78 : 0;
       };
       updateLighting(seasonRef.current);
 
@@ -130,35 +131,70 @@ export default function GlassDisc({
       const attitude = new T.Group();
       const spinner = new T.Group();
       attitude.add(spinner); scene.add(attitude);
+      const initialColor = discColorRef.current;
       const glass = new T.MeshPhysicalMaterial({
-        color: 0xff3d7f, metalness: 0.015, roughness: 0.1,
+        color: initialColor, metalness: 0.015, roughness: 0.1,
         transmission: 0.68, thickness: 0.22, ior: 1.46,
-        emissive: new T.Color(0xff3d7f), emissiveIntensity: 0,
+        emissive: new T.Color(initialColor), emissiveIntensity: 0,
         clearcoat: 1, clearcoatRoughness: 0.08,
-        attenuationColor: new T.Color(0xff3d7f), attenuationDistance: 1.35,
+        attenuationColor: new T.Color(initialColor), attenuationDistance: 1.35,
         transparent: true, opacity: 0.95, side: T.DoubleSide,
       });
-      discMaterial = glass;
       const section = [[0,0.11],[0.6,0.115],[1.3,0.1],[1.72,0.07],[1.88,0.035],[2,0],[2.12,-0.08],[2.19,-0.18],[2.18,-0.29],[2.1,-0.34],[2.02,-0.29],[1.98,-0.17],[1.86,-0.09],[1.5,-0.035],[0.6,0.025],[0,0.035]];
-      spinner.add(new T.Mesh(new T.LatheGeometry(section.map(([x, y]) => new T.Vector2(x, y)), 144), glass));
-      discGlow = new T.MeshBasicMaterial({ color: 0xff3d7f, transparent: true, opacity: 0, blending: T.AdditiveBlending, depthWrite: false, side: T.DoubleSide });
-      const glowRing = new T.Mesh(new T.TorusGeometry(2.24, 0.055, 8, 128), discGlow);
-      glowRing.rotation.x = Math.PI / 2;
-      spinner.add(glowRing);
-      const pink = new T.MeshPhysicalMaterial({ color: 0xff3d7f, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1 });
-      const white = new T.MeshPhysicalMaterial({ color: 0xfff8e8, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.84 });
+      const discGeometry = new T.LatheGeometry(section.map(([x, y]) => new T.Vector2(x, y)), 144);
+      const discBody = new T.Mesh(discGeometry, glass);
+      spinner.add(discBody);
+
+      const pink = new T.MeshPhysicalMaterial({ color: initialColor, metalness: 0.18, roughness: 0.16, transparent: true, opacity: 0.76, clearcoat: 1, emissive: initialColor, emissiveIntensity: 0 });
+      const white = new T.MeshPhysicalMaterial({ color: 0xffffff, metalness: 0.08, roughness: 0.12, transparent: true, opacity: 0.84, emissive: initialColor, emissiveIntensity: 0 });
+      const detailRings: Array<{ mesh: InstanceType<typeof T.Mesh>; highlight: boolean }> = [];
       for (let i = 0; i < 14; i++) {
-        const ring = new T.Mesh(new T.TorusGeometry(1.76 + i * 0.028, i % 4 === 0 ? 0.008 : 0.0045, 6, 128), i % 3 === 0 ? pink : white);
+        const highlight = i % 3 !== 0;
+        const ring = new T.Mesh(new T.TorusGeometry(1.76 + i * 0.028, i % 4 === 0 ? 0.008 : 0.0045, 6, 128), highlight ? white : pink);
         ring.rotation.x = Math.PI / 2;
         ring.position.y = 0.055 - Math.pow(i / 13, 2) * 0.24;
         spinner.add(ring);
+        detailRings.push({ mesh: ring, highlight });
       }
-      const etching = new T.MeshStandardMaterial({ color: 0xff3d7f, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide });
+      const etching = new T.MeshStandardMaterial({ color: initialColor, roughness: 0.33, transparent: true, opacity: 0.58, side: T.DoubleSide, emissive: initialColor, emissiveIntensity: 0 });
+      const etchedMarks: InstanceType<typeof T.Mesh>[] = [];
       for (const [start, arc] of [[0.3, 0.8], [3.4, 0.4]]) {
         const mark = new T.Mesh(new T.RingGeometry(1.56, 1.576, 48, 1, start, arc), etching);
         mark.rotation.x = -Math.PI / 2; mark.position.y = 0.089;
         spinner.add(mark);
+        etchedMarks.push(mark);
       }
+
+      const baseTint = new T.Color();
+      const highlightTint = new T.Color();
+      const etchingTint = new T.Color();
+      let appliedColor = -1;
+      const applyDiscAppearance = (color: number) => {
+        if (appliedColor === color) return;
+        appliedColor = color;
+        baseTint.setHex(color);
+        highlightTint.copy(baseTint).lerp(new T.Color(0xffffff), 0.56);
+        etchingTint.copy(baseTint).multiplyScalar(0.82);
+
+        // All four scenes share the same transparent glass material; only tint changes.
+        glass.color.copy(baseTint);
+        glass.attenuationColor.copy(baseTint);
+        glass.emissive.copy(baseTint);
+        glass.emissiveIntensity = 0;
+
+        pink.color.copy(baseTint);
+        pink.emissive.copy(baseTint);
+        pink.emissiveIntensity = 0;
+        white.color.copy(highlightTint);
+        white.emissive.copy(baseTint);
+        white.emissiveIntensity = 0;
+        etching.color.copy(etchingTint);
+        etching.emissive.copy(baseTint);
+        etching.emissiveIntensity = 0;
+        for (const detail of detailRings) detail.mesh.material = detail.highlight ? white : pink;
+        for (const mark of etchedMarks) mark.material = etching;
+      };
+      applyDiscAppearance(initialColor);
 
       const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
       let reduced = mq.matches;
@@ -169,7 +205,7 @@ export default function GlassDisc({
       let tx = 0, ty = 0, px = 0, py = 0, spinAngle = 0;
       let throwWind = 0;
       let lastSeason: MeadowSeason = seasonRef.current;
-      let zoom = 1, zoomTarget = 1, stepDistance = 0;
+      let zoom = 1, zoomTarget = 1;
       let wipe: { snap: HTMLCanvasElement; t: number } | null = null;
       let soundFx: MeadowSound | null = createMeadowSound();
       let lastGrassTime = 0;
@@ -454,15 +490,20 @@ export default function GlassDisc({
       const onKeyDown = (event: KeyboardEvent) => {
         if (isTyping(event.target)) return;
         const key = event.key.toLowerCase();
-        if (key === 'w' || key === 'a' || key === 's' || key === 'd') keys[key] = true;
+        if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
+          keys[key] = true;
+          soundFx?.resume(seasonRef.current, soundRef.current);
+        }
         if (key === 'e' && !event.repeat) sendBack();
-        if (key === 'w' || key === 'a' || key === 's' || key === 'd') soundFx?.resume();
       };
       const onKeyUp = (event: KeyboardEvent) => {
         const key = event.key.toLowerCase();
         if (key === 'w' || key === 'a' || key === 's' || key === 'd') keys[key] = false;
       };
-      const clearKeys = () => { keys.w = keys.a = keys.s = keys.d = false; };
+      const clearKeys = () => {
+        keys.w = keys.a = keys.s = keys.d = false;
+        soundFx?.setWalking(false, seasonRef.current);
+      };
 
       // Draws the old frame over the new scene, revealed left to right through a soft feathered edge.
       const drawWipe = () => {
@@ -491,7 +532,6 @@ export default function GlassDisc({
       const onWheel = (event: WheelEvent) => {
         if (reduced) return;
         event.preventDefault();
-        soundFx?.resume();
         zoomTarget = Math.min(1.45, Math.max(0.7, zoomTarget * Math.exp(event.deltaY * 0.0012)));
       };
       node.addEventListener('wheel', onWheel, { passive: false });
@@ -508,6 +548,7 @@ export default function GlassDisc({
 
       const tick = (now: number) => {
         const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
+        let walkedThisFrame = false;
         if (seenReplay !== replay.current) {
           seenReplay = replay.current;
           elapsed = reduced ? DISC_FLIGHT_DURATION : 0;
@@ -554,6 +595,9 @@ export default function GlassDisc({
             }
           }
 
+          // Material updates only run when the selected scene or swatch changes.
+          applyDiscAppearance(discColorRef.current);
+
           // Command tokens from the buttons.
           if (seenPickup !== pickupRef.current) { seenPickup = pickupRef.current; pickUp(); }
           if (seenReturn !== returnRef.current) { seenReturn = returnRef.current; sendBack(); }
@@ -565,19 +609,18 @@ export default function GlassDisc({
             const dz = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
             if (dx || dz) {
               const len = Math.hypot(dx, dz);
-              player.x = Math.max(-30, Math.min(30, player.x + dx / len * WALK_SPEED * dt));
-              player.z = Math.max(-95, Math.min(0, player.z + dz / len * WALK_SPEED * dt));
-              if (!discLanded) lockedPosition.add(handPosition().sub(previousHand));
-              stepDistance += WALK_SPEED * dt;
-              if (stepDistance >= STEP_LENGTH) {
-                stepDistance = 0;
-                if (soundRef.current) soundFx?.step(seasonRef.current);
-              }
+              const oldX = player.x, oldZ = player.z;
+              player.x = Math.max(WALK_BOUNDS.minX, Math.min(WALK_BOUNDS.maxX, player.x + dx / len * WALK_SPEED * dt));
+              player.z = Math.max(WALK_BOUNDS.minZ, Math.min(WALK_BOUNDS.maxZ, player.z + dz / len * WALK_SPEED * dt));
+              walkedThisFrame = player.x !== oldX || player.z !== oldZ;
+              if (walkedThisFrame && !discLanded) lockedPosition.add(handPosition().sub(previousHand));
             }
           }
           // Scene change: capture the frame still on screen, then wipe it away to reveal the new scene.
           if (seasonRef.current !== lastSeason) {
             lastSeason = seasonRef.current;
+            updateLighting(lastSeason);
+            applyDiscAppearance(discColorRef.current);
             if (!reduced && renderer.domElement.width > 0) {
               const snap = document.createElement('canvas');
               snap.width = renderer.domElement.width;
@@ -618,6 +661,7 @@ export default function GlassDisc({
             drawWipe();
           }
         }
+        soundFx?.setWalking(walkedThisFrame && soundRef.current, seasonRef.current);
         raf = requestAnimationFrame(tick);
       };
       node.appendChild(renderer.domElement);
@@ -637,7 +681,7 @@ export default function GlassDisc({
         node.removeEventListener('wheel', onWheel);
         soundFx?.dispose(); soundFx = null;
         spinner.traverse(object => { if (object instanceof T.Mesh) object.geometry.dispose(); });
-        glass.dispose(); pink.dispose(); white.dispose(); etching.dispose(); discGlow?.dispose();
+        glass.dispose(); pink.dispose(); white.dispose(); etching.dispose();
         grass.dispose(); env.dispose();
         renderer.dispose(); renderer.domElement.remove(); overlay.remove();
         delete node.dataset.ready; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode;
@@ -651,10 +695,11 @@ export default function GlassDisc({
     return () => { disposed = true; cleanup(); delete node.dataset.fallback; };
   }, []);
 
-  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '玫红色半透明飞盘位于草甸上；可用 WASD 行走，落地后按 E 或点击一键飞回，将飞盘收回当前位置' : 'A rose-magenta disc over a meadow; walk with WASD, and press E or Fly back to recall the landed disc to your current position'}>
+  const discColorCss = `#${discColor.toString(16).padStart(6, '0')}`;
+  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '季节配色飞盘位于草甸上；可用 WASD 行走，落地后按 E 或点击一键飞回，将飞盘收回当前位置' : 'A season-colored disc over a meadow; walk with WASD, and press E or Fly back to recall the landed disc to your current position'}>
     <svg className="aero-fallback" viewBox="0 0 800 500" aria-hidden="true">
-      <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill="#ff3d7f" fillOpacity=".92" stroke="#1b1a2e" strokeWidth="5"/>
-        {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff8e8':'#ff3d7f'} strokeWidth={i%3 ? 2:3}/>)}</g>
+      <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill={discColorCss} fillOpacity=".92" stroke="#1b1a2e" strokeWidth="5"/>
+        {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff8e8' : discColorCss} strokeWidth={i%3 ? 2:3}/>)}</g>
     </svg>
     <span className="aero-disc-hint" aria-hidden="true">
       <span className="aero-hint-desktop">{lang === 'zh' ? '点击查看并调整盘体倾斜，再点锁定后甩出；WASD 行走，按 E 让落地飞盘飞回当前位置' : 'Inspect, lock, then throw; walk with WASD and press E to recall the landed disc to your current position'}</span>

@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import type { MeadowSeason } from './meadow-season';
+import { defaultDiscColor, randomDiscColor } from './disc-palette';
 import GlassDisc from './GlassDisc';
 import SiteHeader from './SiteHeader';
 import { useI18n } from '@/i18n/I18nProvider';
@@ -16,6 +17,7 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
   const [paused, setPaused] = useState(false);
   const [replayToken, setReplayToken] = useState(0);
   const [season, setSeason] = useState<MeadowSeason>('summer');
+  const [discColor, setDiscColor] = useState(() => defaultDiscColor('summer'));
   const [discLanded, setDiscLanded] = useState(false);
   const [nearDisc, setNearDisc] = useState(false);
   const [pickupToken, setPickupToken] = useState(0);
@@ -44,7 +46,12 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
     setReplayToken(value => value + 1);
   };
 
-  const nextScene = () => setSeason(current => SCENES[(SCENES.indexOf(current) + 1) % SCENES.length]);
+  const nextScene = () => {
+    const next = SCENES[(SCENES.indexOf(season) + 1) % SCENES.length];
+    setSeason(next);
+    setDiscColor(defaultDiscColor(next));
+  };
+  const randomColor = () => setDiscColor(current => randomDiscColor(season, current));
 
   return <main className="aero-home aero-playground">
     <a className="aero-skip" href="#aero-controls">{zh ? '跳至试玩控制' : 'Skip to playground controls'}</a>
@@ -54,6 +61,7 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         paused={paused}
         replayToken={replayToken}
         season={season}
+        discColor={discColor}
         pickupToken={pickupToken}
         returnToken={returnToken}
         onDiscLanded={setDiscLanded}
@@ -84,6 +92,13 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
             <span>{zh ? '一键飞回' : 'Fly back'}</span>
           </button>
         )}
+        <button className="aero-play-control" type="button" onClick={randomColor}>
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l10 10h3M17 7h3v3M4 17h3L17 7h3M4 7l3 0" /></svg>
+          <span>{zh ? '随机颜色' : 'Random color'}</span>
+        </button>
+        <button className="aero-play-control" type="button" onClick={() => setDiscColor(defaultDiscColor(season))}>
+          <span>{zh ? '默认颜色' : 'Default'}</span>
+        </button>
         <button className="aero-play-control" type="button" onClick={replayFlight}>
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>
           <span>{zh ? '再飞一次' : 'Replay'}</span>

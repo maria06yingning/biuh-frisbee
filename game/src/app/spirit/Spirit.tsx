@@ -141,12 +141,12 @@ export default function Spirit() {
       <Section
         id="wheel"
         label={zh ? 'WFDF 赛后评分的五个维度' : 'WFDF’s five post-game categories'}
-        heading={zh ? '五个问题，回看整场比赛。' : 'Five questions for the whole game.'}
-        intro={zh ? '选择轮盘扇区，查看官方评分问题与场上例子；下方评分表会同步定位到同一项。' : 'Select a sector to read the official scoring question and a field example; the scorecard below follows the same category.'}
+        heading={zh ? '五个维度，回看整场比赛。' : 'Five categories for the whole game.'}
+        intro={zh ? '选择扇区查看场上观察细则；下方评分表保留 WFDF 官方评分问题与 0–4 分操作。' : 'Choose a sector for practical observation prompts; the scorecard below keeps WFDF’s official questions and 0–4 scale.'}
         full
       >
         <SpiritWheel selected={activeCategory} onSelect={setActiveCategory} />
-        <p className="ap-spirit-source">{zh ? <>原则、评分问题与行为示例依据 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>。五项 0–4 评分及“2 分为好”的说明参考 <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF 官方评分说明</a>。</> : <>Categories, questions and examples follow the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a>. The 0–4 scale and “2 = good” baseline are referenced from <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF’s scoring announcement</a>.</>}</p>
+        <p className="ap-spirit-source">{zh ? <>评分维度与五项问题依据 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>；轮盘中的场上观察提示是按官方原则整理的应用说明。0–4 分量表及“2 分为好”的说明参考 <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF 官方评分说明</a>。</> : <>The categories and five questions follow the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a>; the wheel’s field prompts are practical interpretations of its principles. The 0–4 scale and “2 = good” baseline are referenced from <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF’s scoring announcement</a>.</>}</p>
       </Section>
 
       <Section
