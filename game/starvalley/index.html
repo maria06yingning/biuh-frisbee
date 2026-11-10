@@ -154,10 +154,14 @@
 <script type="module">
 import * as THREE from 'three';
 
-window.addEventListener('error', e=>{
+const EMBED_OPTIONS = window.__UF_STARVALLEY_OPTIONS || null;
+const EMBED_MODE = Boolean(EMBED_OPTIONS);
+const onEngineError = e=>{
+  if(EMBED_MODE){ console.error('[Starvalley]', e.error || e.message); return; }
   const el=document.getElementById('err'); el.style.display='block';
   el.textContent += '\n' + (e.error && e.error.stack ? e.error.stack : e.message);
-});
+};
+window.addEventListener('error', onEngineError);
 
 /*═══════════════════════════════════════════════════════════════════════════════
   HOSHI-NO-TANI  ·  a procedural Ghibli valley
@@ -259,7 +263,7 @@ const RINGS = [
 /*──────────────────────────────── §0b PALETTE ────────────────────────────────*/
 // Every colour in the film, in one place.  sRGB hex -> linear at load.
 
-const P = {
+const P_BASE = {
   // sky & air
   skyZenith:'#4E80B4', skyUpper:'#7BA9CE', skyMid:'#A8CAE0', skyHorizon:'#E4DAC2',
   skyHorizonSun:'#FBE2AE', sunGlow:'#FFF1CE', sunDisc:'#FFFAEA', skyAnti:'#C8D4D6',
@@ -296,6 +300,93 @@ const P = {
   // light
   sun:'#FFD79C', ambSky:'#9EC6E6', ambGround:'#AA9C64', shadowTint:'#5C6E9E',
 };
+
+// Select with ?style=summer|autumn|winter|night.  Summer stays byte-for-byte
+// identical to the original palette; each other mode only changes colour and
+// light-strength constants, not terrain, movement, or scene-generation logic.
+const PALETTE_OVERRIDES = {
+  summer: {},
+  autumn: {
+    skyZenith:'#536D82', skyUpper:'#839CA6', skyMid:'#C2B293', skyHorizon:'#E4C081',
+    skyHorizonSun:'#F4BD70', sunGlow:'#FFD290', sunDisc:'#FFF0D3', skyAnti:'#77899A',
+    haze:'#B0A28A', mist:'#C5B79F',
+    cloudTop:'#F6E8D0', cloudBody:'#DFC7A8', cloudTerm:'#BB9271', cloudUnder:'#796779',
+    cloudCore:'#5D4D5D', cloudRim:'#FFD796', cirrus:'#D7C4A6',
+    gTip:'#E8BB63', gUpper:'#C88B42', gMid:'#A6633B', gLow:'#76513F', gBase:'#463D39',
+    gTrans:'#F2CF84', gSheen:'#F0D393', gDry:'#C99954',
+    gPatchA:'#BE803F', gPatchB:'#946B45', gPatchC:'#DDA750', gPatchD:'#6D7750',
+    tLit:'#B99157', tMid:'#8E7049', tShade:'#635442', tHollow:'#41413B',
+    ridgeNear:'#918B7C', ridgeMid:'#A49B89', ridgeFar:'#B3A996', ridgeFurthest:'#C2B9A8',
+    pathLit:'#C5A578', pathShade:'#75604A', rockLit:'#B7A286', rockShade:'#574B44', bounce:'#B68B4E',
+    wShallow:'#91B1AA', wMid:'#56858A', wDeep:'#305A66', wDeepShade:'#274955',
+    wSpark:'#F5EBD5', wFoam:'#E7E7DB', wetStone:'#707B73',
+    cLit:'#C78A41', cMid:'#9D6339', cShade:'#68493A', cDeep:'#433A3B', cTrans:'#E7B456',
+    cVarA:'#D69A45', cVarB:'#A85E36', cVarC:'#C5A24F',
+    trunkLit:'#92704F', trunkShade:'#514238',
+    roofA:'#B96A4C', roofB:'#9C5943', roofSlate:'#625F68', thatch:'#B78F54',
+    sun:'#F6BF70', ambSky:'#9DB0C1', ambGround:'#A8794A', shadowTint:'#514E67',
+  },
+  winter: {
+    skyZenith:'#506B8C', skyUpper:'#8AA8C1', skyMid:'#C5D6E1', skyHorizon:'#E3DFD5',
+    skyHorizonSun:'#F2D9BE', sunGlow:'#FFF0DB', sunDisc:'#FCF7EC', skyAnti:'#899EAF',
+    haze:'#A8BDCD', mist:'#D7E1E5',
+    cloudTop:'#F5F8F8', cloudBody:'#DDE8EB', cloudTerm:'#B9CDD6', cloudUnder:'#879BAE',
+    cloudCore:'#667D93', cloudRim:'#F3E7D6', cirrus:'#DCE7EB',
+    gTip:'#EDF6F4', gUpper:'#CADCE1', gMid:'#9AB5C2', gLow:'#667F91', gBase:'#3D5668',
+    gTrans:'#D7E9EF', gSheen:'#F4F8F5', gDry:'#C9BEA9',
+    gPatchA:'#8DA7AF', gPatchB:'#6E8B96', gPatchC:'#D2E0DE', gPatchD:'#AEBFC2',
+    tLit:'#C5D6D8', tMid:'#97ADB7', tShade:'#637D8C', tHollow:'#415A6A',
+    ridgeNear:'#A4B9C2', ridgeMid:'#B8C9D0', ridgeFar:'#CBD7DC', ridgeFurthest:'#D9E1E3',
+    pathLit:'#D0D6D2', pathShade:'#6B7782', rockLit:'#B8C4C9', rockShade:'#596771', bounce:'#829CAA',
+    wShallow:'#9BC3D1', wMid:'#5D94A8', wDeep:'#315A70', wDeepShade:'#274455',
+    wSpark:'#EAF5F7', wFoam:'#E2EFF3', wetStone:'#7C929C',
+    sA:'#B9C5C8', sB:'#A9B8BF', sC:'#D0D9D8', sD:'#A4B2B8',
+    sShade:'#64727B', sDeep:'#4D5D69', mortar:'#98A6AC', moss:'#758B7F', lichen:'#C1D0CB',
+    cLit:'#718E9B', cMid:'#536E7E', cShade:'#384E60', cDeep:'#263B4C', cTrans:'#BCD2D7',
+    cVarA:'#829BA3', cVarB:'#5E7988', cVarC:'#A8B8B5',
+    trunkLit:'#9C9287', trunkShade:'#625D5B',
+    roofA:'#7E8790', roofB:'#6C7784', roofSlate:'#596A79', thatch:'#A6A59B',
+    wallA:'#D9E1DE', wallB:'#BCC9CC', timber:'#5D6670', windowGlow:'#F5D7A2',
+    sun:'#F0DEBB', ambSky:'#A4C4DC', ambGround:'#A0ADB3', shadowTint:'#435A78',
+  },
+  night: {
+    skyZenith:'#0B1224', skyUpper:'#131E36', skyMid:'#202B45', skyHorizon:'#3D465B',
+    skyHorizonSun:'#59465D', sunGlow:'#7186B1', sunDisc:'#D6E5FF', skyAnti:'#1A2741',
+    haze:'#1B253C', mist:'#242E46',
+    cloudTop:'#4C5D78', cloudBody:'#37465E', cloudTerm:'#2B3951', cloudUnder:'#202D45',
+    cloudCore:'#121D33', cloudRim:'#93A6CD', cirrus:'#33435E',
+    gTip:'#8FA3C6', gUpper:'#687EA7', gMid:'#4C6085', gLow:'#344866', gBase:'#202E49',
+    gTrans:'#AFC2E4', gSheen:'#7086AF', gDry:'#867B7A',
+    gPatchA:'#536A89', gPatchB:'#3A4E70', gPatchC:'#7B8FAF', gPatchD:'#344C61',
+    tLit:'#465B78', tMid:'#344763', tShade:'#27364E', tHollow:'#1A293E',
+    ridgeNear:'#394C68', ridgeMid:'#2E405C', ridgeFar:'#243550', ridgeFurthest:'#1A2A45',
+    pathLit:'#4F4A53', pathShade:'#2A2D3E', rockLit:'#687184', rockShade:'#2D3344', bounce:'#55566E',
+    wShallow:'#314E68', wMid:'#213C59', wDeep:'#142A42', wDeepShade:'#0C1D34',
+    wSpark:'#A5C7E7', wFoam:'#6685A5', wetStone:'#384B63',
+    sA:'#42495B', sB:'#394256', sC:'#505769', sD:'#333C51',
+    sShade:'#202A3C', sDeep:'#141D30', mortar:'#323D50', moss:'#33443F', lichen:'#63766C',
+    cLit:'#465B54', cMid:'#34493F', cShade:'#25383A', cDeep:'#172B35', cTrans:'#789789',
+    cVarA:'#586A5B', cVarB:'#2E453F', cVarC:'#66745A',
+    trunkLit:'#4B4243', trunkShade:'#272A38',
+    roofA:'#523F4B', roofB:'#433744', roofSlate:'#2A3549', thatch:'#5B4D4F',
+    wallA:'#62677A', wallB:'#444C63', timber:'#2B3348', windowGlow:'#F2C879',
+    boiler:'#1C2837', boilerLit:'#2B3A4C', boilerRim:'#667B91', livery:'#623E46',
+    brass:'#8F794D', carBody:'#2D4947', carBand:'#A89A80', carWin:'#E9C487',
+    smokeNew:'#68758B', smokeOld:'#303B53',
+    sun:'#9DADD4', ambSky:'#50688F', ambGround:'#61536E', shadowTint:'#141C37',
+  },
+};
+const PALETTE_RENDER = {
+  summer: { sun:1.00, ambient:1.00, stars:0.00 },
+  autumn: { sun:0.94, ambient:1.00, stars:0.00 },
+  winter: { sun:0.90, ambient:1.08, stars:0.00 },
+  night:  { sun:0.56, ambient:0.82, stars:1.00 },
+};
+const requestedStyle = (EMBED_MODE ? 'summer' : (new URLSearchParams(location.search).get('style') || 'summer')).toLowerCase();
+const PALETTE_STYLE = Object.prototype.hasOwnProperty.call(PALETTE_OVERRIDES, requestedStyle)
+  ? requestedStyle : 'summer';
+const STYLE_LIGHT = PALETTE_RENDER[PALETTE_STYLE];
+const P = Object.assign({}, P_BASE, PALETTE_OVERRIDES[PALETTE_STYLE]);
 
 // hex -> THREE.Color (linear) and -> vec3 literal for glsl injection
 const LIN = {};
@@ -478,11 +569,27 @@ const vec3 K_C_TERM     = ${C.cloudTerm};
 const vec3 K_C_UNDER    = ${C.cloudUnder};
 const vec3 K_C_CORE     = ${C.cloudCore};
 const vec3 K_C_RIM      = ${C.cloudRim};
-const float SUN_I = 1.38;
+const float SUN_GAIN = ${STYLE_LIGHT.sun.toFixed(2)};
+const float AMBIENT_GAIN = ${STYLE_LIGHT.ambient.toFixed(2)};
+const float STAR_GAIN = ${STYLE_LIGHT.stars.toFixed(2)};
+const float NIGHT_STYLE = ${STYLE_LIGHT.stars.toFixed(2)};
 `;
 
 // ── sky: a painted gradient, not a scattering integral ──────────────────────
 const GL_SKY = /* glsl */`
+float starField(vec3 d){
+  float visible = smoothstep(-0.02, 0.16, d.y);
+  if(visible <= 0.001) return 0.0;
+  vec2 p = vec2(atan(d.x, d.z)*150.0, asin(clamp(d.y,-1.0,1.0))*145.0);
+  vec2 cell = floor(p);
+  vec2 local = fract(p) - 0.5;
+  float seed = hash12(cell + vec2(17.1,61.7));
+  float present = step(0.996, seed);
+  float radius = mix(0.035, 0.15, pow(hash11(seed*103.1), 6.0));
+  float core = 1.0 - smoothstep(radius*0.30, radius, length(local));
+  float twinkle = 0.82 + 0.18*sin(uTime*(1.3+seed*1.5) + seed*73.1);
+  return core * present * twinkle * visible * STAR_GAIN;
+}
 vec3 skyDome(vec3 d, out float sunMask){
   float y  = d.y;
   float yy = max(y, -0.18);
@@ -503,11 +610,14 @@ vec3 skyDome(vec3 d, out float sunMask){
   float ang = dot(d, uSunDir);
   float halo = pow(max(ang, 0.0), 7.0);
   float wide = pow(max(ang, 0.0), 1.9);
-  col = mix(col, K_SUN_GLOW, clamp(halo*0.72 + wide*0.16, 0.0, 0.9));
+  float haloGain = mix(1.0, 0.28, NIGHT_STYLE);
+  col = mix(col, K_SUN_GLOW, clamp((halo*0.72 + wide*0.16)*haloGain, 0.0, 0.9));
 
-  // sun disc (painted 3x oversize, never blown out)
-  sunMask = smoothstep(0.99977, 0.99992, ang);
-  col = mix(col, K_SUN_DISC*1.9, sunMask);
+  // The same small disc becomes a cool moon in night mode.
+  float discLo = mix(0.99977, 0.99995, NIGHT_STYLE);
+  float discHi = mix(0.99992, 0.999985, NIGHT_STYLE);
+  sunMask = smoothstep(discLo, discHi, ang);
+  col = mix(col, K_SUN_DISC*mix(1.9,1.35,NIGHT_STYLE), sunMask);
 
   // thin cirrus streaks, sheared by the upper wind
   float cd = smoothstep(0.035, 0.30, yy);
@@ -518,6 +628,11 @@ vec3 skyDome(vec3 d, out float sunMask){
     float ci = fbm2(vec2(sp.x*0.55, sp.y*3.4) + w*0.6, 4);
     ci = smoothstep(0.10, 0.44, ci) * cd * (0.30 + 0.5*pow(max(ang,0.0),1.4));
     col = mix(col, ${C.cirrus}*(0.92+0.55*pow(max(ang,0.0),3.0)), ci*0.55*uCloudAmount);
+  }
+  if(STAR_GAIN > 0.5){
+    vec2 starCell = floor(vec2(atan(d.x,d.z)*150.0, asin(clamp(d.y,-1.0,1.0))*145.0));
+    vec3 starTint = mix(vec3(0.58,0.73,0.95), vec3(0.96,0.87,0.74), hash12(starCell+vec2(7.0,19.0))*0.24);
+    col += starTint * starField(d) * 0.88;
   }
   return col;
 }
@@ -538,7 +653,9 @@ vec3 skyDomeLite(vec3 d){
   col = mix(col, K_SKY_ANTI,   horiz*(1.0-az)*0.62);
   col = mix(col, K_SKY_HORSUN, horiz*pow(az, 2.1)*0.92);
   float ang = max(dot(d, uSunDir), 0.0);
-  col = mix(col, K_SUN_GLOW, clamp(pow(ang,7.0)*0.72 + pow(ang,1.9)*0.16, 0.0, 0.9));
+  float haloGain = mix(1.0, 0.28, NIGHT_STYLE);
+  col = mix(col, K_SUN_GLOW, clamp((pow(ang,7.0)*0.72 + pow(ang,1.9)*0.16)*haloGain, 0.0, 0.9));
+  if(STAR_GAIN > 0.5) col += vec3(0.58,0.73,0.95) * starField(d) * 0.42;
   return col;
 }
 `;
@@ -648,7 +765,7 @@ vec3 paint(Surf s){
   vec3  col  = ramp3(t, s.shade, s.mid, s.lit, s.soft, jit);
 
   float litAmt = smoothstep(0.34, 0.86, t);
-  col *= mix(vec3(0.94), K_SUN * 1.32, litAmt * 0.62);
+  col *= mix(vec3(0.94), K_SUN * 1.32, litAmt * 0.62) * SUN_GAIN;
 
   // shadows change hue, they do not go black
   col = mix(col*0.80 + K_SHADOW*0.040, col, s.shadow*0.82 + 0.18);
@@ -659,12 +776,12 @@ vec3 paint(Surf s){
   vec3 hemi = mix(K_AMB_GND, K_AMB_SKY, s.N.y*0.5 + 0.5);
   vec3 hueOnly = hemi / max(dot(hemi, vec3(0.2126,0.7152,0.0722)), 1e-3);
   col *= mix(vec3(1.0), hueOnly, 0.22 * s.ambient * (1.0 - litAmt*0.55));
-  col += hemi * 0.052 * s.ambient * s.ao * (1.0 - litAmt*0.85);
+  col += hemi * 0.052 * AMBIENT_GAIN * s.ambient * s.ao * (1.0 - litAmt*0.85);
 
   // backlight rim — the connective tissue of the whole image
   float back = smoothstep(0.05, 0.85, dot(s.V, -uSunDir));
   float fres = pow(1.0 - clamp(dot(s.N, s.V), 0.0, 1.0), 4.2);
-  col += K_SUN * (fres * back * s.rim * 1.15 * s.shadow);
+  col += K_SUN * (fres * back * s.rim * 1.15 * s.shadow) * SUN_GAIN;
 
   // subsurface transmission (grass, leaves, smoke)
   if(s.trans > 0.001){
@@ -1918,6 +2035,9 @@ uniform vec4  uLod;            // near, nearWidth, far, farWidth
 uniform vec3  uLodB;           // widthBoost(angular), heightScale, ringDistance
 uniform float uWindGain;
 uniform float uPlayerPush;
+uniform vec3 uDiscPosition;
+uniform vec2 uDiscVelocity;
+uniform float uDiscInfluence;
 ${GL_HASH}${GL_NOISE}${GL_TERRAIN}${GL_WIND}
 in vec2 iPos;
 ${ depthOnly ? '' : `
@@ -2067,6 +2187,21 @@ void main(){
 
   // quasi-static equilibrium of recovery + gravity + wind (Hooke)
   vec3 v2 = iv2 + (gv + wf) / max(stiff, 0.18);
+
+  // A thrown disc adds a short-lived pressure ring and a tapered travel wake.
+  vec2 discDelta = wxz - uDiscPosition.xz;
+  float discDistanceSq = dot(discDelta, discDelta);
+  float discSpeed = length(uDiscVelocity);
+  vec2 discDirection = discSpeed > 0.2 ? uDiscVelocity / discSpeed : normalize(discDelta + vec2(1e-5));
+  float discHeightFade = exp(-max(uDiscPosition.y - ground, 0.0) * 0.12);
+  float discPressure = exp(-discDistanceSq * 0.028) * uDiscInfluence * discHeightFade;
+  float discAlong = dot(discDelta, discDirection);
+  float crossTrack = abs(discDelta.x * discDirection.y - discDelta.y * discDirection.x);
+  float discWake = exp(-crossTrack * crossTrack * 0.045 - max(-discAlong, 0.0) * 0.075)
+    * step(discAlong, -0.01) * smoothstep(0.15, 0.8, discSpeed) * uDiscInfluence;
+  vec2 discFlow = discDirection * (discPressure * 0.75 + discWake * 0.95)
+    + normalize(discDelta + vec2(1e-5)) * discPressure * 0.35;
+  v2 += vec3(discFlow.x, 0.0, discFlow.y) * hgt * 0.42;
 
   // ── ringing: a gust front leaves the blade quivering at its own frequency
   float fB = 1.85 + rS*1.55;
@@ -2284,6 +2419,9 @@ class GrassField {
         uLodB:      { value:new THREE.Vector3(0.0011*R.wpx, R.hs, R.dn) },
         uWindGain:  { value:0.235 },
         uPlayerPush:{ value: li===0 ? 1.0 : 0.0 },
+        uDiscPosition:{ value:new THREE.Vector3() },
+        uDiscVelocity:{ value:new THREE.Vector2() },
+        uDiscInfluence:{ value:0 },
       });
       // ONE material for the whole ring: three then sorts its chunks by depth
       // (same material id -> sort falls through to z), giving front-to-back
@@ -2361,6 +2499,13 @@ class GrassField {
   setAngular(angPerPx){
     for(let i=0;i<this.rings.length;i++)
       this.rings[i].uni.uLodB.value.x = angPerPx * RINGS[i].wpx;
+  }
+  setDisc(position, velocity, influence){
+    for(const ring of this.rings){
+      ring.uni.uDiscPosition.value.set(position.x, position.y, position.z);
+      ring.uni.uDiscVelocity.value.set(velocity.x, velocity.z);
+      ring.uni.uDiscInfluence.value = influence;
+    }
   }
   update(cam, frustum){
     const cp = cam.position;
@@ -4338,7 +4483,7 @@ const COMPOSITE_FS = ()=> /* glsl */`
 precision highp float;
 uniform sampler2D uScene, uBloom, uSoft;
 uniform vec2  uRes;
-uniform float uTime, uExposure, uBloomAmt, uPaint, uCA, uVignette, uGrain;
+uniform float uTime, uExposure, uBloomAmt, uPaint, uCA, uVignette, uGrain, uSeasonTone;
 ${GL_SAFE}${GL_HASH}${GL_NOISE}
 ${GL_PAL()}
 in vec2 vUv; out vec4 outColor;
@@ -4440,6 +4585,18 @@ void main(){
   l = luma(c);
   float satBoost = 1.0 + 0.16*uPaint*smoothstep(0.10,0.42,l)*(1.0-smoothstep(0.62,0.96,l));
   c = mix(vec3(l), c, satBoost);
+
+  // Homepage season switching is applied after the shared Starvalley scene render.
+  float autumnTone = 1.0 - smoothstep(0.28, 0.72, abs(uSeasonTone - 1.0));
+  float winterTone = 1.0 - smoothstep(0.28, 0.72, abs(uSeasonTone - 2.0));
+  float nightTone  = 1.0 - smoothstep(0.28, 0.72, abs(uSeasonTone - 3.0));
+  float toneLuma = luma(c);
+  vec3 autumnColor = c * vec3(1.12, 0.91, 0.72) + vec3(0.035, 0.012, 0.0) * toneLuma;
+  vec3 winterColor = mix(vec3(toneLuma), c * vec3(0.88, 0.98, 1.12), 0.66);
+  vec3 nightColor = c * vec3(0.40, 0.54, 0.82) + pow(max(c, vec3(0.0)), vec3(2.0)) * vec3(0.12, 0.13, 0.16);
+  c = mix(c, autumnColor, autumnTone * 0.78);
+  c = mix(c, winterColor, winterTone * 0.82);
+  c = mix(c, nightColor, nightTone * 0.82);
 
   // ── paper tooth ────────────────────────────────────────────────────────
   // two gradient-noise evaluations, not four: this is a +/-3% multiplier on the
@@ -4624,7 +4781,7 @@ class Walker {
    arrive a beat before you see the near blades move.                         */
 
 class Audio {
-  constructor(){ this.ok=false; this.vol=0.7; this.music=true; }
+  constructor(){ this.ok=false; this.enabled=true; this.vol=0.7; this.music=true; this.suspendTimer=null; }
   init(){
     if(this.ok) return;
     const AC = window.AudioContext || window.webkitAudioContext;
@@ -4636,7 +4793,7 @@ class Audio {
     const comp = ctx.createDynamicsCompressor();
     comp.threshold.value=-16; comp.knee.value=22; comp.ratio.value=3.2;
     comp.attack.value=0.02; comp.release.value=0.35;
-    const master = this.master = ctx.createGain(); master.gain.value=this.vol;
+    const master = this.master = ctx.createGain(); master.gain.value=this.enabled?this.vol:0;
     const warm = ctx.createBiquadFilter(); warm.type='lowshelf'; warm.frequency.value=220; warm.gain.value=2.5;
     const air  = ctx.createBiquadFilter(); air.type='highshelf'; air.frequency.value=9000; air.gain.value=-3;
     master.connect(warm); warm.connect(air); air.connect(comp); comp.connect(ctx.destination);
@@ -4773,11 +4930,28 @@ class Audio {
 
     this.ok=true;
   }
-  resume(){ if(this.ok && this.ctx.state==='suspended') this.ctx.resume(); }
+  resume(){ if(this.ok && this.ctx.state==='suspended') void this.ctx.resume().catch(()=>undefined); }
+  setEnabled(enabled){
+    const next=Boolean(enabled);
+    if(this.enabled===next) return;
+    this.enabled=next;
+    if(!this.ok) return;
+    clearTimeout(this.suspendTimer);
+    this.master.gain.setTargetAtTime(next?this.vol:0, this.ctx.currentTime, 0.08);
+    if(!next) this.suspendTimer=setTimeout(()=>{
+      this.suspendTimer=null;
+      if(!this.enabled && this.ctx.state==='running') void this.ctx.suspend().catch(()=>undefined);
+    }, 350);
+  }
+  dispose(){
+    clearTimeout(this.suspendTimer); this.suspendTimer=null;
+    if(this.ctx) void this.ctx.close().catch(()=>undefined);
+    this.ok=false;
+  }
 
   // ── one-shots ─────────────────────────────────────────────────────────
   chuff(level, pan, cut){
-    if(!this.ok) return;
+    if(!this.ok || !this.enabled) return;
     const ctx=this.ctx, t=ctx.currentTime;
     const s=ctx.createBufferSource(); s.buffer=this.nWhite;
     s.playbackRate.value=0.8+Math.random()*0.4;
@@ -4794,7 +4968,7 @@ class Audio {
     s.start(t); s.stop(t+0.34);
   }
   whistle(level){
-    if(!this.ok) return;
+    if(!this.ok || !this.enabled) return;
     const ctx=this.ctx, t=ctx.currentTime;
     // a real steam whistle is a chord: root, minor third, fifth, slightly detuned
     const root=452, ratios=[1, 1.189, 1.498, 2.002];
@@ -4827,7 +5001,7 @@ class Audio {
     s.connect(nb); nb.connect(ng); ng.connect(out); s.start(t); s.stop(t+2.5);
   }
   footstep(spd, onStone){
-    if(!this.ok) return;
+    if(!this.ok || !this.enabled) return;
     const ctx=this.ctx, t=ctx.currentTime;
     const s=ctx.createBufferSource(); s.buffer=this.nWhite; s.loop=true;
     s.loopStart=Math.random()*5;
@@ -4847,7 +5021,7 @@ class Audio {
     s.start(t); s.stop(t+0.24);
   }
   bird(){
-    if(!this.ok) return;
+    if(!this.ok || !this.enabled) return;
     const ctx=this.ctx, t=ctx.currentTime;
     const pan=ctx.createStereoPanner(); pan.pan.value=(Math.random()*2-1)*0.8;
     pan.connect(this.birds);
@@ -4871,7 +5045,7 @@ class Audio {
     }
   }
   note(freq, level, dur){
-    if(!this.ok) return;
+    if(!this.ok || !this.enabled) return;
     const ctx=this.ctx, t=ctx.currentTime;
     const out=ctx.createGain(); out.gain.value=1; out.connect(this.mus);
     const parts=[1,2,3,4.02,5.05,6.1,8.2], amps=[1,0.42,0.24,0.14,0.09,0.05,0.03];
@@ -4889,7 +5063,7 @@ class Audio {
 
   // ── per-frame ─────────────────────────────────────────────────────────
   update(dt, cam, walker, state){
-    if(!this.ok) return;
+    if(!this.ok || !this.enabled) return;
     const ctx=this.ctx, t=ctx.currentTime;
     this.master.gain.value += (this.vol - this.master.gain.value)*clamp(dt*3,0,1);
 
@@ -4975,23 +5149,30 @@ class Audio {
 /*──────────────────────────── §15  BOOT & MAIN LOOP ────────────────────────*/
 
 const $ = s=>document.querySelector(s);
-const setStat=(s,p)=>{ $('#stat').textContent=s; if(p!==undefined) $('#barIn').style.width=(p*100).toFixed(0)+'%'; };
+const setStat=(s,p)=>{ if(EMBED_MODE) return; $('#stat').textContent=s; if(p!==undefined) $('#barIn').style.width=(p*100).toFixed(0)+'%'; };
 const idle = ()=> new Promise(r=>requestAnimationFrame(()=>setTimeout(r,0)));
 
-const renderer = new THREE.WebGLRenderer({ antialias:false, powerPreference:'high-performance',
+const renderer = EMBED_MODE ? EMBED_OPTIONS.renderer : new THREE.WebGLRenderer({ antialias:false, powerPreference:'high-performance',
   stencil:false, alpha:false });
-renderer.setClearColor(0x0e1219, 1);
-renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // we encode sRGB ourselves
-renderer.autoClear = false;
-$('#app').appendChild(renderer.domElement);
+if(!EMBED_MODE){
+  renderer.setClearColor(0x0e1219, 1);
+  renderer.outputColorSpace = THREE.LinearSRGBColorSpace;   // we encode sRGB ourselves
+  renderer.autoClear = false;
+  $('#app').appendChild(renderer.domElement);
+}
 const gl = renderer.getContext();
 const hasFloatLinear = !!gl.getExtension('OES_texture_float_linear');
 gl.getExtension('EXT_color_buffer_float');
 gl.getExtension('EXT_color_buffer_half_float');
 gl.getExtension('EXT_float_blend');
 
-const scene  = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(CFG.fov, 1, 0.12, 14000);
+const scene  = EMBED_MODE ? EMBED_OPTIONS.scene : new THREE.Scene();
+const worldGroup = new THREE.Group();
+worldGroup.name = 'starvalley-world';
+worldGroup.visible = false;
+worldGroup.userData.starvalleyWorld = true;
+scene.add(worldGroup);
+const camera = EMBED_MODE ? EMBED_OPTIONS.camera : new THREE.PerspectiveCamera(CFG.fov, 1, 0.12, 14000);
 const sunCam = new THREE.OrthographicCamera(-1,1,1,-1, 1, 1400);
 sunCam.matrixWorldAutoUpdate = true;
 const reflCam = new THREE.PerspectiveCamera(CFG.fov, 1, 0.12, 14000);
@@ -5067,14 +5248,14 @@ const postMat = (fs, uni)=> new THREE.RawShaderMaterial({
   fragmentShader:'precision highp float;\n'+fs, uniforms:uni, glslVersion:THREE.GLSL3, depthTest:false, depthWrite:false });
 
 /*──────── state ────────*/
-const QS = new URLSearchParams(location.search);
+const QS = new URLSearchParams(EMBED_MODE ? '' : location.search);
 const State = {
-  q: QS.has('q') ? clamp(+QS.get('q'),0,3) : 1,
+  q: EMBED_MODE ? 0 : QS.has('q') ? clamp(+QS.get('q'),0,3) : 1,
   density: QS.has('d') ? +QS.get('d') : 1.0,
   scale:   QS.has('s') ? +QS.get('s') : 1.0,
-  exposure:1.0, bloom:1.0, paint:1.0,
-  autoQ: !QS.has('q'),
-  showWind:false, paused:false, running:false,
+  exposure:1.0, bloom:1.0, paint:1.0, seasonTone:0,
+  autoQ: !EMBED_MODE && !QS.has('q'),
+  showWind:false, paused:false, running:false, audioEnabled:!EMBED_MODE,
   fps:60, frameMs:16, adapt:1.0,
   trainActive:false, trainDist:999, trainPan:0, grassNear:1,
 };
@@ -5155,7 +5336,7 @@ async function boot(){
       all of it painted over by the valley.                                    */
   skyMesh = new THREE.Mesh(new THREE.BoxGeometry(2,2,2),
     RSM(SKY_VS, SKY_FS(), U(), {side:THREE.BackSide, depthWrite:false, depthTest:true}));
-  skyMesh.frustumCulled=false; skyMesh.renderOrder=9; scene.add(skyMesh);
+  skyMesh.frustumCulled=false; skyMesh.renderOrder=9; worldGroup.add(skyMesh);
   skyMesh.userData.noCast=true;
 
   /*── distant ridges ──*/
@@ -5174,7 +5355,7 @@ async function boot(){
         uMix:{value:d.mix}, uBaseY:{value:d.y},
       }), {side:THREE.DoubleSide}));
     m.frustumCulled=false; m.renderOrder=-500; m.userData.noCast=true;
-    scene.add(m); ridges.push(m);
+    worldGroup.add(m); ridges.push(m);
   }
 
   /*── terrain ──*/
@@ -5185,7 +5366,7 @@ async function boot(){
   const tGeo = buildTerrainGeometry(320, 1190, 1.62, CFG.spawn.x, CFG.spawn.z);
   terrainMesh = new THREE.Mesh(tGeo, RSM(TERRAIN_VS(), TERRAIN_FS(), U()));
   terrainMesh.frustumCulled=false; terrainMesh.renderOrder=1;
-  scene.add(terrainMesh);
+  worldGroup.add(terrainMesh);
   // the coarse stand-in that the shadow and reflection passes use instead
   // 192 divisions over ±288 m is an exact 3 m cell, which is what uProxyC is
   // snapped to — a proxy grid that slides against the terrain under it makes
@@ -5198,7 +5379,7 @@ async function boot(){
   proxyTerrain.userData.depth = DSM(PROXY_TERRAIN_VS(),
     U({ uProxyDrop:{value:1.05} }), {side:THREE.DoubleSide});
   proxyTerrain.userData.beauty = proxyTerrain.material;
-  scene.add(proxyTerrain);
+  worldGroup.add(proxyTerrain);
 
   /*── river ──*/
   const piers = pierCentres().map(pc=>{
@@ -5213,7 +5394,7 @@ async function boot(){
       uPiers:{value:piers}, uPierN:{value:pierN},
     }), {side:THREE.DoubleSide}));
   waterMesh.frustumCulled=false; waterMesh.renderOrder=3; waterMesh.userData.noCast=true;
-  scene.add(waterMesh);
+  worldGroup.add(waterMesh);
 
   /*── clouds ──*/
   setStat('stacking the cumulus', 0.56); await idle();
@@ -5221,7 +5402,7 @@ async function boot(){
   const cloudMesh = new THREE.Mesh(cloudObj.geom,
     RSM(CLOUD_VS(), CLOUD_FS(), U(), Object.assign({side:THREE.DoubleSide, depthTest:true}, TRANSP)));
   cloudMesh.frustumCulled=false; cloudMesh.renderOrder=10; cloudMesh.userData.noCast=true;
-  scene.add(cloudMesh);
+  worldGroup.add(cloudMesh);
   cloudObj.mesh = cloudMesh;
 
   /*── viaduct ──*/
@@ -5230,7 +5411,7 @@ async function boot(){
   const core = new THREE.Mesh(buildBridgeCore(), coreMat);
   core.frustumCulled=true; core.renderOrder=2;
   core.userData.depth = DSM(SOLID_VS(), U(), {side:THREE.DoubleSide});
-  scene.add(core); reflectSet.push(core);
+  worldGroup.add(core); reflectSet.push(core);
 
   const stoneList = buildBridgeStones();
   const sGeo = roundedBoxGeometry(0.30);
@@ -5248,13 +5429,13 @@ async function boot(){
   const stones = new THREE.Mesh(sGeo, RSM(STONE_VS(), STONE_FS(), stoneUni, {side:THREE.DoubleSide}));
   stones.frustumCulled=true; stones.renderOrder=2;
   stones.userData.depth = DSM(STONE_VS(), stoneUni, {side:THREE.DoubleSide});
-  scene.add(stones); reflectSet.push(stones);
+  worldGroup.add(stones); reflectSet.push(stones);
 
   const way = new THREE.Mesh(buildPermanentWay(),
     RSM(SOLID_VS(), SOLID_FS(C.sB, `mix(${C.sShade},${C.pathShade},0.4)`, C.sDeep), U(), {side:THREE.DoubleSide}));
   way.frustumCulled=false; way.renderOrder=2;
   way.userData.depth = DSM(SOLID_VS(), U(), {side:THREE.DoubleSide});
-  scene.add(way); reflectSet.push(way);
+  worldGroup.add(way); reflectSet.push(way);
 
   /*── village ──*/
   setStat('lighting the village', 0.68); await idle();
@@ -5264,12 +5445,12 @@ async function boot(){
   const vMesh = new THREE.Mesh(vil.geom, paintedMat);
   vMesh.frustumCulled=true; vMesh.renderOrder=2;
   vMesh.userData.depth = DSM(PAINTED_VS(), U(), {side:THREE.DoubleSide});
-  scene.add(vMesh);
+  worldGroup.add(vMesh);
   millWheel = new THREE.Mesh(buildMillWheel(vil.mill), paintedMat);
   millWheel.position.set(vil.mill.x, vil.mill.y, vil.mill.z);
   millWheel.rotation.y = vil.mill.yaw;
   millWheel.frustumCulled=true; millWheel.userData.depth = vMesh.userData.depth;
-  scene.add(millWheel);
+  worldGroup.add(millWheel);
 
   /*── trees ──*/
   setStat('planting the woods', 0.74); await idle();
@@ -5304,13 +5485,13 @@ async function boot(){
     const m = new THREE.Mesh(geom, RSM(TREE_VS(), TREE_FS(), uni, {side:THREE.DoubleSide}));
     m.frustumCulled=false; m.renderOrder=2;
     m.userData.depth = DSM(TREE_VS(), dUni, {side:THREE.DoubleSide});
-    scene.add(m); trees.push(m);
+    worldGroup.add(m); trees.push(m);
     if(detail>0) reflectSet.push(m);
   }
 
   /*── train ──*/
   setStat('raising steam', 0.82); await idle();
-  train = new Train(scene, U());
+  train = new Train(worldGroup, U());
   const trainDepth = DSM(PAINTED_VS(), U(), {side:THREE.DoubleSide});
   train.group.traverse(o=>{ if(o.isMesh) o.userData.depth = trainDepth; });
   reflectSet.push(train.group);
@@ -5319,7 +5500,7 @@ async function boot(){
   // one container, so the shadow and reflection passes skip all of them with a
   // single flag rather than a save-record per mesh per pass
   lifeGroup = new THREE.Group(); lifeGroup.userData.bulk = true;
-  scene.add(lifeGroup);
+  worldGroup.add(lifeGroup);
   smoke  = new Particles(lifeGroup, U(), 520,  SMOKE_FS(), 22, true);
   motes  = new Particles(lifeGroup, U(), 2400, MOTE_FS(),  24, false);
   birdsP = new Particles(lifeGroup, U(), 60,   BIRD_FS(),  21, false);
@@ -5339,7 +5520,7 @@ async function boot(){
 
   /*── grass ──*/
   setStat('sowing a million blades', 0.88); await idle();
-  grass = new GrassField(scene, G, QUALITY[State.q]);
+  grass = new GrassField(worldGroup, G, QUALITY[State.q]);
   grass.build(QUALITY[State.q]);
   for(const ring of grass.rings) for(const m of ring.meshes) m.userData.noCast = true;
 
@@ -5383,26 +5564,34 @@ async function boot(){
   G.uCloudSh.value = cloudShRT.texture;
   cloudShadowPass();
   renderer.setRenderTarget(null);
-  window.addEventListener('resize', buildTargets);
-  bindInput();
-  setStat('ready', 1.0);
-  $('#enter').classList.add('on');
-  for(const b of document.querySelectorAll('#qPreset button'))
-    b.classList.toggle('on', +b.dataset.q === State.q);
+  if(!EMBED_MODE){
+    window.addEventListener('resize', buildTargets);
+    bindInput();
+    setStat('ready', 1.0);
+    $('#enter').classList.add('on');
+    for(const b of document.querySelectorAll('#qPreset button'))
+      b.classList.toggle('on', +b.dataset.q === State.q);
+    window.__ready = true; window.__W = walker; window.__H = sampleHeight;
+  }
+  worldGroup.visible = !EMBED_MODE;
   State.running = true;
-  window.__ready = true; window.__W = walker; window.__H = sampleHeight;
-  // pre-roll a few frames so the first visible frame is fully warmed
-  for(let i=0;i<3;i++){ frame(performance.now()); }
-  requestAnimationFrame(loop);
+  if(!EMBED_MODE){
+    // pre-roll a few frames so the first visible frame is fully warmed
+    for(let i=0;i<3;i++){ frame(performance.now()); }
+    requestAnimationFrame(loop);
+  }
 }
 
 /*──────── render targets ────────*/
 function buildTargets(){
   const q = QUALITY[State.q];
-  const dpr = Math.min(window.devicePixelRatio||1, 1.5);
+  const dpr = Math.min(window.devicePixelRatio||1, EMBED_MODE ? 1 : 1.5);
+  const hostRect = EMBED_MODE ? EMBED_OPTIONS.host.getBoundingClientRect() : null;
+  const viewWidth = Math.max(1, hostRect?.width ?? window.innerWidth);
+  const viewHeight = Math.max(1, hostRect?.height ?? window.innerHeight);
   renderer.setPixelRatio(dpr);
-  renderer.setSize(window.innerWidth, window.innerHeight, true);
-  camera.aspect = window.innerWidth/window.innerHeight;
+  renderer.setSize(viewWidth, viewHeight, !EMBED_MODE);
+  camera.aspect = viewWidth/viewHeight;
   camera.updateProjectionMatrix();
   reflCam.aspect = camera.aspect; reflCam.fov = camera.fov; reflCam.updateProjectionMatrix();
 
@@ -5415,8 +5604,8 @@ function buildTargets(){
   const want = dpr * q.px * State.scale;
   const px = q.px < 1.0 ? want
            : Math.max(dpr, Math.min(want, Math.max(dpr, 1.40)));
-  const W = Math.max(320, Math.floor(window.innerWidth*px));
-  const H = Math.max(240, Math.floor(window.innerHeight*px));
+  const W = Math.max(320, Math.floor(viewWidth*px));
+  const H = Math.max(240, Math.floor(viewHeight*px));
 
   // the angular size of one rendered pixel — the floor for grass blade width
   const angPerPx = 2*Math.tan(CFG.fov*DEG/2)/H;
@@ -5484,7 +5673,7 @@ function buildTargets(){
     composite = postMat(COMPOSITE_FS(), {
       uScene:{value:null}, uBloom:{value:null}, uSoft:{value:null},
       uRes:{value:new THREE.Vector2()}, uTime:{value:0}, uExposure:{value:1.0},
-      uBloomAmt:{value:1.0}, uPaint:{value:1.0}, uCA:{value:1.0},
+      uBloomAmt:{value:1.0}, uPaint:{value:1.0}, uCA:{value:1.0}, uSeasonTone:{value:0},
       uVignette:{value:1.0}, uGrain:{value:1.0},
     });
   }
@@ -5650,6 +5839,7 @@ function emitVillageSmoke(dt){
 const _swObj=[], _swMat=[], _swVis=[]; let _swN=0;
 const _bulk=[];
 function collectShadowSet(o){
+  if(o.userData.noCast) return;
   if(o.userData.bulk){ _bulk.push([o, o.visible]); o.visible = false; return; }
   if(o.isMesh){
     _swObj[_swN]=o; _swMat[_swN]=o.material; _swVis[_swN]=o.visible; _swN++;
@@ -5827,6 +6017,7 @@ function postChain(){
   blurMats[1].uniforms.uSrc.value = softRT[1].texture; blit(blurMats[1], softRT[0]);
 
   const c = composite.uniforms;
+  c.uSeasonTone.value = State.seasonTone;
   c.uScene.value = sceneRT.texture;
   c.uBloom.value = (upRTs.length ? upRTs[0].texture : bloomRTs[0].texture);
   c.uSoft.value  = softRT[0].texture;
@@ -5881,7 +6072,7 @@ function frame(now){
   tAcc += dt;
 
   updateWind(dt, camera.position);
-  walker.update(dt, tAcc);
+  if(!EMBED_MODE) walker.update(dt, tAcc);
   camera.updateMatrixWorld(true);
 
   G.uTime.value = tAcc;
@@ -5919,7 +6110,7 @@ function frame(now){
   smoke.commit(camera.position); motes.commit(camera.position); birdsP.commit(camera.position);
 
   cloudSortT -= dt;
-  if(cloudSortT <= 0){ cloudSortT = 0.4; sortClouds(); }
+  if(cloudSortT <= 0){ cloudSortT = EMBED_MODE ? 0.8 : 0.4; sortClouds(); }
 
   _pm.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
   _frustum.setFromProjectionMatrix(_pm);
@@ -5951,7 +6142,7 @@ function frame(now){
   renderer.render(scene, camera);
   postChain();
 
-  audio.update(dt, camera, walker, State);
+  if(!EMBED_MODE || State.audioEnabled) audio.update(dt, camera, walker, State);
 
   fpsAcc.push(dt); if(fpsAcc.length>40) fpsAcc.shift();
   let s=0; for(const v of fpsAcc) s+=v;
@@ -6124,10 +6315,81 @@ function bindInput(){
 }
 
 /*──────────────────────────── go ──────────────────────────────────────────*/
-boot().catch(e=>{
-  const el=document.getElementById('err'); el.style.display='block';
-  el.textContent += '\n' + (e.stack||e);
-});
+const ENGINE_API = {
+  boot,
+  frame(now, season, paused, disc){
+    State.paused = Boolean(paused);
+    State.seasonTone = Math.max(0, Math.min(3, season - 1));
+    if(disc && grass){
+      grass.setDisc(disc.position, disc.velocity, disc.influence, disc.player);
+    }
+    if(State.running) frame(now);
+  },
+  resize(){ buildTargets(); },
+  setAudioEnabled(enabled){
+    State.audioEnabled = EMBED_MODE ? Boolean(enabled) : true;
+    audio.setEnabled(State.audioEnabled);
+  },
+  resumeAudio(){
+    audio.init(); audio.resume();
+  },
+  footstep(speed, x, z){
+    if(State.audioEnabled) audio.footstep(speed, pathDistance(x,z) < 2.6);
+  },
+  activate(){
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
+    renderer.toneMapping = THREE.NoToneMapping;
+    renderer.autoClear = false;
+    worldGroup.visible = true;
+  },
+  deactivate(){ worldGroup.visible = false; },
+  sampleHeight,
+  spawn: CFG.spawn,
+  eyeHeight: CFG.eyeHeight,
+  sunDirection: SUN.clone(),
+  createEnvironment(){
+    if(!skyMesh) throw new Error('Starvalley sky is not ready');
+    const envScene = new THREE.Scene();
+    const envMesh = skyMesh.clone();
+    envMesh.geometry = skyMesh.geometry.clone();
+    envMesh.position.set(0,0,0);
+    envScene.add(envMesh);
+    return { scene:envScene, dispose(){ envMesh.geometry.dispose(); envScene.remove(envMesh); } };
+  },
+  dispose(){
+    State.running = false;
+    audio.dispose();
+    window.removeEventListener('error', onEngineError);
+    const targets = [sceneRT, ...bloomRTs, ...upRTs, ...softRT, shadowRT, windRT, reflRT, puffRT, cloudShRT];
+    for(const target of targets) if(target) target.dispose();
+    const geometries = new Set(), materials = new Set(), textures = new Set();
+    worldGroup.traverse(o=>{
+      if(o.geometry) geometries.add(o.geometry);
+      const list = Array.isArray(o.material) ? o.material : (o.material ? [o.material] : []);
+      for(const m of list){
+        materials.add(m);
+        for(const u of Object.values(m.uniforms || {})){
+          const value = u && u.value;
+          if(value && value.isTexture) textures.add(value);
+        }
+      }
+    });
+    for(const t of textures) t.dispose();
+    for(const g of geometries) g.dispose();
+    for(const m of materials) m.dispose();
+    for(const m of [composite, brightMat, ...downMats, ...upMats, ...blurMats, windMat, windViewMat, softDownMat, cloudShMat]) if(m) m.dispose();
+    quadGeo.dispose();
+    worldGroup.removeFromParent();
+  },
+};
+if(EMBED_MODE){
+  EMBED_OPTIONS.onApi(ENGINE_API);
+} else {
+  boot().catch(e=>{
+    const el=document.getElementById('err'); el.style.display='block';
+    el.textContent += '\n' + (e.stack||e);
+  });
+}
 </script>
 </body>
 </html>

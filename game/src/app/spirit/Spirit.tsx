@@ -1,57 +1,38 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { pick, type Bi } from '@/content/shared';
 import PageShell, { Section } from '@/components/PageShell';
-import SpiritWheel, { SPIRIT_CATS } from '@/components/SpiritWheel';
+import SpiritWheel from '@/components/SpiritWheel';
 
-/* ───────── WFDF Spirit scoring: five official questions, 0–4 each ───────── */
-function Scorecard({ selected, onSelect }: { selected: number; onSelect: (index: number) => void }) {
+function SpiritExchange() {
   const { lang } = useI18n();
   const zh = lang === 'zh';
-  const [scores, setScores] = useState<number[]>([2, 2, 2, 2, 2]);
-  const total = useMemo(() => scores.reduce((a, b) => a + b, 0), [scores]);
-  const note: string =
-    total < 10
-      ? zh ? '低于每项“好”的基准；赛后结合具体情境聊一聊。' : 'Below the per-category “good” baseline; discuss specific moments after the game.'
-      : total === 10
-      ? zh ? '基准分：五项各 2 分，每项都是“好”。' : 'Baseline: 2 in each category — “good” across all five.'
-      : zh ? '高于基准；回顾哪些具体表现值得肯定。' : 'Above baseline; reflect on the specific actions worth recognising.';
-
-  return (
-    <div className="ap-score">
-      {SPIRIT_CATS.map((c, i) => (
-        <div className={`ap-score-row${selected === i ? ' is-selected' : ''}`} key={i}>
-          <div>
-            <h3>{pick(lang, c.t)}</h3>
-            <p>{pick(lang, c.q)}</p>
-          </div>
-          <div className="ap-dots" role="group" aria-label={pick(lang, c.t)}>
-            {[0, 1, 2, 3, 4].map((v) => (
-              <button
-                key={v}
-                type="button"
-                className="ap-dot"
-                aria-pressed={scores[i] === v}
-                aria-label={`${pick(lang, c.t)}: ${v}`}
-                onClick={() => { onSelect(i); setScores((s) => s.map((x, j) => (j === i ? v : x))); }}
-              >
-                {v}
-              </button>
-            ))}
-          </div>
-        </div>
-      ))}
-      <div className="ap-score-total" aria-live="polite">
-        <b>{total} / 20</b>
-        <span className="ap-score-note">{note}</span>
+  return <div className="ap-spirit-exchange">
+    <div className="ap-spirit-exchange-pair" role="group" aria-label={zh ? '两队赛后互评' : 'Reciprocal post-game team review'}>
+      <article className="ap-spirit-exchange-team is-us">
+        <span className="ap-spirit-exchange-mark">A</span>
+        <h3>{zh ? '队伍 A' : 'Team A'}</h3>
+      </article>
+      <div className="ap-spirit-exchange-arrows">
+        <svg viewBox="0 0 72 40" role="img" aria-label={zh ? '两队双向互评' : 'Two-way review'}>
+          <path d="M8 12h48M50 6l8 6-8 6M64 28H16m6-6-8 6 8 6" fill="none" stroke="#1b1a2e" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
+        </svg>
+        <b>{zh ? '赛后互评' : 'Post-game review'}</b>
+        <small>{zh ? '对手 + 本队' : 'Opponent + own team'}</small>
       </div>
-      <p className="ap-hint">
-        {zh ? '每项 0–4 分；2 分是“好”的基准，4 分用于特别出色的表现。赛后评估对手，也回看自己。' : 'Each category is 0–4; 2 is the “good” baseline and 4 recognises exceptional Spirit. Rate the other team and reflect on your own.'}
-      </p>
+      <article className="ap-spirit-exchange-team is-opponent">
+        <span className="ap-spirit-exchange-mark">B</span>
+        <h3>{zh ? '队伍 B' : 'Team B'}</h3>
+      </article>
     </div>
-  );
+    <div className="ap-spirit-exchange-admin">
+      <span className="ap-spirit-exchange-stamp">{zh ? '团队共同完成' : 'A team process'}</span>
+      <p>{zh ? <>队员共同回顾具体表现；精神队长（Spirit Captain）负责收集评分。在联赛和大型赛事中，WFDF 特别推荐把结果交给赛事精神总监（Spirit Director）查看和跟进。</> : <>Players review specific moments together; the Spirit Captain collects the scores. For leagues and larger tournaments, WFDF especially recommends submitting them to a Spirit Director for review and follow-up.</>}</p>
+    </div>
+    <p className="ap-spirit-source">{zh ? <>这说明的是采用 WFDF 精神评分制度的赛后互评流程，并非所有赛事的强制要求。详见 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>和 <a href="https://academy.wfdf.sport/course/section.php?id=291&lang=en" target="_blank" rel="noopener noreferrer">WFDF 精神评分资源库</a>。</> : <>This explains the post-game review used by events adopting WFDF Spirit scoring; it is not a mandatory procedure for every event. See the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a> and the <a href="https://academy.wfdf.sport/course/section.php?id=291&lang=en" target="_blank" rel="noopener noreferrer">WFDF SOTG Resource Hub</a>.</>}</p>
+  </div>;
 }
 
 /* Spirit circle: alternating players around a disc (from WFDF Spirit Circles) */
@@ -142,11 +123,11 @@ export default function Spirit() {
         id="wheel"
         label={zh ? 'WFDF 赛后评分的五个维度' : 'WFDF’s five post-game categories'}
         heading={zh ? '五个维度，回看整场比赛。' : 'Five categories for the whole game.'}
-        intro={zh ? '选择扇区查看场上观察细则；下方评分表保留 WFDF 官方评分问题与 0–4 分操作。' : 'Choose a sector for practical observation prompts; the scorecard below keeps WFDF’s official questions and 0–4 scale.'}
+        intro={zh ? '选择一个扇区查看该维度的详细观察点；下方说明正式比赛如何进行赛后精神互评。' : 'Choose a sector for detailed observations; the section below explains post-game Spirit review in competition.'}
         full
       >
         <SpiritWheel selected={activeCategory} onSelect={setActiveCategory} />
-        <p className="ap-spirit-source">{zh ? <>评分维度与五项问题依据 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>；轮盘中的场上观察提示是按官方原则整理的应用说明。0–4 分量表及“2 分为好”的说明参考 <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF 官方评分说明</a>。</> : <>The categories and five questions follow the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a>; the wheel’s field prompts are practical interpretations of its principles. The 0–4 scale and “2 = good” baseline are referenced from <a href="https://wfdf.sport/2019/12/wfdf-releases-the-2019-spirit-of-the-game-scores-by-country/" target="_blank" rel="noopener noreferrer">WFDF’s scoring announcement</a>.</>}</p>
+        <p className="ap-spirit-source">{zh ? <>五个维度与评分问题依据 <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF 飞盘精神官方页面</a>。轮盘把官方原则和公开示例整理成场上观察点，不是官方评分表的逐字复述；完整表格与行为示例见 <a href="https://academy.wfdf.sport/course/section.php?id=291&lang=en" target="_blank" rel="noopener noreferrer">WFDF 精神评分资源库</a>。</> : <>The five categories and scoring questions follow the <a href="https://wfdf.sport/organisation/spirit-of-the-game/" target="_blank" rel="noopener noreferrer">WFDF Spirit of the Game page</a>. The wheel turns its principles and public examples into field prompts rather than reproducing the scoring form verbatim; see the <a href="https://academy.wfdf.sport/course/section.php?id=291&lang=en" target="_blank" rel="noopener noreferrer">WFDF SOTG Resource Hub</a> for the full forms and examples.</>}</p>
       </Section>
 
       <Section
@@ -178,9 +159,9 @@ export default function Spirit() {
         id="score"
         label={zh ? '赛后聊一聊' : 'After the game'}
         heading={zh ? '给对手打个分，也给自己。' : 'Rate the other team — and yourself.'}
-        intro={zh ? '每项给 0–4 分；点分数时，轮盘也会跳到对应维度。' : 'Score each category from 0–4; choosing a score also highlights its wheel sector.'}
+        intro={zh ? '在采用 WFDF 飞盘精神评分制度的赛事中，比赛结束后会进行这项团队互评。' : 'At events using WFDF Spirit scoring, teams complete this review after the game.'}
       >
-        <Scorecard selected={activeCategory} onSelect={setActiveCategory} />
+        <SpiritExchange />
       </Section>
 
       <Section

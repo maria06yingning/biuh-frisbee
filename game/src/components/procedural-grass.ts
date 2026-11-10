@@ -15,7 +15,7 @@ type DiscPosition = { x: number; y: number; z: number };
  * intersect the meadow at any aspect ratio, and no blade can stand between the camera and the disc.
  */
 const TIP_CAP = -3.5;
-const BASE_Y = -7.4;
+export const BASE_Y = -7.4;
 const MAX_BLADE = 1.1;
 // The near field overlaps a wider distant layer; both stay fixed in world space.
 const FOG_NEAR = 30;        // Aerial haze starts here and thickens exponentially, then

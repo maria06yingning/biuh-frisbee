@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import PlayerFigure from '@/components/PlayerFigure';
 
 const I = '#1b1a2e', C = '#14c2d8', R = '#ff5a4a', Y = '#ffd23f', G = '#8fd17e', P = '#fff8e6', O = '#ff6a1a';
 export type RuleSceneId = 'goal'|'travel'|'stall'|'marker'|'directions'|'turnover'|'restart'|'contact'|'self-officiate'|'spirit'|'throwaway'|'drop'|'interception'|'block'|'out'|'stall-out';
@@ -13,51 +14,22 @@ function Field({ end = 'right', out = false }: { end?: 'left'|'right'; out?: boo
     {out && <path d="M5 4h350" stroke={R} strokeWidth="5" strokeDasharray="10 6" />}
   </g>;
 }
-function Player({ x, y, n = 1, team = 'o' }: { x:number; y:number; n?:number; team?:'o'|'d' }) {
-  return <g transform={`translate(${x} ${y})`} aria-hidden="true">
-    {team === 'o' ? <circle r="13" fill={C} stroke={I} strokeWidth="3"/> : <rect x="-12" y="-12" width="24" height="24" rx="3" fill={R} stroke={I} strokeWidth="3"/>}
-    <text y="4" textAnchor="middle" fontSize="12" fontWeight="900" fill={I}>{n}</text>
-  </g>;
-}
-function ConversationPlayer({ x, y, team, pose, flip = false }: { x:number; y:number; team:'o'|'d'; pose:'call'|'listen'; flip?:boolean }) {
-  const jersey = team === 'o' ? C : R;
-  const skin = team === 'o' ? '#e6b48d' : '#c9825e';
-  return <g transform={`translate(${x} ${y}) scale(${flip ? -1 : 1} 1)`} aria-hidden="true">
-    <ellipse cx="0" cy="104" rx="14" ry="4" fill={I} opacity=".25"/>
-    <path d="M-7 73L-9 98M7 73L10 98" fill="none" stroke={I} strokeWidth="8" strokeLinecap="round"/>
-    <path d="M-7 73L-9 98M7 73L10 98" fill="none" stroke={skin} strokeWidth="4" strokeLinecap="round"/>
-    <path d="M-11 95h5l3 5h-15zM8 95h5l5 5H7z" fill={P} stroke={I} strokeWidth="2" strokeLinejoin="round"/>
-    <path d="M-13 39Q0 33 13 39L16 72Q0 78-16 72Z" fill={jersey} stroke={I} strokeWidth="3" strokeLinejoin="round"/>
-    <path d="M-15 69h30l-2 12Q0 85-13 81Z" fill={I} stroke={I} strokeWidth="2"/>
-    <path d="M-10 16V39M10 16V39" stroke={skin} strokeWidth="6" strokeLinecap="round"/>
-    <circle cy="18" r="11" fill={skin} stroke={I} strokeWidth="2.5"/>
-    <path d="M-11 18Q-11 4 0 5Q12 5 11 18L5 13Q-2 18-10 15Z" fill={team==='o'?'#3a2b29':'#24202b'} stroke={I} strokeWidth="2" strokeLinejoin="round"/>
-    <circle cx="4" cy="19" r="1.3" fill={I}/><path d="M5 24l3 1" stroke={I} strokeWidth="1.3" strokeLinecap="round"/>
-    {pose === 'call' ? <>
-      <path d="M11 43L20 35L21 18" fill="none" stroke={I} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M11 43L20 35L21 18" fill="none" stroke={skin} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M21 18v-7m-4 8v-7m8 7v-7" stroke={skin} strokeWidth="3" strokeLinecap="round"/>
-      <path d="M-11 43L-20 54L-24 62" fill="none" stroke={I} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M-11 43L-20 54L-24 62" fill="none" stroke={skin} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-    </> : <>
-      <path d="M-11 43L-22 51L-30 46" fill="none" stroke={I} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M-11 43L-22 51L-30 46" fill="none" stroke={skin} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M-34 45l4-5m-2 7 6-6m-3 8 7-6" stroke={skin} strokeWidth="2.5" strokeLinecap="round"/>
-      <path d="M11 43L20 53L24 63" fill="none" stroke={I} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-      <path d="M11 43L20 53L24 63" fill="none" stroke={skin} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-    </>}
-  </g>;
-}
 function Disc({ x, y, turn = 0 }: {x:number;y:number;turn?:number}) {
   return <g transform={`translate(${x} ${y}) rotate(${turn})`} aria-hidden="true"><ellipse rx="16" ry="7" fill={Y} stroke={I} strokeWidth="2.5"/><ellipse rx="10" ry="3.4" fill="none" stroke={O} strokeWidth="2"/></g>;
 }
+function fitFontSize(text:ReactNode,size:number,maxWidth=336) {
+  if(typeof text!=='string'||!text.length) return size;
+  const width=[...text].reduce((sum,char)=>sum+(/[\u3000-\u303f\u3400-\u9fff\uf900-\ufaff\uff00-\uffef]/.test(char)?size:/\s/.test(char)?size*.32:/[MW@%]/.test(char)?size*.82:/[A-Z0-9]/.test(char)?size*.62:/[.,:;!'’]/.test(char)?size*.3:size*.52),0);
+  return Math.min(size,Math.max(8,size*maxWidth/width));
+}
 function Caption({ x=180, y=147, children }: {x?:number;y?:number;children:ReactNode}) {
-  return <text x={x} y={y} textAnchor="middle" fontSize="12" fontWeight="900" fill={I}>{children}</text>;
+  return <text x={x} y={y} textAnchor="middle" fontSize={fitFontSize(children,12)} fontWeight="900" fill={I}>{children}</text>;
 }
 function Base({ children, alt }: { children:ReactNode;alt:string }) {
   return <svg className="ap-rule-scene ap-specific-diagram" viewBox="0 0 360 160" role="img" aria-label={alt}><rect width="360" height="160" fill={P}/>{children}</svg>;
 }
 function Count({ terminal = false, zh }: {terminal?:boolean;zh:boolean}) {
+  const note=terminal?(zh?'未在“10”开始前出手 → 盘权转换':'Not released before “ten” → turnover'):(zh?'相邻数字至少间隔 1 秒':'At least 1 second between number starts');
   return <g aria-hidden="true">
     <text x="18" y="40" fontSize="12" fontWeight="900" fill={I}>STALLING</text>
     {Array.from({length:10},(_,i)=><g key={i} transform={`translate(${17+i*32} 58)`}>
@@ -66,7 +38,7 @@ function Count({ terminal = false, zh }: {terminal?:boolean;zh:boolean}) {
     </g>)}
     <path d="M18 105H335" stroke={I} strokeWidth="2"/>
     <path d="M330 100l7 5-7 5" fill="none" stroke={I} strokeWidth="2"/>
-    <text x="18" y="129" fontSize="11" fontWeight="800" fill={I}>{terminal ? (zh ? '未在“10”开始前出手 → 盘权转换' : 'Not released before “ten” → turnover') : (zh ? '相邻数字至少间隔 1 秒' : 'At least 1 second between number starts')}</text>
+    <text x="18" y="129" fontSize={fitFontSize(note,11,330)} fontWeight="800" fill={I}>{note}</text>
     {terminal&&<path d="M328 121l14 14m0-14-14 14" stroke={P} strokeWidth="5"/>}
   </g>;
 }
@@ -75,52 +47,38 @@ export default function RuleIllustration({ id, alt, lang }: { id:RuleSceneId;alt
   const zh = lang === 'zh';
   const label = (cn:string,en:string) => zh ? cn : en;
   switch(id) {
-    case 'goal': return <Base alt={alt}><Field/><path d="M77 93Q164 62 264 62" fill="none" stroke={C} strokeWidth="5" strokeLinecap="round"/><path d="M256 55l13 6-12 8" fill={C} stroke={I} strokeWidth="2"/><Player x={74} y={93} n={1}/><Player x={276} y={62} n={2}/><Disc x={278} y={52}/><path d="M305 25h43v24h-43z" fill={Y} stroke={I} strokeWidth="2"/><text x="326" y="42" textAnchor="middle" fontSize="13" fontWeight="900" fill={I}>+1</text><Caption x={175} y={142}>{label('在进攻得分区内完成接盘','Complete the catch in the attacking end zone')}</Caption></Base>;
+    case 'goal': return <Base alt={alt}><Field/><path d="M121 65Q220 35 320 44" fill="none" stroke={C} strokeWidth="5" strokeLinecap="round"/><path d="M312 37l12 7-13 6" fill={C} stroke={I} strokeWidth="2"/><PlayerFigure x={80} y={35} team="o" pose="hold" scale={.78}/><PlayerFigure x={305} y={34} team="o" pose="reach" scale={.8}/><Disc x={119} y={63}/><Disc x={330} y={43}/><path d="M306 13h42v22h-42z" fill={Y} stroke={I} strokeWidth="2"/><text x="327" y="29" textAnchor="middle" fontSize="13" fontWeight="900" fill={I}>+1</text><Caption x={175} y={147}>{label('队友在进攻得分区内接住飞盘','Teammate catches in the attacking end zone')}</Caption></Base>;
     case 'travel': return <Base alt={alt}>
       <path d="M12 124H348" stroke={I} strokeWidth="3"/><path d="M12 129H348" stroke={G} strokeWidth="12"/>
-      <g aria-hidden="true">
-        <path d="M148 54L133 64L128 73M176 53L191 48L204 51" fill="none" stroke={I} strokeWidth="8" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M148 54L133 64L128 73M176 53L191 48L204 51" fill="none" stroke="#e6b48d" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M151 86L142 101L158 115M173 86L187 100L207 114" fill="none" stroke={I} strokeWidth="11" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M151 86L142 101L158 115M173 86L187 100L207 114" fill="none" stroke="#e6b48d" strokeWidth="5" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M146 47Q160 41 176 48L183 80Q169 88 145 82Z" fill={C} stroke={I} strokeWidth="3" strokeLinejoin="round"/>
-        <path d="M146 79L182 79L178 91Q162 96 148 90Z" fill={I} stroke={I} strokeWidth="2"/>
-        <path d="M151 114Q162 110 171 116L174 121H151Z M202 112Q211 111 216 117L218 121H204Z" fill="#fff8e6" stroke={I} strokeWidth="3" strokeLinejoin="round"/>
-        <circle cx="128" cy="73" r="4.5" fill="#e6b48d" stroke={I} strokeWidth="2"/><circle cx="204" cy="51" r="4.5" fill="#e6b48d" stroke={I} strokeWidth="2"/>
-        <path d="M164 42V47" stroke="#e6b48d" strokeWidth="6" strokeLinecap="round"/>
-        <circle cx="164" cy="27" r="15" fill="#e6b48d" stroke={I} strokeWidth="3"/>
-        <path d="M149 27Q148 11 163 11Q179 12 179 28L171 22Q161 27 150 24Z" fill="#3a2b29" stroke={I} strokeWidth="2" strokeLinejoin="round"/>
-        <circle cx="168" cy="28" r="1.5" fill={I}/><path d="M171 34l4 1" stroke={I} strokeWidth="1.5" strokeLinecap="round"/>
-        <Disc x={211} y={45}/>
-      </g>
-      <circle cx="121" cy="119" r="9" fill={P} stroke={R} strokeWidth="3" strokeDasharray="4 3"/>
-      <path d="M132 119H148" stroke={R} strokeWidth="4" strokeLinecap="round"/><path d="M143 113l8 6-8 6" fill={R} stroke={I} strokeWidth="1.5"/>
-      <circle cx="161" cy="118" r="12" fill="none" stroke={R} strokeWidth="3" strokeDasharray="4 3"/>
+      <PlayerFigure x={158} y={40} team="o" pose="hold" scale={.95}/><Disc x={201} y={74}/>
+      <circle cx="112" cy="126" r="10" fill={P} stroke={R} strokeWidth="3" strokeDasharray="4 3"/>
+      <path d="M125 126H140" stroke={R} strokeWidth="4" strokeLinecap="round"/><path d="M135 120l8 6-8 6" fill={R} stroke={I} strokeWidth="1.5"/>
+      <circle cx="149" cy="126" r="13" fill="none" stroke={R} strokeWidth="3" strokeDasharray="4 3"/>
       <text x="103" y="148" textAnchor="middle" fontSize="10" fontWeight="900" fill={I}>{label('原轴心点','Original pivot')}</text>
       <text x="225" y="148" textAnchor="middle" fontSize="10" fontWeight="900" fill={R}>{label('轴心脚已移位','Pivot foot moved')}</text>
     </Base>;
-    case 'stall': return <Base alt={alt}><Player x={35} y={20} team="d"/><Player x={70} y={20} team="o"/><Disc x={70} y={5}/><Count zh={zh}/></Base>;
-    case 'marker': return <Base alt={alt}><Field end="left"/><circle cx="180" cy="81" r="55" fill={C} fillOpacity=".16" stroke={C} strokeWidth="3" strokeDasharray="7 5"/><Player x={180} y={81} n={1}/><Disc x={180} y={64}/><Player x={208} y={78} team="d" n={1}/><Player x={218} y={116} team="d" n={2}/><Player x={267} y={126} n={2}/><path d="M218 116L267 126" stroke={I} strokeWidth="2" strokeDasharray="3 5"/><path d="M180 137V26" stroke={I} strokeWidth="2" strokeDasharray="3 5"/><text x="181" y="25" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>3 m</text><text x="269" y="147" textAnchor="middle" fontSize="10" fontWeight="900" fill={I}>{label('第二名防守者须盯住其他进攻者','Second defender must guard another offensive player')}</text></Base>;
-    case 'directions': return <Base alt={alt}><Field/><Player x={180} y={82} n={1}/><Disc x={180} y={64}/><Player x={70} y={48} n={2}/><Player x={285} y={48} n={3}/><Player x={80} y={123} n={4}/><Player x={286} y={120} n={5}/><path d="M164 76Q120 50 86 49M196 76Q235 47 270 48M164 90Q121 117 96 122M196 90Q238 116 273 119" fill="none" stroke={C} strokeWidth="4" strokeLinecap="round"/><path d="M86 43l-9 6 10 3m173-10 9 6-10 3m-166 66-10 8 12 1m164-4 11 4-7 8" fill={C} stroke={I} strokeWidth="1.5"/><Caption x={180} y={140}>{label('前、后、横向都能传','Pass forward, backward or sideways')}</Caption></Base>;
-    case 'turnover': return <Base alt={alt}><Field/><Player x={75} y={95} n={1}/><Player x={230} y={65} team="d" n={1}/><Player x={305} y={110} n={2}/><path d="M91 91Q149 60 206 64" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4"/><Disc x={223} y={63}/><path d="M230 91Q263 112 294 111" fill="none" stroke={R} strokeWidth="5"/><path d="M286 103l11 9-13 4" fill={R} stroke={I} strokeWidth="2"/><rect x="117" y="20" width="128" height="25" fill={Y} stroke={I} strokeWidth="2"/><text x="181" y="37" textAnchor="middle" fontSize="12" fontWeight="900" fill={I}>{label('盘权立即转换','Possession turns over immediately')}</text></Base>;
-    case 'restart': return <Base alt={alt}><rect x="24" y="24" width="312" height="104" fill={G} stroke={I} strokeWidth="3"/><path d="M24 76h312" stroke={I} strokeWidth="2"/><path d="M238 24v104" stroke={I} strokeWidth="2" strokeDasharray="5 4"/><Player x={128} y={75} n={1}/><Disc x={129} y={57}/><Player x={182} y={75} team="d" n={1}/><path d="M196 74h42" stroke={Y} strokeWidth="6"/><path d="M232 67l10 7-10 7" fill={Y} stroke={I} strokeWidth="2"/><text x="129" y="111" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('确认双方站位','Check that both teams are ready')}</text><text x="256" y="144" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('按规则确定恢复点','Restart at the rule-specific location')}</text></Base>;
-    case 'contact': return <Base alt={alt}><path d="M40 118H320" stroke={I} strokeWidth="3"/><Player x={105} y={82} n={1}/><Player x={255} y={82} team="d" n={1}/><circle cx="180" cy="82" r="31" fill={P} stroke={Y} strokeWidth="5" strokeDasharray="5 4"/><path d="M132 82h20m56 0h20" stroke={C} strokeWidth="4" strokeLinecap="round"/><path d="M169 62l22 40m0-40-22 40" stroke={I} strokeWidth="3"/><text x="180" y="138" textAnchor="middle" fontSize="12" fontWeight="900" fill={I}>{label('抢位，不撞人','Play the disc; avoid contact')}</text></Base>;
+    case 'stall': return <Base alt={alt}><Count zh={zh}/></Base>;
+    case 'marker': return <Base alt={alt}><Field end="left"/><circle cx="171" cy="83" r="51" fill={C} fillOpacity=".14" stroke={C} strokeWidth="3" strokeDasharray="7 5"/><PlayerFigure x={150} y={31} team="o" pose="hold" scale={.75}/><Disc x={175} y={58}/><PlayerFigure x={178} y={32} team="d" pose="block" flip scale={.75}/><PlayerFigure x={207} y={72} team="d" pose="stand" scale={.58}/><PlayerFigure x={297} y={72} team="o" pose="stand" scale={.58}/><path d="M213 111L282 111" stroke={I} strokeWidth="2" strokeDasharray="3 5"/><path d="M171 134V30" stroke={I} strokeWidth="2" strokeDasharray="3 5"/><text x="171" y="25" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>3 m</text><text x="180" y="148" textAnchor="middle" fontSize={fitFontSize(label('第二名防守者要盯住另一名进攻者','Second defender guards another attacker'),10)} fontWeight="900" fill={I}>{label('第二名防守者要盯住另一名进攻者','Second defender guards another attacker')}</text></Base>;
+    case 'directions': return <Base alt={alt}><Field/><PlayerFigure x={180} y={36} team="o" pose="hold" scale={.62}/><Disc x={201} y={58}/><PlayerFigure x={70} y={27} team="o" scale={.55}/><PlayerFigure x={285} y={27} team="o" scale={.55}/><PlayerFigure x={80} y={75} team="o" scale={.55}/><PlayerFigure x={286} y={75} team="o" scale={.55}/><path d="M174 61Q126 43 87 39M198 61Q239 42 270 39M174 75Q128 91 96 95M198 75Q243 92 271 95" fill="none" stroke={C} strokeWidth="4" strokeLinecap="round"/><path d="M89 34l-9 5 10 3m179-8 10 5-10 3m-165 51-10 7 12 1m163-4 11 4-8 7" fill={C} stroke={I} strokeWidth="1.5"/><Caption x={180} y={145}>{label('前、后、横向都能传','Pass forward, backward or sideways')}</Caption></Base>;
+    case 'turnover': return <Base alt={alt}><Field/><PlayerFigure x={72} y={37} team="o" pose="hold" scale={.72}/><PlayerFigure x={222} y={35} team="d" pose="reach" flip scale={.72}/><PlayerFigure x={300} y={71} team="d" pose="run" scale={.56}/><path d="M100 63Q151 35 198 43" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4"/><Disc x={201} y={43}/><path d="M239 73Q267 91 293 105" fill="none" stroke={R} strokeWidth="5"/><path d="M286 94l11 12-14 1" fill={R} stroke={I} strokeWidth="2"/><rect x="119" y="18" width="128" height="24" fill={Y} stroke={I} strokeWidth="2"/><text x="183" y="34" textAnchor="middle" fontSize="12" fontWeight="900" fill={I}>{label('盘权转换','TURNOVER')}</text></Base>;
+    case 'restart': return <Base alt={alt}><rect x="24" y="24" width="312" height="104" fill={G} stroke={I} strokeWidth="3"/><path d="M24 76h312" stroke={I} strokeWidth="2"/><path d="M238 24v104" stroke={I} strokeWidth="2" strokeDasharray="5 4"/><PlayerFigure x={126} y={32} team="o" pose="hold" scale={.68}/><Disc x={151} y={57}/><PlayerFigure x={194} y={32} team="d" pose="stand" scale={.68}/><path d="M213 74h34" stroke={Y} strokeWidth="6"/><path d="M241 67l10 7-10 7" fill={Y} stroke={I} strokeWidth="2"/><text x="129" y="116" textAnchor="middle" fontSize="10" fontWeight="900" fill={I}>{label('确认双方站位','Check both teams are ready')}</text><text x="180" y="144" textAnchor="middle" fontSize={fitFontSize(label('按具体规则选择恢复点','Choose the rule-specific restart point'),10)} fontWeight="900" fill={I}>{label('按具体规则选择恢复点','Choose the rule-specific restart point')}</text></Base>;
+    case 'contact': return <Base alt={alt}><path d="M24 126H336" stroke={G} strokeWidth="12"/><PlayerFigure x={143} y={34} team="o" pose="run" scale={.82}/><PlayerFigure x={217} y={34} team="d" pose="run" flip scale={.82}/><path d="M117 116Q151 90 170 107M243 116Q209 90 190 107" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4" strokeLinecap="round"/><path d="M169 87h22" stroke={Y} strokeWidth="5" strokeLinecap="round"/><text x="180" y="146" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('为对手留出空间，不推撞','Leave space; do not push or bump')}</text></Base>;
     case 'self-officiate': return <Base alt={alt}>
-      <path d="M26 126H334" stroke={G} strokeWidth="12"/><ConversationPlayer x={105} y={26} team="o" pose="call"/><ConversationPlayer x={255} y={26} team="d" pose="listen" flip/>
+      <path d="M26 126H334" stroke={G} strokeWidth="12"/><PlayerFigure x={105} y={26} team="o" pose="call"/><PlayerFigure x={255} y={26} team="d" pose="listen" flip/>
       <path d="M70 3h83v20H82l-8 6v-6h-4zM207 3h83v20h-71l-8 6v-6h-4z" fill={P} stroke={I} strokeWidth="2.5"/>
-      <text x="111" y="17" textAnchor="middle" fontSize="10" fontWeight="900" fill={I}>{label('说明所见','State what happened')}</text>
-      <text x="248" y="17" textAnchor="middle" fontSize="10" fontWeight="900" fill={I}>{label('听取并回应','Listen and respond')}</text>
+      <text x="111" y="17" textAnchor="middle" fontSize={fitFontSize(label('说明所见','State what happened'),10,74)} fontWeight="900" fill={I}>{label('说明所见','State what happened')}</text>
+      <text x="248" y="17" textAnchor="middle" fontSize={fitFontSize(label('听取并回应','Listen and respond'),10,74)} fontWeight="900" fill={I}>{label('听取并回应','Listen and respond')}</text>
       <path d="M155 79H204" stroke={Y} strokeWidth="5" strokeLinecap="round"/><path d="M198 73l9 6-9 6" fill={Y} stroke={I} strokeWidth="2"/>
       <path d="M205 92H156" stroke={C} strokeWidth="4" strokeLinecap="round"/><path d="M162 86l-9 6 9 6" fill={C} stroke={I} strokeWidth="1.5"/>
       <Disc x={180} y={119}/><Caption x={180} y={151}>{label('球员共同解决叫停并恢复比赛','Players resolve the call and restart together')}</Caption>
     </Base>;
-    case 'spirit': return <Base alt={alt}><Field/><Player x={122} y={76} n={1}/><Player x={208} y={76} team="d" n={1}/><Disc x={164} y={63}/><path d="M102 42q17-22 37 0M195 42q18-22 36 0" fill="none" stroke={I} strokeWidth="3" strokeLinecap="round"/><path d="M142 111l13 10 26-28" fill="none" stroke={Y} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/><Caption x={180} y={144}>{label('尊重 · 规则 · 安全 · 乐趣','Respect · Rules · Safety · Joy')}</Caption></Base>;
-    case 'throwaway': return <Base alt={alt}><Field/><Player x={75} y={101} n={1}/><Player x={275} y={55} n={2}/><path d="M91 94Q171 42 239 56" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4"/><Disc x={218} y={61} turn={28}/><path d="M221 72v35m-10-6 10 10 10-10" fill="none" stroke={R} strokeWidth="4" strokeLinecap="round"/><text x="231" y="131" fontSize="11" fontWeight="900" fill={I}>{label('未接住，落地','Incomplete pass hits the ground')}</text></Base>;
-    case 'drop': return <Base alt={alt}><Field/><Player x={176} y={68} n={1}/><path d="M159 67l-12-12m37 12 13-12" stroke={I} strokeWidth="4" strokeLinecap="round"/><Disc x={174} y={97} turn={24}/><path d="M174 81v-9" stroke={Y} strokeWidth="3"/><path d="M164 114h20" stroke={R} strokeWidth="4"/><text x="180" y="139" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('接盘未完成','Catch not established')}</text></Base>;
-    case 'interception': return <Base alt={alt}><Field/><Player x={66} y={106} n={1}/><Player x={250} y={65} team="d" n={1}/><Player x={310} y={105} n={2}/><path d="M82 100Q167 42 236 64" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4"/><Disc x={247} y={53}/><path d="M250 83v21" stroke={R} strokeWidth="4"/><text x="250" y="137" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('防守方先建立持有','Defense establishes possession')}</text></Base>;
-    case 'block': return <Base alt={alt}><Field/><Player x={75} y={91} n={1}/><Player x={263} y={77} team="d" n={1}/><path d="M92 87Q165 58 233 75" fill="none" stroke={C} strokeWidth="4"/><Disc x={242} y={67} turn={28}/><path d="M246 49l8 11 10-9-4 15 13 4-15 3-3 14-5-13-14-4 12-5Z" fill={Y} stroke={I} strokeWidth="2"/><path d="M247 103v26" stroke={R} strokeWidth="4"/><text x="250" y="145" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('盘被拍落','Disc knocked down')}</text></Base>;
-    case 'out': return <Base alt={alt}><Field out/><path d="M305 10v140" stroke={I} strokeWidth="4" strokeDasharray="5 4"/><Disc x={328} y={68} turn={18}/><path d="M299 65h-33" stroke={Y} strokeWidth="5"/><path d="M270 58l-10 7 10 7" fill={Y} stroke={I} strokeWidth="2"/><circle cx={296} cy={68} r="7" fill={R} stroke={I} strokeWidth="2"/><text x="323" y="100" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('界外','Out')}</text><text x="230" y="138" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('从盘最后位于场内的位置判断','Use the disc’s last in-bounds location')}</text></Base>;
-    case 'stall-out': return <Base alt={alt}><Player x={34} y={20} team="d"/><Player x={70} y={20} team="o"/><Disc x={70} y={5}/><Count terminal zh={zh}/></Base>;
+    case 'spirit': return <Base alt={alt}><Field/><PlayerFigure x={123} y={37} team="o" pose="listen" scale={.76}/><PlayerFigure x={237} y={37} team="d" pose="listen" flip scale={.76}/><Disc x={180} y={89}/><path d="M149 112l12 9 22-24" fill="none" stroke={Y} strokeWidth="6" strokeLinecap="round" strokeLinejoin="round"/><Caption x={180} y={148}>{label('尊重 · 规则 · 安全 · 乐趣','Respect · Rules · Safety · Joy')}</Caption></Base>;
+    case 'throwaway': return <Base alt={alt}><Field/><PlayerFigure x={70} y={38} team="o" pose="hold" scale={.72}/><PlayerFigure x={278} y={38} team="o" pose="run" scale={.65}/><path d="M97 65Q163 31 220 48" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4"/><Disc x={224} y={58} turn={28}/><path d="M226 68v31m-9-7 9 9 9-9" fill="none" stroke={R} strokeWidth="4" strokeLinecap="round"/><text x="180" y="137" textAnchor="middle" fontSize={fitFontSize(label('未接住，盘落地','Pass incomplete; disc hits ground'),10)} fontWeight="900" fill={I}>{label('未接住，盘落地','Pass incomplete; disc hits ground')}</text></Base>;
+    case 'drop': return <Base alt={alt}><Field/><PlayerFigure x={165} y={31} team="o" pose="reach" scale={.76}/><Disc x={198} y={92} turn={24}/><path d="M198 65v17m-6-7 6 8 6-8" stroke={R} strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"/><path d="M164 123h68" stroke={R} strokeWidth="4"/><text x="180" y="145" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('接盘未完成，飞盘落地','Catch not established; disc hits the ground')}</text></Base>;
+    case 'interception': return <Base alt={alt}><Field/><PlayerFigure x={63} y={40} team="o" pose="hold" scale={.72}/><PlayerFigure x={248} y={31} team="d" pose="reach" flip scale={.76}/><PlayerFigure x={311} y={72} team="o" pose="run" scale={.55}/><path d="M89 66Q166 30 224 43" fill="none" stroke={C} strokeWidth="4" strokeDasharray="7 4"/><Disc x={230} y={43}/><text x="180" y="145" textAnchor="middle" fontSize={fitFontSize(label('防守者先接住并控制住飞盘','Defender catches and controls the disc'),10)} fontWeight="900" fill={I}>{label('防守者先接住并控制住飞盘','Defender catches and controls the disc')}</text></Base>;
+    case 'block': return <Base alt={alt}><Field/><PlayerFigure x={72} y={40} team="o" pose="hold" scale={.72}/><PlayerFigure x={248} y={34} team="d" pose="block" flip scale={.76}/><path d="M98 66Q166 35 220 48" fill="none" stroke={C} strokeWidth="4"/><Disc x={226} y={48} turn={28}/><path d="M239 37l5 9 10-1-7 7 4 9-9-5-8 5 2-10-8-6 10-1Z" fill={Y} stroke={I} strokeWidth="2"/><path d="M236 69v30" stroke={R} strokeWidth="4"/><text x="180" y="145" textAnchor="middle" fontSize={fitFontSize(label('防守者把传球拍落','Defender knocks the pass down'),11)} fontWeight="900" fill={I}>{label('防守者把传球拍落','Defender knocks the pass down')}</text></Base>;
+    case 'out': return <Base alt={alt}><Field out/><path d="M305 10v140" stroke={I} strokeWidth="4" strokeDasharray="5 4"/><Disc x={328} y={68} turn={18}/><path d="M299 65h-33" stroke={Y} strokeWidth="5"/><path d="M270 58l-10 7 10 7" fill={Y} stroke={I} strokeWidth="2"/><circle cx={296} cy={68} r="7" fill={R} stroke={I} strokeWidth="2"/><text x="323" y="100" textAnchor="middle" fontSize="11" fontWeight="900" fill={I}>{label('界外','Out')}</text><text x="180" y="138" textAnchor="middle" fontSize={fitFontSize(label('按飞盘最后在场内的位置判断','Use the disc’s last in-bounds point'),11)} fontWeight="900" fill={I}>{label('按飞盘最后在场内的位置判断','Use the disc’s last in-bounds point')}</text></Base>;
+    case 'stall-out': return <Base alt={alt}><Count terminal zh={zh}/></Base>;
     default: return <Base alt={alt}><Caption>{label('示意图','Illustration')}</Caption></Base>;
   }
 }

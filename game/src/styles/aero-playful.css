@@ -885,13 +885,34 @@
 .aero-playful .ap-spirit-wheel-detail { --spirit-color:var(--uf-cyan); padding:clamp(18px,3vw,28px); background:var(--uf-paper); border:3px solid var(--uf-ink); border-top:12px solid var(--spirit-color); box-shadow:4px 4px 0 var(--uf-ink); }
 .aero-playful .ap-spirit-wheel-number { display:inline-block; padding:4px 8px; background:var(--spirit-color); border:2px solid var(--uf-ink); font-size:12px; font-weight:900; }
 .aero-playful .ap-spirit-wheel-detail h3 { margin:16px 0 10px; font-size:clamp(21px,2.5vw,30px); font-weight:900; }
+.aero-playful .ap-spirit-official-q { margin:0 0 10px; padding:10px 12px; background:var(--uf-cream); border-left:5px solid var(--spirit-color); font-size:14px; line-height:1.55; font-weight:700; }
+.aero-playful .ap-spirit-official-q b { display:block; margin-bottom:3px; font-size:11px; font-weight:900; }
 .aero-playful .ap-spirit-wheel-detail h4 { margin:14px 0 8px; font-size:15px; font-weight:900; }
 .aero-playful .ap-spirit-wheel-details { display:grid; gap:9px; margin:0 0 14px; padding-left:1.25em; line-height:1.65; font-weight:600; }
 .aero-playful .ap-spirit-wheel-details li::marker { color:var(--spirit-color); }
 .aero-playful .ap-spirit-wheel-detail small,.aero-playful .ap-spirit-source { font-size:12px; line-height:1.65; font-weight:700; }
 .aero-playful .ap-spirit-source { margin:18px 0 0; }
-.aero-playful .ap-score-row.is-selected { padding-inline:10px; background:var(--uf-paper); border-left:6px solid var(--uf-yellow); }
-.aero-playful .ap-score-row.is-selected h3::before { content:'▶ '; color:var(--uf-ink); }
+.aero-playful .ap-spirit-exchange { display:grid; gap:16px; }
+.aero-playful .ap-spirit-exchange-pair { display:grid; grid-template-columns:minmax(0,1fr) auto minmax(0,1fr); align-items:stretch; gap:14px; }
+.aero-playful .ap-spirit-exchange-team { display:flex; align-items:center; gap:12px; min-width:0; padding:16px; background:var(--uf-paper); border:3px solid var(--uf-ink); border-top-width:10px; box-shadow:4px 4px 0 var(--uf-ink); }
+.aero-playful .ap-spirit-exchange-team.is-us { border-top-color:var(--uf-cyan); }
+.aero-playful .ap-spirit-exchange-team.is-opponent { border-top-color:var(--uf-coral); }
+.aero-playful .ap-spirit-exchange-mark { display:grid; place-items:center; flex:0 0 42px; width:42px; height:42px; border:3px solid var(--uf-ink); border-radius:50%; background:var(--uf-cyan); font-size:18px; font-weight:900; }
+.aero-playful .ap-spirit-exchange-team.is-opponent .ap-spirit-exchange-mark { background:var(--uf-coral); }
+.aero-playful .ap-spirit-exchange-team h3 { margin:0 0 4px; font-size:18px; font-weight:900; }
+.aero-playful .ap-spirit-exchange-team p { margin:0; font-size:14px; line-height:1.55; font-weight:600; }
+.aero-playful .ap-spirit-exchange-arrows { display:grid; align-content:center; justify-items:center; gap:4px; text-align:center; }
+.aero-playful .ap-spirit-exchange-arrows svg { display:block; width:72px; height:auto; }
+.aero-playful .ap-spirit-exchange-arrows b { font-size:13px; font-weight:900; }
+.aero-playful .ap-spirit-exchange-arrows small { font-size:11px; line-height:1.4; font-weight:700; }
+.aero-playful .ap-spirit-exchange-admin { display:grid; grid-template-columns:auto 1fr; align-items:start; gap:12px; padding:14px 16px; background:var(--uf-paper); border:3px solid var(--uf-ink); box-shadow:4px 4px 0 var(--uf-ink); }
+.aero-playful .ap-spirit-exchange-stamp { padding:5px 8px; background:var(--uf-yellow); border:2px solid var(--uf-ink); font-size:12px; line-height:1.4; font-weight:900; }
+.aero-playful .ap-spirit-exchange-admin p { margin:0; font-size:14px; line-height:1.65; font-weight:600; }
+@media (max-width:760px) {
+  .aero-playful .ap-spirit-exchange-pair { grid-template-columns:minmax(0,1fr); }
+  .aero-playful .ap-spirit-exchange-arrows svg { transform:rotate(90deg); width:54px; }
+  .aero-playful .ap-spirit-exchange-admin { grid-template-columns:1fr; }
+}
 
 /* Rule-specific diagrams share visual grammar, not the same scene. */
 .aero-playful .ap-specific-diagram { display:block; width:100%; height:auto; background:var(--uf-paper); }

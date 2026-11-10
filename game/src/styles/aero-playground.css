@@ -150,6 +150,7 @@
 .aero-playground .aero-fullscreen { top: calc(max(24px, env(safe-area-inset-top)) + 56px); }
 .aero-playground .aero-scene-switch svg,
 .aero-playground .aero-fullscreen svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.aero-playground .aero-scene-switch span { white-space: nowrap; }
 .aero-playground .aero-skip { position: absolute; top: -100px; left: 24px; z-index: 110; background: var(--aero-paper); border: 3px solid var(--aero-ink); padding: 12px; border-radius: 6px; box-shadow: 4px 4px 0 var(--aero-ink); }
 .aero-playground .aero-skip:focus { top: 100px; }
 @media (min-width: 1181px) {
@@ -168,6 +169,8 @@
   .aero-playground .aero-header nav button.aero-primary { padding: 6px 9px; margin-left: 1px; }
   .aero-playground .aero-header .aero-pages-menu a { padding: 10px; }
   .aero-playground .aero-pages-menu { min-width: min(264px, calc(100vw - 42px)); border-radius: 6px; }
+  .aero-playground .aero-scene-switch { top: max(74px, calc(env(safe-area-inset-top) + 58px)); }
+  .aero-playground .aero-fullscreen { top: max(130px, calc(env(safe-area-inset-top) + 114px)); }
   .aero-playground-controls { bottom: max(22px, env(safe-area-inset-bottom)); right: 18px; gap: 10px; max-width: calc(100% - 36px); }
   .aero-playground .aero-play-control { min-height: 42px; padding: 8px 10px; font-size: 11px; }
   .aero-playground .aero-disc-hint { font-size: 11px; padding: 10px 16px; bottom: max(90px, calc(env(safe-area-inset-bottom) + 70px)); }

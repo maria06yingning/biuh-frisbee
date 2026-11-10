@@ -4,7 +4,7 @@ import { terrainHeight } from './meadow-terrain';
 type ThreeModule = typeof Three;
 
 /** Small, low-poly meadow life. All flight paths are anchored in world space. */
-export function createMeadowLife(T: ThreeModule, baseY: number) {
+export function createMeadowLife(T: ThreeModule, baseY: number, groundSampler?: (x: number, z: number) => number) {
   const group = new T.Group();
   group.name = 'seasonal-meadow-life';
   let seed = 0x6bc451;
@@ -12,7 +12,7 @@ export function createMeadowLife(T: ThreeModule, baseY: number) {
     seed = (seed * 1664525 + 1013904223) >>> 0;
     return seed / 4294967296;
   };
-  const groundAt = (x: number, z: number) => baseY + terrainHeight(x, z);
+  const groundAt = groundSampler ?? ((x: number, z: number) => baseY + terrainHeight(x, z));
 
   // Two shaped wings hinged at the body, rather than flat particles.
   const shape = new T.Shape();

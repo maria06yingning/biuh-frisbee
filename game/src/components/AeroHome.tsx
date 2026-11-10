@@ -9,14 +9,17 @@ import { useI18n } from '@/i18n/I18nProvider';
 import '@/styles/aero-home.css';
 import '@/styles/aero-playground.css';
 
-const SCENES: MeadowSeason[] = ['summer', 'autumn', 'winter', 'night'];
+const SEASONS: MeadowSeason[] = ['summer', 'autumn', 'winter', 'night'];
+const SCENE_NAMES_ZH = ['原版·夏', '原版·秋', '原版·冬', '原版·夜', '星谷·夏', '星谷·秋', '星谷·冬', '星谷·夜'];
+const SCENE_NAMES_EN = ['Meadow · Summer', 'Meadow · Autumn', 'Meadow · Winter', 'Meadow · Night', 'Valley · Summer', 'Valley · Autumn', 'Valley · Winter', 'Valley · Night'];
 
 export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => void; onLab: () => void; onCodex: () => void }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const [paused, setPaused] = useState(false);
   const [replayToken, setReplayToken] = useState(0);
-  const [season, setSeason] = useState<MeadowSeason>('summer');
+  const [sceneIndex, setSceneIndex] = useState(0);
+  const season = SEASONS[sceneIndex % SEASONS.length];
   const [discColor, setDiscColor] = useState(() => defaultDiscColor('summer'));
   const [discLanded, setDiscLanded] = useState(false);
   const [nearDisc, setNearDisc] = useState(false);
@@ -47,9 +50,10 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
   };
 
   const nextScene = () => {
-    const next = SCENES[(SCENES.indexOf(season) + 1) % SCENES.length];
-    setSeason(next);
-    setDiscColor(defaultDiscColor(next));
+    const nextIndex = (sceneIndex + 1) % 8;
+    const nextSeason = SEASONS[nextIndex % SEASONS.length];
+    setSceneIndex(nextIndex);
+    setDiscColor(defaultDiscColor(nextSeason));
   };
   const randomColor = () => setDiscColor(current => randomDiscColor(season, current));
 
@@ -61,6 +65,7 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         paused={paused}
         replayToken={replayToken}
         season={season}
+        sceneIndex={sceneIndex}
         discColor={discColor}
         pickupToken={pickupToken}
         returnToken={returnToken}
@@ -69,9 +74,15 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         soundOn={soundOn}
       />
 
-      <button className="aero-play-control aero-scene-switch" type="button" aria-label={zh ? '切换场景' : 'Switch scene'} onClick={nextScene}>
+      <button className="aero-play-control aero-scene-switch" type="button"
+        aria-label={zh ? `当前场景：${SCENE_NAMES_ZH[sceneIndex]}，第 ${sceneIndex + 1}/8 个。点击切换` : `Current scene: ${SCENE_NAMES_EN[sceneIndex]}, ${sceneIndex + 1} of 8. Click to switch`}
+        onPointerDown={() => {
+          const nextIndex = (sceneIndex + 1) % 8;
+          if (nextIndex >= 4 && soundOn) window.dispatchEvent(new Event('uf-starvalley-audio-gesture'));
+        }}
+        onClick={nextScene}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4" /></svg>
-        <span>{zh ? '切换场景' : 'Switch scene'}</span>
+        <span>{zh ? `场景 ${sceneIndex + 1}/8 · ${SCENE_NAMES_ZH[sceneIndex]}` : `Scene ${sceneIndex + 1}/8 · ${SCENE_NAMES_EN[sceneIndex]}`}</span>
       </button>
 
       <button className="aero-play-control aero-fullscreen" type="button" aria-pressed={fullscreen} onClick={toggleFullscreen}>
@@ -103,7 +114,9 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>
           <span>{zh ? '再飞一次' : 'Replay'}</span>
         </button>
-        <button className="aero-play-control" type="button" aria-pressed={soundOn} onClick={() => setSoundOn(value => !value)}>
+        <button className="aero-play-control" type="button" aria-pressed={soundOn}
+          onPointerDown={() => { if (!soundOn && sceneIndex >= 4) window.dispatchEvent(new Event('uf-starvalley-audio-gesture')); }}
+          onClick={() => setSoundOn(value => !value)}>
           <svg viewBox="0 0 24 24" aria-hidden="true">{soundOn ? <path d="M4 9h4l5-4v14l-5-4H4Z M16 9c1.5 1.5 1.5 4.5 0 6 M19 6c3 3 3 9 0 12" /> : <path d="M4 9h4l5-4v14l-5-4H4Z M16 9l5 6 M21 9l-5 6" />}</svg>
           <span>{soundOn ? (zh ? '音效开' : 'Sound on') : (zh ? '音效关' : 'Sound off')}</span>
         </button>

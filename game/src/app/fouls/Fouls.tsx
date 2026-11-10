@@ -123,7 +123,7 @@ const VIOLATIONS: { tag: Bi; t: Bi; d: Bi }[] = [
   { tag: ['快数', 'Fast count'], t: ['快数（fast count）', 'Fast count'], d: ['标记者可能未先喊“stalling”、起始数字错误、未按要求调整计数，或相邻数字间隔不足 1 秒。叫出标记违规后，按规则将计数退回到此前已完整喊出的数字减一；先纠正违规再继续。', 'A marker may fail to say “Stalling”, start from the wrong number, fail to adjust the count correctly, or leave less than one second between number starts. After a marking-infraction call, resume at the last fully uttered number minus one, once the illegal position is corrected.'] }, 
   { tag: ['双人包夹', 'Double team'], t: ['双人包夹（double team）', 'Double team'], d: ['持盘者 3 米内有第二名防守者，且没在盯别的进攻者。', 'A second defender within 3 m of the thrower who isn’t guarding another offensive player.'] },
   { tag: ['距离', 'Marking space'], t: ['盘位空间 / 跨站 / 环抱', 'Disc space · straddle · wrapping'], d: ['标记者贴得太近：身体离躯干不足一个盘的直径、脚跨在轴心脚上、或用手臂环住持盘者。', 'The marker crowds the thrower — within a disc-diameter of the torso, straddling the pivot, or wrapping with the arms.'] },
-  { tag: ['掩护', 'Pick'], t: ['掩护（pick）', 'Pick'], d: ['防守者正在盯防一名进攻者，却被另一名球员挡住，无法向对位球员移动或跟随时，可叫“Pick”。如果被盯防者与挡路者当时都在争抢飞盘，则不算掩护；只有防守方可叫。', 'A defender guarding an offensive player may call “Pick” when another player prevents them moving toward or with that player. It is not a pick if both the guarded player and obstructing player are making a play on the disc. Only the defense may call it.'] }, 
+  { tag: ['掩护', 'Pick'], t: ['掩护（pick）', 'Pick'], d: ['防守者正跟随一名进攻者，却被另一名球员挡住去路、无法继续跟上时，可叫“Pick”。如果被跟随者与挡路者当时都在争抢飞盘，则不算掩护；只有防守方可叫。', 'A defender guarding an offensive player may call “Pick” when another player prevents them moving toward or with that player. It is not a pick if both the guarded player and obstructing player are making a play on the disc. Only the defense may call it.'] }, 
   { tag: ['开盘', 'Pull'], t: ['越位 / 抢跑', 'Offside · false start'], d: ['开盘时防守方提前过线（offside）或进攻方提前离线（false start）。必须在进攻方碰盘前喊出。', 'At the pull, the defense crosses early (offside) or the offense leaves early (false start). Call it before the offense touches the disc.'] },
 ];
 
@@ -196,9 +196,10 @@ function SignalFigure({ gesture, skin, hair }: { gesture: 'violation'|'contest'|
     <path d="M78 139L70 181M102 139L110 181" fill="none" stroke="#1b1a2e" strokeWidth="15" strokeLinecap="round"/>
     <path d="M78 140L70 181M102 140L110 181" fill="none" stroke={skin} strokeWidth="9" strokeLinecap="round"/>
     <path d="M69 178l-5 8-12 4h27l-1-8M111 178l5 8 12 4h-27l1-8" fill="#fff8e6" stroke="#1b1a2e" strokeWidth="2.5" strokeLinejoin="round"/>
+    <path d="M82 49v10q8 8 16 0V49Z" fill={skin} stroke="#1b1a2e" strokeWidth="2.5" strokeLinejoin="round"/>
     <path d="M68 119h44l-3 24q-19 8-38 0z" fill="#1b1a2e" stroke="#1b1a2e" strokeWidth="3"/>
     <path d="M72 63Q90 55 108 63L116 123Q90 131 64 123Z" fill="#14c2d8" stroke="#1b1a2e" strokeWidth="3" strokeLinejoin="round"/>
-    <path d="M84 53v10M96 53v10" stroke={skin} strokeWidth="7" strokeLinecap="round"/>
+    <path d="M81 63l9 7 9-7" fill="none" stroke="#1b1a2e" strokeWidth="2.5" strokeLinejoin="round"/>
     <circle cx="90" cy="37" r="17" fill={skin} stroke="#1b1a2e" strokeWidth="3"/>
     <path d="M73 36Q70 17 88 16Q108 16 107 34L99 28Q88 34 74 31Z" fill={hair} stroke="#1b1a2e" strokeWidth="2.5" strokeLinejoin="round"/>
     <circle cx="84" cy="39" r="1.6" fill="#1b1a2e"/><circle cx="96" cy="39" r="1.6" fill="#1b1a2e"/>

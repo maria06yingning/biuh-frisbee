@@ -14,6 +14,10 @@ const pages = process.env.GITHUB_PAGES === '1';
 
 const nextConfig = {
   reactStrictMode: true,
+  webpack(config) {
+    config.module.rules.push({ test: /\.html$/i, type: 'asset/source' });
+    return config;
+  },
   // Inlined at build time so plain <a href> links can be prefixed correctly.
   env: { NEXT_PUBLIC_BASE_PATH: basePath },
   ...(pages

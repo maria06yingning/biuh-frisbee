@@ -8,16 +8,21 @@ type ThreeModule = typeof Three;
  * Season index: 1 summer, 2 autumn, 3 winter, 4 night.
  * One tree stands on the reference mound; falling leaves, snow and fireflies follow the reference.
  */
-export function createMeadowLandscape(T: ThreeModule, baseY: number) {
+export function createMeadowLandscape(
+  T: ThreeModule,
+  baseY: number,
+  options: { groundAt?: (x: number, z: number) => number; includeTree?: boolean } = {},
+) {
   const group = new T.Group();
   group.name = 'reference-meadow-landscape';
-  const groundAt = (x: number, z: number) => baseY + terrainHeight(x, z);
+  const groundAt = options.groundAt ?? ((x: number, z: number) => baseY + terrainHeight(x, z));
 
   // The reference tree: a thin trunk and eight flat-shaded crown blobs.
   const tree = new T.Group();
   const treeScale = 5.2;
   tree.position.set(HILL_CENTER.x, groundAt(HILL_CENTER.x, HILL_CENTER.z) - 0.04, HILL_CENTER.z);
   tree.scale.setScalar(treeScale);
+  tree.visible = options.includeTree !== false;
   const bark = new T.MeshStandardMaterial({ color: 0x5a3a20, roughness: 0.88 });
   const trunk = new T.Mesh(new T.CylinderGeometry(0.11, 0.2, 1.55, 7), bark);
   trunk.position.y = 0.78;
@@ -104,7 +109,7 @@ export function createMeadowLandscape(T: ThreeModule, baseY: number) {
   }));
   group.add(fireflies);
 
-  const life = createMeadowLife(T, baseY);
+  const life = createMeadowLife(T, baseY, groundAt);
   group.add(life.group);
   // Stars use angular positions, so they remain visible just above the meadow horizon.
   const starGeometry = new T.BufferGeometry();

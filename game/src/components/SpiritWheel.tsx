@@ -8,8 +8,10 @@ export const SPIRIT_CATS: { t: Bi; q: Bi; details: Bi[]; color: string; label: B
     t: ['规则知识与运用', 'Rules knowledge & use'],
     q: ['他们是否了解并遵守规则？', 'Did they know and abide by the rules?'],
     details: [
-      ['弄清规则如何处理叫停、争议与恢复比赛；不要因为违规对自己有利就忽略它。', 'Know how calls, contests and restarts work; do not ignore a breach just because it benefits your team.'],
-      ['发现队友作出不必要或错误的叫停时提醒；不再认为自己的叫停必要，就主动撤回。', 'Flag an unnecessary or incorrect call by a teammate; retract your own call when you no longer believe it was needed.'],
+      ['了解并遵守已约定的规则；即使违规对自己有利，也不故意忽略。', 'Know and follow the agreed rules; do not ignore a breach because it benefits your team.'],
+      ['弄清叫停、回应和恢复比赛的程序；不确定时先询问或简短解释依据。', 'Know how calls, responses and restarts work; ask or briefly explain the rule when unsure.'],
+      ['发现队友作出不必要或错误的叫停时，及时提醒。', 'Flag a teammate’s unnecessary or incorrect call.'],
+      ['不再认为自己的叫停必要时，主动撤回。', 'Retract your own call when you no longer believe it was necessary.'],
     ],
     color: '#8f7be8', label: ['规则知识', 'Know the rules'],
   },
@@ -17,8 +19,10 @@ export const SPIRIT_CATS: { t: Bi; q: Bi; details: Bi[]; color: string; label: B
     t: ['犯规与身体接触', 'Fouls & body contact'],
     q: ['他们避免身体接触了吗？', 'Did they avoid body contact?'],
     details: [
-      ['争抢前留意彼此的移动路线与落点，不推、撞、拉或占住对方无法避开的空间。', 'Read each other’s line and landing space; do not push, bump, grab or occupy an unavoidable path.'],
-      ['避免鲁莽危险动作；即使没有发生接触，也要把安全放在得失分之前。', 'Avoid reckless dangerous play; safety comes before the result, even when no contact occurs.'],
+      ['争抢前看清彼此路线和落点；给对手合理的移动与落地空间。', 'Read each other’s line and landing space; give opponents room to move and land.'],
+      ['不推、撞、拉、绊或穿过对方已经占据且无法避开的空间。', 'Do not push, bump, grab, trip or move through space an opponent cannot reasonably avoid.'],
+      ['如果对手觉得身体对抗过强，及时收敛强度，而不是继续升级。', 'Scale back if opponents say the physicality is too high; do not escalate it.'],
+      ['区分偶发轻微接触与鲁莽、危险动作；危险动作即使没有接触也要严肃看待。', 'Distinguish incidental contact from reckless or dangerous play; dangerous play matters even without contact.'],
     ],
     color: '#ff5a4a', label: ['避免接触', 'Avoid contact'],
   },
@@ -26,8 +30,10 @@ export const SPIRIT_CATS: { t: Bi; q: Bi; details: Bi[]; color: string; label: B
     t: ['公平公正', 'Fair-mindedness'],
     q: ['他们公平公正吗？', 'Were they fair-minded?'],
     details: [
-      ['只按自己实际看到的情况作决定，不替队友或球队的利益偏袒。', 'Make calls from what you actually saw, not from loyalty or what benefits your team.'],
-      ['听取对方提供的事实；若发现自己判断有误，即使结果不利也按规则处理。', 'Consider the other player’s account; correct your view under the rules even when the outcome is unfavourable.'],
+      ['如实描述自己看到的动作，不把推测或传闻当成事实。', 'Describe what you actually saw; do not treat guesses or hearsay as facts.'],
+      ['不为了获得盘权或得分而选择性叫停，也不因对手获利就改变标准。', 'Do not make selective calls to gain possession or a goal, or change the standard when an opponent benefits.'],
+      ['认真考虑对方提供的信息；出现新证据时，愿意修正判断。', 'Consider the other player’s information and revise your view when new evidence changes it.'],
+      ['确认自己的叫停有误时，主动撤回，即使这会让结果对自己不利。', 'Retract a call you believe was wrong, even when that makes the outcome less favourable to your team.'],
     ],
     color: '#ffd23f', label: ['公平公正', 'Be fair-minded'],
   },
@@ -35,8 +41,10 @@ export const SPIRIT_CATS: { t: Bi; q: Bi; details: Bi[]; color: string; label: B
     t: ['积极态度与自控', 'Positive attitude & self-control'],
     q: ['他们展现了自控与积极态度吗？', 'Did they show self-control and a positive attitude?'],
     details: [
-      ['面对分歧或挑衅时控制语气和动作，不嘲讽、不恐吓，也不报复。', 'Control your words and actions through disagreement or provocation; do not taunt, intimidate or retaliate.'],
-      ['认真竞争，也能肯定对手的好球；不要把比分置于尊重与比赛乐趣之上。', 'Compete hard and recognise good play; do not put the score above respect or the joy of play.'],
+      ['面对分歧或挑衅时保持冷静，控制语气和动作。', 'Stay calm and control your words and actions through disagreement or provocation.'],
+      ['不嘲讽、不恐吓、不报复，也不以攻击性行为施压。', 'Do not taunt, intimidate, retaliate or pressure others with aggression.'],
+      ['主动肯定对手的好球或良好飞盘精神。', 'Recognise an opponent’s good play or positive Spirit.'],
+      ['投入竞争，但不以牺牲规则、安全、尊重和比赛乐趣为代价。', 'Compete hard without sacrificing the rules, safety, respect or joy of play.'],
     ],
     color: '#8fd17e', label: ['自控与态度', 'Self-control'],
 
@@ -45,8 +53,10 @@ export const SPIRIT_CATS: { t: Bi; q: Bi; details: Bi[]; color: string; label: B
     t: ['沟通', 'Communication'],
     q: ['他们沟通得当并尊重对方吗？', 'Did they communicate properly and respectfully?'],
     details: [
-      ['说明具体看见了什么，表达清楚、简短，不加入指责或猜测。', 'State exactly what you saw, clearly and briefly, without accusation or speculation.'],
-      ['给对方合理机会说明视角，认真倾听，并尽快用尊重的方式解决分歧。', 'Give the other player a fair chance to explain, listen carefully and resolve the disagreement respectfully.'],
+      ['用事实说明自己看到的情况，尽量清楚、简短。', 'Explain what you saw clearly and briefly, using specific facts.'],
+      ['让对方有合理机会陈述视角，不打断，也不替对方下结论。', 'Give the other player a reasonable chance to speak; do not interrupt or decide their view for them.'],
+      ['认真倾听并回应对方的要点，使用尊重的语言。', 'Listen and respond to their points using respectful language.'],
+      ['尽快共同解决分歧，必要时在赛后给出建设性反馈。', 'Resolve the disagreement promptly and offer constructive feedback afterward when useful.'],
     ],
     color: '#14c2d8', label: ['尊重沟通', 'Communicate'],
   },
@@ -88,7 +98,7 @@ export default function SpiritWheel({ selected, onSelect }: { selected: number; 
           const [nx, ny] = point(98, angle);
           const [tx, ty] = point(168, angle);
           const label = zh ? cat.label[0] : cat.label[1];
-          return <g key={cat.t[1]} className={`ap-spirit-sector${selected === i ? ' is-selected' : ''}`} role="button" tabIndex={0} aria-pressed={selected === i} aria-label={`${i + 1}. ${pick(lang, cat.t)}. ${pick(lang, cat.details[0])}`} onClick={() => onSelect(i)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(i); } }}>
+          return <g key={cat.t[1]} className={`ap-spirit-sector${selected === i ? ' is-selected' : ''}`} role="button" tabIndex={0} aria-pressed={selected === i} aria-label={`${i + 1}. ${pick(lang, cat.t)}. ${zh ? '官方评分问题：' : 'Official scoring question: '} ${pick(lang, cat.q)}. ${pick(lang, cat.details[0])}`} onClick={() => onSelect(i)} onKeyDown={(event) => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onSelect(i); } }}>
             <path d={sectorPath(i)} fill={cat.color} stroke="#1b1a2e" strokeWidth="4" />
             <circle cx={nx} cy={ny} r="18" fill="#1b1a2e" stroke="#f6ecd2" strokeWidth="2" />
             <text x={nx} y={ny + 6} textAnchor="middle" fill="#fff8e6" fontSize="17" fontWeight="900">{i + 1}</text>
@@ -106,11 +116,12 @@ export default function SpiritWheel({ selected, onSelect }: { selected: number; 
     <article className="ap-spirit-wheel-detail" style={{ '--spirit-color': current.color } as React.CSSProperties} aria-live="polite">
       <span className="ap-spirit-wheel-number">{String(selected + 1).padStart(2, '0')} / 05</span>
       <h3>{pick(lang, current.t)}</h3>
+      <p className="ap-spirit-official-q"><b>{zh ? 'WFDF 评分问题' : 'WFDF scoring question'}</b><br />“{pick(lang, current.q)}”</p>
       <h4>{zh ? '场上观察细则' : 'What to look for'}</h4>
       <ul className="ap-spirit-wheel-details">
         {current.details.map((detail, index) => <li key={index}>{pick(lang, detail)}</li>)}
       </ul>
-      <small>{zh ? '按 WFDF 飞盘精神原则整理的观察提示；官方评分问题与分值见下方。' : 'Practical prompts based on WFDF Spirit principles; the official scoring questions and scale are below.'}</small>
+      <small>{zh ? '这些观察点按 WFDF 公开原则与示例整理；完整量表和行为示例见下方官方资源链接。' : 'These prompts summarise WFDF principles and examples; see the official resource link below for the complete forms and behaviour examples.'}</small>
     </article>
   </div>;
 }

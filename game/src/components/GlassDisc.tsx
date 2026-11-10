@@ -3,13 +3,16 @@
 import { useEffect, useRef } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { createOutsideInFlight, DISC_FLIGHT_DURATION } from './disc-flight';
-import { createProceduralGrassField } from './procedural-grass';
+import { BASE_Y, createProceduralGrassField } from './procedural-grass';
+import { createMeadowLandscape } from './meadow-landscape';
+import type { StarvalleyEngineApi } from './starvalley-engine';
 import { classifyThrowStyle, createReturnFlight, createUserThrow, getThrowImpulse, type ThrowSample } from './disc-throw';
 import type { MeadowSeason } from './meadow-season';
 import { createMeadowSound, type MeadowSound } from './meadow-audio';
 import { defaultDiscColor } from './disc-palette';
 
 const WALK_SPEED = 7;
+const STARVALLEY_WALK_SPEED = WALK_SPEED * 1.4;
 /** Expanded walk limits stay within the existing fixed grass carpet. */
 const WALK_BOUNDS = { minX: -50, maxX: 50, minZ: -135, maxZ: 8 } as const;
 /** Pick-up range: how close the walker must stand to the landed disc. */
@@ -18,11 +21,12 @@ const BASE_FOV = 36;
 
 export type DiscCommand = { pickup: number; return: number };
 
-/** The homepage disc and its procedural meadow share one lightweight Three.js scene. */
+/** The homepage frisbee and full Starvalley world share one Three.js scene and render loop. */
 export default function GlassDisc({
   paused,
   replayToken = 0,
   season = 'summer',
+  sceneIndex = 0,
   discColor = defaultDiscColor(season),
   pickupToken = 0,
   returnToken = 0,
@@ -33,6 +37,7 @@ export default function GlassDisc({
   paused: boolean;
   replayToken?: number;
   season?: MeadowSeason;
+  sceneIndex?: number;
   discColor?: number;
   pickupToken?: number;
   returnToken?: number;
@@ -44,6 +49,7 @@ export default function GlassDisc({
   const pause = useRef(paused);
   const replay = useRef(replayToken);
   const seasonRef = useRef(season);
+  const sceneIndexRef = useRef(sceneIndex);
   const discColorRef = useRef(discColor);
   const pickupRef = useRef(pickupToken);
   const returnRef = useRef(returnToken);
@@ -54,6 +60,7 @@ export default function GlassDisc({
   pause.current = paused;
   replay.current = replayToken;
   seasonRef.current = season;
+  sceneIndexRef.current = sceneIndex;
   discColorRef.current = discColor;
   pickupRef.current = pickupToken;
   returnRef.current = returnToken;
@@ -81,6 +88,20 @@ export default function GlassDisc({
       renderer.toneMapping = T.ACESFilmicToneMapping;
       renderer.toneMappingExposure = 1.12;
       renderer.setClearColor(0, 0);
+      const fallbackRendererState = {
+        outputColorSpace: renderer.outputColorSpace,
+        toneMapping: renderer.toneMapping,
+        toneMappingExposure: renderer.toneMappingExposure,
+        autoClear: renderer.autoClear,
+        pixelRatio: renderer.getPixelRatio(),
+      };
+      const restoreFallbackRendererState = () => {
+        renderer.outputColorSpace = fallbackRendererState.outputColorSpace;
+        renderer.toneMapping = fallbackRendererState.toneMapping;
+        renderer.toneMappingExposure = fallbackRendererState.toneMappingExposure;
+        renderer.autoClear = fallbackRendererState.autoClear;
+        renderer.setPixelRatio(fallbackRendererState.pixelRatio);
+      };
       renderer.domElement.setAttribute('aria-hidden', 'true');
       // Overlay holds the old frame during a soft-edged scene wipe.
       const overlay = document.createElement('canvas');
@@ -89,17 +110,31 @@ export default function GlassDisc({
       const wipeTmp = document.createElement('canvas');
 
       const scene = new T.Scene();
-      const camera = new T.PerspectiveCamera(36, 1, 0.5, 700);
+      const camera = new T.PerspectiveCamera(36, 1, 0.5, 14000);
       camera.position.set(0, -0.29, 10.2);
       camera.lookAt(0, 0, 0);
 
       const grass = createProceduralGrassField(T);
+      let grassDisposed = false;
+      const disposeFallbackGrass = () => {
+        if (grassDisposed) return;
+        scene.remove(grass.group);
+        grass.dispose();
+        grassDisposed = true;
+      };
       scene.add(grass.group);
+      const homeFrame = new T.Group();
+      homeFrame.name = 'frisbee-home-frame';
+      homeFrame.userData.noCast = true;
+      scene.add(homeFrame);
+      const classicSeasonalEffects = createMeadowLandscape(T, BASE_Y, { groundAt: grass.groundAt, includeTree: true });
+      homeFrame.add(classicSeasonalEffects.group);
 
       const environment = grass.createEnvironment();
       const pmrem = new T.PMREMGenerator(renderer);
-      const env = pmrem.fromScene(environment.scene, 0.035, 0.1, 100);
-      scene.environment = env.texture;
+      let environmentTarget = pmrem.fromScene(environment.scene, 0.035, 0.1, 100);
+      const fallbackEnvironmentTarget = environmentTarget;
+      scene.environment = environmentTarget.texture;
       environment.dispose(); pmrem.dispose();
 
       const hemisphere = new T.HemisphereLight(0xe9f1ec, 0x596545, 1.5);
@@ -130,7 +165,8 @@ export default function GlassDisc({
       // Attitude carries the disc's place and tilt; the spinner adds its axial spin.
       const attitude = new T.Group();
       const spinner = new T.Group();
-      attitude.add(spinner); scene.add(attitude);
+      attitude.userData.noCast = true;
+      attitude.add(spinner); homeFrame.add(attitude);
       const initialColor = discColorRef.current;
       const glass = new T.MeshPhysicalMaterial({
         color: initialColor, metalness: 0.015, roughness: 0.1,
@@ -198,16 +234,19 @@ export default function GlassDisc({
 
       const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
       let reduced = mq.matches;
-      let raf = 0, elapsed = reduced ? DISC_FLIGHT_DURATION : 0, windTime = 0;
+      let raf = 0, starEngineTimer = 0, elapsed = reduced ? DISC_FLIGHT_DURATION : 0, windTime = 0;
       let last = performance.now(), lastRender = 0, active = true, contextLost = false;
       let seenReplay = replay.current, seenPickup = pickupRef.current, seenReturn = returnRef.current;
       let wasPaused = pause.current, ready = false;
+      let lastSceneIndex = sceneIndexRef.current;
       let tx = 0, ty = 0, px = 0, py = 0, spinAngle = 0;
       let throwWind = 0;
+      let currentDiscInfluence = 0;
       let lastSeason: MeadowSeason = seasonRef.current;
       let zoom = 1, zoomTarget = 1;
       let wipe: { snap: HTMLCanvasElement; t: number } | null = null;
       let soundFx: MeadowSound | null = createMeadowSound();
+      let starFootstepTimer = 0;
       let lastGrassTime = 0;
       let hasGrassPosition = false;
       const lastGrassPosition = new T.Vector3();
@@ -241,22 +280,53 @@ export default function GlassDisc({
       const dragHit = new T.Vector3();
       const dragOffset = new T.Vector3();
       const dragPosition = new T.Vector3();
+      const dragLocalPosition = new T.Vector3();
       const dragNormal = new T.Vector3();
 
-      // Walker: WASD moves the camera over the meadow; the camera keeps its eye height above the ground.
+      // The local play frame keeps the existing disc physics and WASD controls intact.
       let homeZ = 10.2, homeY = -0.29, eyeOffset = 7.1;
       const player = { x: 0, z: 0 };
       const keys: Record<string, boolean> = { w: false, a: false, s: false, d: false };
-
+      let starEngine: StarvalleyEngineApi | null = null;
+      let starEnginePromise: Promise<StarvalleyEngineApi> | null = null;
+      let starWorldReady = false;
+      let starWorldActive = false;
+      let starSeasonalEffects: ReturnType<typeof createMeadowLandscape> | null = null;
+      let starEnvironmentTarget: typeof environmentTarget | null = null;
+      const frameOffset = new T.Vector3();
+      const groundScratch = new T.Vector3();
+      const localCameraPosition = new T.Vector3();
+      const localLookAt = new T.Vector3();
+      const worldLookAt = new T.Vector3();
+      const worldDiscPosition = new T.Vector3();
+      const worldDiscVelocity = new T.Vector3();
+      const worldPlayerPosition = new T.Vector3();
+      const groundAt = (x: number, z: number) => {
+        if (!starWorldActive || !starWorldReady || !starEngine) return grass.groundAt(x, z);
+        groundScratch.set(x, 0, z);
+        homeFrame.localToWorld(groundScratch);
+        return starEngine.sampleHeight(groundScratch.x, groundScratch.z) - homeFrame.position.y;
+      };
+      const alignHomeFrame = () => {
+        if (!starEngine) return;
+        homeFrame.rotation.set(0, -starEngine.spawn.heading * Math.PI / 180, 0);
+        frameOffset.set(0, 0, homeZ).applyQuaternion(homeFrame.quaternion);
+        const spawnGround = starEngine.sampleHeight(starEngine.spawn.x, starEngine.spawn.z);
+        homeFrame.position.set(starEngine.spawn.x - frameOffset.x, spawnGround - BASE_Y, starEngine.spawn.z - frameOffset.z);
+        homeFrame.updateMatrixWorld(true);
+      };
       const placeCamera = () => {
         const cx = player.x;
         const cz = homeZ + player.z;
-        camera.position.set(cx, grass.groundAt(cx, cz) + eyeOffset, cz);
-        // Keep the home pitch: the look target moves with the walker, so the view angle never changes.
-        camera.lookAt(cx, camera.position.y - homeY, cz - homeZ);
+        homeFrame.updateMatrixWorld(true);
+        localCameraPosition.set(cx, groundAt(cx, cz) + eyeOffset, cz);
+        localLookAt.set(cx, localCameraPosition.y - homeY, cz - homeZ);
+        camera.position.copy(homeFrame.localToWorld(localCameraPosition));
+        worldLookAt.copy(homeFrame.localToWorld(localLookAt));
+        camera.lookAt(worldLookAt);
       };
 
-      let sampleFlight = createOutsideInFlight(1, camera.position.z);
+      let sampleFlight = createOutsideInFlight(1, homeZ);
 
       const applyPose = () => {
         const pose = sampleFlight(elapsed);
@@ -271,7 +341,11 @@ export default function GlassDisc({
           attitude.position.copy(lockedPosition);
           if (!inspecting) attitude.quaternion.copy(lockedRotation);
         }
-        if (touchId !== null && pressMode === 'locked') attitude.position.copy(dragPosition);
+        if (touchId !== null && pressMode === 'locked') {
+          dragLocalPosition.copy(dragPosition);
+          homeFrame.worldToLocal(dragLocalPosition);
+          attitude.position.copy(dragLocalPosition);
+        }
         if (userThrow) {
           const thrown = userThrow.sample(throwTime);
           attitude.position.set(thrown.position.x, thrown.position.y, thrown.position.z);
@@ -301,8 +375,31 @@ export default function GlassDisc({
         hasGrassPosition = true;
         const arrivalGust = pose.z < -0.5 && !ready ? Math.max(0, Math.min(1, 1 - elapsed / DISC_FLIGHT_DURATION)) : 0;
         const influence = Math.max(arrivalGust, throwWind);
-        grass.update(windTime, motion, pose, influence, { x: grassVelocity.x, z: grassVelocity.y },
-          { x: camera.position.x, z: camera.position.z }, 1, seasonRef.current);
+        currentDiscInfluence = motion ? influence : 0;
+        const seasonIndex = { summer: 1, autumn: 2, winter: 3, night: 4 }[seasonRef.current];
+        if (starWorldActive && starWorldReady) {
+          starSeasonalEffects?.update(windTime, seasonIndex);
+        } else {
+          classicSeasonalEffects.update(windTime, seasonIndex);
+          grass.update(windTime, motion, pose, influence, { x: grassVelocity.x, z: grassVelocity.y },
+            { x: camera.position.x, z: camera.position.z }, 1, seasonRef.current);
+        }
+      };
+      const renderStarvalley = (now: number) => {
+        if (!starEngine || !starWorldReady || !starWorldActive) { renderer.render(scene, camera); return; }
+        homeFrame.updateMatrixWorld(true);
+        attitude.updateWorldMatrix(true, true);
+        attitude.getWorldPosition(worldDiscPosition);
+        worldDiscVelocity.set(grassVelocity.x, 0, grassVelocity.y).applyQuaternion(homeFrame.quaternion);
+        worldPlayerPosition.set(player.x, 0, homeZ + player.z);
+        homeFrame.localToWorld(worldPlayerPosition);
+        const seasonIndex = { summer: 1, autumn: 2, winter: 3, night: 4 }[seasonRef.current];
+        starEngine.frame(now, seasonIndex, pause.current || reduced, {
+          position: { x: worldDiscPosition.x, y: worldDiscPosition.y, z: worldDiscPosition.z },
+          velocity: { x: worldDiscVelocity.x, z: worldDiscVelocity.z },
+          influence: currentDiscInfluence,
+          player: { x: worldPlayerPosition.x, z: worldPlayerPosition.z },
+        });
       };
       const resize = () => {
         const { width, height } = node.getBoundingClientRect();
@@ -311,10 +408,17 @@ export default function GlassDisc({
         const tanHalfFov = Math.tan(camera.fov * Math.PI / 360);
         homeZ = Math.max(10.2, 3.15 / (tanHalfFov * camera.aspect));
         homeY = homeZ * -0.028;
-        eyeOffset = homeY - grass.groundAt(0, homeZ);
+        if (starWorldActive) {
+          alignHomeFrame();
+        } else {
+          homeFrame.position.set(0, 0, 0);
+          homeFrame.rotation.set(0, 0, 0);
+          homeFrame.updateMatrixWorld(true);
+        }
+        eyeOffset = homeY - groundAt(0, homeZ);
         camera.updateProjectionMatrix();
         placeCamera();
-        grass.layout();
+        if (!starWorldReady) grass.layout();
         sampleFlight = createOutsideInFlight(camera.aspect, homeZ, camera.fov);
         const halfWidth = tanHalfFov * camera.aspect * homeZ;
         const halfHeight = tanHalfFov * homeZ;
@@ -322,12 +426,13 @@ export default function GlassDisc({
         rangeUp = Math.min(1.1, Math.max(0.6, halfHeight - 2.4));
         rangeDown = 0.85;
         renderer.setSize(width, height, false);
+        if (starWorldActive) starEngine?.resize();
         overlay.width = renderer.domElement.width;
         overlay.height = renderer.domElement.height;
         wipeTmp.width = overlay.width;
         wipeTmp.height = overlay.height;
         const pose = applyPose(); applyGrass(pose.position, !reduced && !pause.current);
-        if (!contextLost) renderer.render(scene, camera);
+        if (!contextLost) renderStarvalley(performance.now());
       };
       const observer = new ResizeObserver(resize); observer.observe(node);
       const visibility = new IntersectionObserver(([entry]) => { active = entry.isIntersecting; });
@@ -361,7 +466,7 @@ export default function GlassDisc({
             aimRay(event);
             if (raycaster.ray.intersectPlane(dragPlane, dragHit)) {
               dragPosition.copy(dragHit).add(dragOffset);
-              const handY = grass.groundAt(player.x, homeZ + player.z) + eyeOffset - homeY;
+              const handY = groundAt(player.x, homeZ + player.z) + eyeOffset - homeY + homeFrame.position.y;
               dragPosition.y = Math.max(handY - 0.85, Math.min(handY + 3, dragPosition.y));
             }
           }
@@ -382,10 +487,10 @@ export default function GlassDisc({
         movedDuringPress = false;
         if (inspecting) { tx = px; ty = py; }
         camera.getWorldDirection(dragNormal);
-        dragPlane.setFromNormalAndCoplanarPoint(dragNormal, attitude.position);
+        dragPlane.setFromNormalAndCoplanarPoint(dragNormal, discPickSphere.center);
         raycaster.ray.intersectPlane(dragPlane, dragHit);
-        dragOffset.copy(attitude.position).sub(dragHit);
-        dragPosition.copy(attitude.position);
+        dragOffset.copy(discPickSphere.center).sub(dragHit);
+        dragPosition.copy(discPickSphere.center);
         gesture = []; remember(event);
         node.setPointerCapture(event.pointerId);
         node.dataset.dragging = 'false';
@@ -420,11 +525,12 @@ export default function GlassDisc({
           const travelSide = new T.Vector3().crossVectors(travelDirection, AXIS_Y).normalize();
           const edgeTilt = faceNormal.dot(travelSide);
           const throwStyle = classifyThrowStyle(faceNormal.y, edgeTilt);
-          userThrow = createUserThrow(dragPosition, impulse, camera.aspect, throwStyle, grass.groundAt);
+          const localRelease = homeFrame.worldToLocal(dragPosition.clone());
+          userThrow = createUserThrow(localRelease, impulse, camera.aspect, throwStyle, groundAt);
           returningFlight = false;
           throwTime = 0;
         } else if (pressMode === 'locked' && validRelease && movedDuringPress) {
-          lockedPosition.copy(dragPosition);
+          lockedPosition.copy(homeFrame.worldToLocal(dragPosition.clone()));
         }
         touchId = null;
         gesture = [];
@@ -442,7 +548,7 @@ export default function GlassDisc({
         nearCallback.current?.(near);
       };
       const handPosition = () => new T.Vector3(player.x,
-        grass.groundAt(player.x, homeZ + player.z) + eyeOffset - homeY, player.z);
+        groundAt(player.x, homeZ + player.z) + eyeOffset - homeY, player.z);
       const resetToHand = () => {
         userThrow = null; returningFlight = false; inspecting = false;
         lockedPosition.copy(handPosition());
@@ -492,9 +598,17 @@ export default function GlassDisc({
         const key = event.key.toLowerCase();
         if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
           keys[key] = true;
-          soundFx?.resume(seasonRef.current, soundRef.current);
+          if (starWorldActive) {
+            if (soundRef.current) starEngine?.resumeAudio();
+          } else {
+            soundFx?.resume(seasonRef.current, soundRef.current);
+          }
         }
         if (key === 'e' && !event.repeat) sendBack();
+      };
+      const onStarvalleyAudioGesture = () => { starEngine?.resumeAudio(); };
+      const onCanvasAudioGesture = () => {
+        if (starWorldActive && soundRef.current) starEngine?.resumeAudio();
       };
       const onKeyUp = (event: KeyboardEvent) => {
         const key = event.key.toLowerCase();
@@ -542,6 +656,8 @@ export default function GlassDisc({
       mq.addEventListener('change', onMotion);
       renderer.domElement.addEventListener('webglcontextlost', onContextLost);
       renderer.domElement.addEventListener('webglcontextrestored', onContextRestored);
+      renderer.domElement.addEventListener('pointerdown', onCanvasAudioGesture);
+      window.addEventListener('uf-starvalley-audio-gesture', onStarvalleyAudioGesture);
       window.addEventListener('keydown', onKeyDown);
       window.addEventListener('keyup', onKeyUp);
       window.addEventListener('blur', clearKeys);
@@ -610,25 +726,66 @@ export default function GlassDisc({
             if (dx || dz) {
               const len = Math.hypot(dx, dz);
               const oldX = player.x, oldZ = player.z;
-              player.x = Math.max(WALK_BOUNDS.minX, Math.min(WALK_BOUNDS.maxX, player.x + dx / len * WALK_SPEED * dt));
-              player.z = Math.max(WALK_BOUNDS.minZ, Math.min(WALK_BOUNDS.maxZ, player.z + dz / len * WALK_SPEED * dt));
+              const speed = starWorldActive ? STARVALLEY_WALK_SPEED : WALK_SPEED;
+              player.x = Math.max(WALK_BOUNDS.minX, Math.min(WALK_BOUNDS.maxX, player.x + dx / len * speed * dt));
+              player.z = Math.max(WALK_BOUNDS.minZ, Math.min(WALK_BOUNDS.maxZ, player.z + dz / len * speed * dt));
               walkedThisFrame = player.x !== oldX || player.z !== oldZ;
               if (walkedThisFrame && !discLanded) lockedPosition.add(handPosition().sub(previousHand));
             }
           }
-          // Scene change: capture the frame still on screen, then wipe it away to reveal the new scene.
-          if (seasonRef.current !== lastSeason) {
+          // Scene order: original meadow Summer/Autumn/Winter/Night, then Starvalley Summer/Autumn/Winter/Night.
+          const selectedScene = sceneIndexRef.current;
+          const sceneChanged = selectedScene !== lastSceneIndex;
+          const seasonChanged = seasonRef.current !== lastSeason;
+          let sceneSnapshot: HTMLCanvasElement | null = null;
+          if ((sceneChanged || seasonChanged) && !reduced && renderer.domElement.width > 0) {
+            sceneSnapshot = document.createElement('canvas');
+            sceneSnapshot.width = renderer.domElement.width;
+            sceneSnapshot.height = renderer.domElement.height;
+            sceneSnapshot.getContext('2d')?.drawImage(renderer.domElement, 0, 0);
+          }
+          if (sceneChanged) {
+            const wantsStarvalley = selectedScene >= 4;
+            if (starEngine && starWorldReady && wantsStarvalley !== starWorldActive) {
+              if (wantsStarvalley) {
+                starWorldActive = true;
+                alignHomeFrame();
+                classicSeasonalEffects.group.visible = false;
+                if (starSeasonalEffects) starSeasonalEffects.group.visible = true;
+                grass.group.visible = false;
+                if (starEnvironmentTarget) {
+                  environmentTarget = starEnvironmentTarget;
+                  scene.environment = starEnvironmentTarget.texture;
+                }
+                sun.position.copy(starEngine.sunDirection).multiplyScalar(12);
+                starEngine.activate();
+              } else {
+                starWorldActive = false;
+                starEngine.deactivate();
+                homeFrame.position.set(0, 0, 0);
+                homeFrame.rotation.set(0, 0, 0);
+                homeFrame.updateMatrixWorld(true);
+                if (starSeasonalEffects) starSeasonalEffects.group.visible = false;
+                classicSeasonalEffects.group.visible = true;
+                grass.group.visible = true;
+                environmentTarget = fallbackEnvironmentTarget;
+                scene.environment = fallbackEnvironmentTarget.texture;
+                sun.position.copy(grass.sunDirection).multiplyScalar(12);
+                restoreFallbackRendererState();
+              }
+              eyeOffset = homeY - groundAt(0, homeZ);
+              updateLighting(seasonRef.current);
+              placeCamera();
+              resize();
+            }
+            lastSceneIndex = selectedScene;
+            applyDiscAppearance(discColorRef.current);
+          }
+          if (seasonChanged) {
             lastSeason = seasonRef.current;
             updateLighting(lastSeason);
-            applyDiscAppearance(discColorRef.current);
-            if (!reduced && renderer.domElement.width > 0) {
-              const snap = document.createElement('canvas');
-              snap.width = renderer.domElement.width;
-              snap.height = renderer.domElement.height;
-              snap.getContext('2d')?.drawImage(renderer.domElement, 0, 0);
-              wipe = { snap, t: 0 };
-            }
           }
+          if (sceneSnapshot) wipe = { snap: sceneSnapshot, t: 0 };
           if (wipe) {
             wipe.t = Math.min(1, wipe.t + dt / 1.2);
             if (wipe.t >= 1) {
@@ -644,8 +801,8 @@ export default function GlassDisc({
           }
           placeCamera();
           if (discLanded) {
-            const dxp = camera.position.x - lockedPosition.x;
-            const dzp = camera.position.z - lockedPosition.z;
+            const dxp = player.x - lockedPosition.x;
+            const dzp = homeZ + player.z - lockedPosition.z;
             setNear(Math.hypot(dxp, dzp) < PICKUP_RANGE);
           } else {
             setNear(false);
@@ -655,37 +812,157 @@ export default function GlassDisc({
           applyGrass(attitude.position, !reduced && !pause.current);
           const interacting = Math.abs(tx - px) + Math.abs(ty - py) > 0.002;
           const moving = keys.w || keys.a || keys.s || keys.d;
-          const frameInterval = !pose.ready || userThrow || touchId !== null || interacting || moving || wipe !== null ? 1000 / 60 : 1000 / 30;
+          const frameInterval = starWorldActive || !pose.ready || userThrow || touchId !== null || interacting || moving || wipe !== null
+            ? 1000 / 60 : 1000 / 30;
           if (now - lastRender >= frameInterval || wasPaused !== pause.current) {
-            renderer.render(scene, camera); lastRender = now;
+            renderStarvalley(now); lastRender = now;
             drawWipe();
           }
         }
-        soundFx?.setWalking(walkedThisFrame && soundRef.current, seasonRef.current);
+        starEngine?.setAudioEnabled(starWorldActive && soundRef.current);
+        if (starWorldActive && walkedThisFrame && soundRef.current && starEngine) {
+          starFootstepTimer -= dt;
+          if (starFootstepTimer <= 0) {
+            worldPlayerPosition.set(player.x, 0, homeZ + player.z);
+            homeFrame.localToWorld(worldPlayerPosition);
+            starEngine.footstep(STARVALLEY_WALK_SPEED, worldPlayerPosition.x, worldPlayerPosition.z);
+            starFootstepTimer = 0.38;
+          }
+        } else {
+          starFootstepTimer = 0;
+        }
+        soundFx?.setWalking(walkedThisFrame && soundRef.current && !starWorldActive, seasonRef.current);
         raf = requestAnimationFrame(tick);
       };
       node.appendChild(renderer.domElement);
       node.appendChild(overlay);
       resize(); node.dataset.ready = 'true'; raf = requestAnimationFrame(tick);
+      const finishCleanup = () => {
+        starEngine?.dispose(); starEngine = null;
+        if (starSeasonalEffects) {
+          homeFrame.remove(starSeasonalEffects.group);
+          starSeasonalEffects.dispose();
+          starSeasonalEffects = null;
+        }
+        homeFrame.remove(classicSeasonalEffects.group);
+        classicSeasonalEffects.dispose();
+        disposeFallbackGrass();
+        spinner.traverse(object => { if (object instanceof T.Mesh) object.geometry.dispose(); });
+        glass.dispose(); pink.dispose(); white.dispose(); etching.dispose();
+        scene.environment = null;
+        fallbackEnvironmentTarget.dispose();
+        starEnvironmentTarget?.dispose();
+        renderer.dispose(); renderer.domElement.remove(); overlay.remove();
+        delete node.dataset.ready; delete node.dataset.engine; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode;
+      };
       cleanup = () => {
-        cancelAnimationFrame(raf); observer.disconnect(); visibility.disconnect();
+        cancelAnimationFrame(raf); window.clearTimeout(starEngineTimer);
+        observer.disconnect(); visibility.disconnect();
         zone.removeEventListener('pointermove', move); zone.removeEventListener('pointerleave', leave);
         node.removeEventListener('pointerdown', down);
         node.removeEventListener('pointerup', release); node.removeEventListener('pointercancel', release); node.removeEventListener('lostpointercapture', release);
         mq.removeEventListener('change', onMotion);
         renderer.domElement.removeEventListener('webglcontextlost', onContextLost);
         renderer.domElement.removeEventListener('webglcontextrestored', onContextRestored);
+        renderer.domElement.removeEventListener('pointerdown', onCanvasAudioGesture);
+        window.removeEventListener('uf-starvalley-audio-gesture', onStarvalleyAudioGesture);
         window.removeEventListener('keydown', onKeyDown);
         window.removeEventListener('keyup', onKeyUp);
         window.removeEventListener('blur', clearKeys);
         node.removeEventListener('wheel', onWheel);
+        soundFx?.setWalking(false, seasonRef.current);
         soundFx?.dispose(); soundFx = null;
-        spinner.traverse(object => { if (object instanceof T.Mesh) object.geometry.dispose(); });
-        glass.dispose(); pink.dispose(); white.dispose(); etching.dispose();
-        grass.dispose(); env.dispose();
-        renderer.dispose(); renderer.domElement.remove(); overlay.remove();
-        delete node.dataset.ready; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode;
+        if (starEnginePromise && !starEngine) {
+          void starEnginePromise.then(api => api.dispose(), () => undefined).finally(finishCleanup);
+        } else {
+          finishCleanup();
+        }
       };
+
+      starEngineTimer = window.setTimeout(() => {
+        const engineTask = import('./starvalley-engine').then(({ createStarvalleyEngine }) =>
+          createStarvalleyEngine(T, renderer, scene, camera, node));
+        starEnginePromise = engineTask;
+        void engineTask.then(api => {
+          if (disposed) return;
+          const snap = document.createElement('canvas');
+          snap.width = renderer.domElement.width;
+          snap.height = renderer.domElement.height;
+          snap.getContext('2d')?.drawImage(renderer.domElement, 0, 0);
+          const previousEnvironment = environmentTarget;
+          let nextEnvironment: typeof environmentTarget | null = null;
+          try {
+            starEngine = api;
+            starWorldReady = true;
+            starWorldActive = sceneIndexRef.current >= 4;
+            alignHomeFrame();
+            eyeOffset = homeY - groundAt(0, homeZ);
+            starSeasonalEffects = createMeadowLandscape(T, BASE_Y, { groundAt, includeTree: false });
+            const skyEnvironment = api.createEnvironment();
+            const nextPmrem = new T.PMREMGenerator(renderer);
+            try {
+              nextEnvironment = nextPmrem.fromScene(skyEnvironment.scene, 0.035, 0.1, 100);
+            } finally {
+              skyEnvironment.dispose(); nextPmrem.dispose();
+            }
+            homeFrame.add(starSeasonalEffects.group);
+            starEnvironmentTarget = nextEnvironment;
+            classicSeasonalEffects.group.visible = !starWorldActive;
+            starSeasonalEffects.group.visible = starWorldActive;
+            grass.group.visible = !starWorldActive;
+            if (starWorldActive) {
+              environmentTarget = nextEnvironment;
+              scene.environment = nextEnvironment.texture;
+              sun.position.copy(api.sunDirection).multiplyScalar(12);
+              api.activate();
+            } else {
+              environmentTarget = fallbackEnvironmentTarget;
+              scene.environment = fallbackEnvironmentTarget.texture;
+              sun.position.copy(grass.sunDirection).multiplyScalar(12);
+              restoreFallbackRendererState();
+              api.deactivate();
+            }
+            updateLighting(seasonRef.current);
+            api.setAudioEnabled(starWorldActive && soundRef.current);
+            wipe = { snap, t: 0 };
+            resize();
+            starEnginePromise = null;
+            node.dataset.engine = 'ready';
+          } catch (error) {
+            starWorldReady = false;
+            starWorldActive = false;
+            homeFrame.position.set(0, 0, 0); homeFrame.rotation.set(0, 0, 0); homeFrame.updateMatrixWorld(true);
+            if (starSeasonalEffects) {
+              homeFrame.remove(starSeasonalEffects.group);
+              starSeasonalEffects.dispose();
+              starSeasonalEffects = null;
+            }
+            api.deactivate(); api.dispose(); starEngine = null;
+            starEnvironmentTarget = null;
+            restoreFallbackRendererState();
+            grass.group.visible = true;
+            classicSeasonalEffects.group.visible = true;
+            environmentTarget = previousEnvironment;
+            scene.environment = previousEnvironment.texture;
+            nextEnvironment?.dispose();
+            eyeOffset = homeY - grass.groundAt(0, homeZ);
+            placeCamera();
+            resize();
+            overlay.getContext('2d')?.clearRect(0, 0, overlay.width, overlay.height);
+            wipe = null;
+            starEnginePromise = null;
+            console.error('[GlassDisc] Starvalley scene integration failed', error);
+            node.dataset.engine = 'fallback';
+          }
+        }).catch(error => {
+          starEnginePromise = null;
+          restoreFallbackRendererState();
+          if (!disposed) {
+            console.error('[GlassDisc] Starvalley engine boot failed', error);
+            node.dataset.engine = 'fallback';
+          }
+        });
+      }, 0);
     }).catch((error: unknown) => {
       if (!disposed) {
         console.error('[GlassDisc] Three.js scene initialization failed', error);

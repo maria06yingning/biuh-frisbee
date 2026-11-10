@@ -80,7 +80,7 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
   },
   {
     t: ['双人包夹（double team）', 'Double team'],
-    d: ['除标记者外，另一名防守者若在持盘者轴心点 3 米内，且没有盯防其他进攻者，就构成双人包夹（double team）。仅仅跑过这片区域不算。', 'A defender other than the marker within 3 m of the thrower’s pivot point is a double team only if they are not guarding another offensive player. Merely running through the area is not a double team.'],
+    d: ['除标记者外，另一名防守者若在持盘者轴心点 3 米内，且没有负责防守另一名进攻者，就构成双人包夹（double team）。仅仅跑过这片区域不算。', 'A defender other than the marker within 3 m of the thrower’s pivot point is a double team only if they are not guarding another offensive player. Merely running through the area is not a double team.'],
     why: ['持盘者需要空间看场、出手，防守靠人数会破坏平衡。', 'The thrower needs room to see and throw; crowding would tip the balance.'],
   },
   {
@@ -89,13 +89,13 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
     why: ['回传找空间，再纵深推进，是飞盘进攻的基本节奏。', 'Reset backward to find space, then attack deep — that’s the rhythm.'],
   },
   {
-    t: ['盘权瞬间转换', 'Possession flips instantly'],
-    d: ['传球没接住就是盘权转换（turnover）：落地、被拦截（interception）、出界、被封阻（block）、计数到限都算，防守方当场变进攻方。', 'An incomplete pass is a turnover — a drop, interception, out-of-bounds disc, block or stall-out — and the defense becomes the offense on the spot.'],
+    t: ['盘权转换（turnover）', 'Turnover'],
+    d: ['传丢（throwaway）、接盘时掉盘（drop）、被拦截（interception）、出界（out of bounds）、被封阻（block）或计数到限（stall-out），都会导致盘权转换；防守方立即成为进攻方。', 'A throwaway, drop, interception, out-of-bounds disc, block or stall-out causes a turnover: the defense immediately becomes the offense.'],
     why: ['没有停表、没有发球：攻守在一瞬间互换，这是飞盘独特的节奏。', 'No whistle, no reset — the switch is instant. That tempo is ultimate’s signature.'],
   },
   {
-    t: ['死球后从哪开始', 'Where play restarts'],
-    d: ['盘停在中央区就原地开球；出界则取最近的中央区边界点；在自己防守的得分区内则可选原地或走到最近得分线。', 'Pick up in the central zone where it stopped; if it went out, take the nearest point on the central zone; in your defending end zone, start there or walk to the nearest goal line.'],
+    t: ['比赛停下后如何恢复', 'Where play restarts'],
+    d: ['飞盘停在中央区，就在原地恢复比赛；出界时，在最近的中央区边界点恢复；若盘停在己方防守得分区，可从原地恢复，或拿盘走到最近得分线后恢复。', 'If the disc stops in the central zone, restart where it stopped; after it goes out, restart at the nearest point on the central-zone boundary. In your defending end zone, restart there or walk the disc to the nearest goal line.'],
     why: ['规则尽量“还原”没有失误时最可能出现的局面，而不是惩罚。', 'The rules try to restore what would most likely have happened, not to punish.'],
   },
   {
