@@ -2,40 +2,9 @@
 
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { pick, withBase, type Bi } from '@/content/shared';
+import { pick, withBase } from '@/content/shared';
+import { FRISBEE_VOICES } from '@/content/frisbee-voices';
 import PageShell, { Section } from '@/components/PageShell';
-
-/* One person, one pass, one personal reason to love ultimate. */
-const REASONS: { t: Bi; d: Bi }[] = [
-  {
-    t: ['一张盘，就能开场', 'All it takes is a disc'],
-    d: ['一张盘、一块草地、几个人，就能开打。不需要球门、球网，也不用先学会复杂的装备。操场、海滩、公园都是球场。', 'One disc, a patch of grass, a few friends — that’s a game. No goals, no nets, no gear to learn first. Campus fields, beaches and parks all work.'],
-  },
-  {
-    t: ['不同的人，同一块场地', 'Different people, one shared field'],
-    d: ['混合组是飞盘常见的打法之一，男女队员同场竞技、互相传盘。每个人都能成为进攻的一部分。', 'Mixed is one of the common ways to play, with women and men sharing the field and the disc. Everyone can be part of the attack.'],
-  },
-  {
-    t: ['盘会经过每个人的手', 'The disc travels through everyone'],
-    d: ['持盘者不能跑，进攻只能靠传。所以盘必须在队友之间流动——没有谁能一个人带着它冲到底。', 'The thrower can’t run, so the only way forward is the pass. The disc has to move through teammates; no one carries it all the way alone.'],
-  },
-  {
-    t: ['接住一记好传，真像飞起来', 'A great catch feels like flying'],
-    d: ['飞盘在空中会转、会飘、会拐弯。读懂风和弧线，再在空当里一跃把它接住——那一刻很难用别的运动替代。', 'A disc spins, floats and curves. Read the wind and its arc, leap into space and pull it down — few other sports give you that moment.'],
-  },
-  {
-    t: ['默契，是一段看得见的对话', 'Teamwork becomes a conversation'],
-    d: ['切入、回传、横向转移……你跑向空当，队友在你到之前就已经出手。好的配合不用多说，飞盘已经在路上。', 'Cuts, resets, swings — you break for space, and the throw is already in the air before you arrive. Good teamwork speaks through the disc.'],
-  },
-  {
-    t: ['没有裁判，也可以彼此信任', 'Trust, built without a referee'],
-    d: ['没有裁判，你得相信对手，对手也得相信你。会叫停、会讲道理，也会撤回自己的叫停，这些本事在场下同样有用。', 'With no referee, you trust your opponent and they trust you. Calling, explaining, even retracting a call — those skills travel well off the field.'],
-  },
-  {
-    t: ['比赛结束，朋友还在', 'The game ends; the community stays'],
-    d: ['赛后两队交替围成精神圈，互相称赞、把小摩擦说开。很多人是因为一场比赛，认识了一整个城市的飞盘圈。', 'After the game, both teams form a Spirit circle to praise and clear the air. Plenty of people find a whole city’s disc community through one match.'],
-  },
-];
 
 type Player = { x: number; y: number; skin: string; hair: string; shirt: string; hairStyle: number; shorts: string };
 const PLAYERS: Player[] = [
@@ -80,6 +49,7 @@ function PassTheLove() {
   const [holder, setHolder] = useState(0);
   const [target, setTarget] = useState<number | null>(null);
   const [flying, setFlying] = useState(false);
+  const [voiceIndex, setVoiceIndex] = useState(0);
   const [players, setPlayers] = useState<Player[]>(() => PLAYERS.map(player => ({ ...player })));
   const [running, setRunning] = useState(false);
   const timer = useRef<number | null>(null);
@@ -87,6 +57,7 @@ function PassTheLove() {
   const current = players[holder];
   const receiver = target === null ? current : players[target];
   const disc = players[discHolder];
+  const voice = FRISBEE_VOICES[voiceIndex];
 
   useEffect(() => {
     const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -116,10 +87,13 @@ function PassTheLove() {
     if (flying) return;
     const candidates = players.map((_, index) => index).filter(index => index !== holder);
     const next = candidates[Math.floor(Math.random() * candidates.length)];
+    const otherVoices = FRISBEE_VOICES.map((_, index) => index).filter(index => index !== voiceIndex);
+    const nextVoice = otherVoices.length ? otherVoices[Math.floor(Math.random() * otherVoices.length)] : voiceIndex;
     setTarget(next);
     setFlying(true);
     timer.current = window.setTimeout(() => {
       setHolder(next);
+      setVoiceIndex(nextVoice);
       setTarget(null);
       setFlying(false);
       timer.current = null;
@@ -135,8 +109,8 @@ function PassTheLove() {
 
   return (
     <div className="ap-love-pass">
-      <p className="ap-love-instruction">{zh ? '队员在场地里跑动；点飞盘，随机传给一位队友。' : 'Players move around the field. Tap the disc to pass it to a random teammate.'}</p>
-      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员在场地范围内跑动，点击飞盘即可随机传给一位队友' : 'Players run within the field; click the disc to pass it to a random teammate'}>
+      <p className="ap-love-instruction">{zh ? '队员在场地里跑动；点飞盘随机传给队友，再读一条朋友的留言。' : 'Players move around the field. Tap the disc to pass it, then read a message from a friend.'}</p>
+      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员在场地范围内跑动，点击飞盘传球，并随机展示一条朋友留言' : 'Players run within the field; click the disc to pass and reveal a random message from a friend'}>
         <rect x="0" y="0" width="800" height="410" rx="22" fill="#f8f0d9" />
         <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
         <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />
@@ -148,7 +122,7 @@ function PassTheLove() {
           transform={`translate(${disc.x} ${disc.y - 52}) rotate(-12)`}
           role="button"
           tabIndex={0}
-          aria-label={zh ? '把飞盘随机传给一位队友' : 'Pass the disc to a random teammate'}
+          aria-label={zh ? '把飞盘传给队友，再听一条朋友留言' : 'Pass the disc and hear another message from a friend'}
           onClick={pass}
           onKeyDown={handleKey}
           aria-disabled={flying}
@@ -161,13 +135,20 @@ function PassTheLove() {
         </g>
         <text x="400" y="395" textAnchor="middle" className="ap-love-field-note">{zh ? '一张盘，轮到每个人。' : 'One disc. Everyone gets a turn.'}</text>
       </svg>
-      <div className="ap-love-bubble" aria-live="polite" key={holder}>
+      <div className="ap-love-bubble" aria-live="polite" key={voice.id}>
         <span className="ap-love-quote-mark" aria-hidden="true">“</span>
-        <div>
-          <p className="ap-love-reason">{pick(lang, REASONS[holder].d)}</p>
-          <h3>{pick(lang, REASONS[holder].t)}</h3>
+        <div className="ap-love-voice-copy">
+          <span className="ap-love-topic">{pick(lang, voice.topic)}</span>
+          <p className="ap-love-reason">{pick(lang, voice.summary ?? voice.quote)}</p>
+          {voice.summary && (
+            <details className="ap-love-full">
+              <summary>{zh ? '阅读全文' : 'Read the full message'}</summary>
+              <p>{pick(lang, voice.quote)}</p>
+            </details>
+          )}
+          <h3>{voice.name}</h3>
         </div>
-        <span className="ap-love-turn">{String(holder + 1).padStart(2, '0')} / {String(PLAYERS.length).padStart(2, '0')}</span>
+        <span className="ap-love-turn">{zh ? '留言' : 'VOICE'} {String(voiceIndex + 1).padStart(2, '0')} / {String(FRISBEE_VOICES.length).padStart(2, '0')}</span>
       </div>
     </div>
   );
@@ -182,7 +163,7 @@ export default function Why() {
         id="pass-the-love"
         label={zh ? '草地上的几种回答' : 'A few answers from the field'}
         heading={zh ? '每个人，都有自己的理由。' : 'Everyone has their own reason.'}
-        intro={zh ? '点击飞盘，听听接到它的人怎么说。' : 'Tap the disc and hear from whoever catches it.'}
+        intro={zh ? '点飞盘传给队友，再听听一位朋友分享的真实理由。' : 'Pass the disc and hear a real reason shared by a friend.'}
         full
       >
         <PassTheLove />

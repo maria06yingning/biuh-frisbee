@@ -1,4 +1,4 @@
-// Shared helpers for the four content pages (Rules / Fouls / Spirit / Why).
+// Shared helpers for the content pages (Rules / Fouls / Spirit / Why / About).
 // Same [zh, en] tuple convention as i18n/dict.ts, but kept next to the long-form
 // page copy so each page stays readable. UI chrome (header/footer) still reads
 // the global i18n so language stays in sync with the game and homepage.
@@ -6,6 +6,7 @@ import type { Lang } from '@/i18n/dict';
 
 export type Bi = [zh: string, en: string];
 export const pick = (lang: Lang, b: Bi): string => (lang === 'zh' ? b[0] : b[1]);
+export const CONTACT_EMAIL = 'stupidmaria@foxmail.com';
 
 /**
  * Deploy base path. Empty in local dev; "/<repo>" on a GitHub Pages project site
@@ -15,9 +16,9 @@ export const pick = (lang: Lang, b: Bi): string => (lang === 'zh' ? b[0] : b[1])
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
 export const withBase = (path: string): string => `${BASE_PATH}${path}`;
 
-/** The four content pages, in reading order. Used by the nav and the "next page" footer. */
+/** Content pages in reading order. Used by the nav and the "next page" footer. */
 export interface PageLink {
-  slug: '/rules' | '/fouls' | '/spirit' | '/why';
+  slug: '/rules' | '/fouls' | '/spirit' | '/why' | '/about';
   num: string;
   label: Bi;
   tagline: Bi;
@@ -47,5 +48,11 @@ export const PAGES: PageLink[] = [
     num: '05',
     label: ['为何热爱', 'Why we love it'],
     tagline: ['不只是一项运动', 'More than a sport'],
+  },
+  {
+    slug: '/about',
+    num: '06',
+    label: ['关于我', 'About'],
+    tagline: ['写给飞盘的一封信，也写下网站的来处', 'A letter to ultimate and the story behind this site'],
   },
 ];

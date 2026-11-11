@@ -1,0 +1,60 @@
+.aero-playful .ap-about-intro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 8px 18px;
+  max-width: 900px;
+  padding: clamp(18px, 3vw, 28px);
+  background: var(--uf-paper);
+  border: 3px solid var(--uf-ink);
+  box-shadow: 4px 4px 0 var(--uf-ink);
+}
+.aero-playful .ap-about-intro p { grid-column: 2; margin: 0; font-size: 16px; line-height: 1.7; font-weight: 650; }
+.aero-playful .ap-about-stamp { grid-column: 1; grid-row: 1 / span 2; display: grid; place-items: center; width: 58px; height: 58px; border: 3px solid var(--uf-ink); border-radius: 50%; background: var(--uf-cyan); }
+.aero-playful .ap-about-stamp svg { width: 42px; height: 30px; fill: var(--uf-paper); stroke: var(--uf-ink); stroke-width: 2.5; stroke-linecap: round; }
+.aero-playful .ap-about-letter {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 48px);
+  background: var(--uf-paper);
+  border: 3px solid var(--uf-ink);
+  border-left: 12px solid var(--uf-cyan);
+  box-shadow: 6px 6px 0 var(--uf-ink);
+}
+.aero-playful .ap-about-letter-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; padding-bottom: 14px; border-bottom: 2px dashed var(--uf-ink); font-size: 12px; line-height: 1.5; font-weight: 900; letter-spacing: .03em; }
+.aero-playful .ap-about-letter-top span:last-child { padding: 3px 8px; background: var(--uf-yellow); border: 2px solid var(--uf-ink); }
+.aero-playful .ap-about-letter-body { max-width: 790px; margin: 24px auto 0; font-family: 'Kaiti SC', 'STKaiti', 'KaiTi', 'DFKai-SB', Georgia, serif; font-size: clamp(17px, 1.9vw, 20px); line-height: 1.9; font-weight: 600; }
+.aero-playful .ap-about-letter-body p { margin: 0 0 18px; text-indent: 1em; }
+.aero-playful .ap-about-letter-body p:first-child { text-indent: 0; }
+.aero-playful .ap-about-signoff { display: grid; justify-items: end; gap: 7px; max-width: 790px; margin: 26px auto 0; padding-top: 18px; border-top: 2px dashed var(--uf-ink); font-family: 'Kaiti SC', 'STKaiti', 'KaiTi', 'DFKai-SB', Georgia, serif; }
+.aero-playful .ap-about-signoff strong { font-size: 27px; font-weight: 800; }
+.aero-playful .ap-about-signoff b { font-family: 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif; font-size: 14px; font-weight: 900; }
+.aero-playful .ap-about-credit-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.aero-playful .ap-about-credit-group { min-width: 0; padding: 18px; background: var(--uf-paper); border: 3px solid var(--uf-ink); border-top: 11px solid var(--uf-cyan); box-shadow: 4px 4px 0 var(--uf-ink); }
+.aero-playful .ap-about-credit-group:nth-child(even) { border-top-color: var(--uf-yellow); }
+.aero-playful .ap-about-credit-group h3 { margin: 0 0 12px; font-size: 18px; line-height: 1.35; font-weight: 900; }
+.aero-playful .ap-about-credit-group ul { display: grid; gap: 0; margin: 0; padding: 0; list-style: none; }
+.aero-playful .ap-about-credit-group li { padding: 12px 0; border-top: 2px dashed var(--uf-ink); }
+.aero-playful .ap-about-credit-group li:first-child { border-top: 0; padding-top: 0; }
+.aero-playful .ap-about-credit-group li:last-child { padding-bottom: 0; }
+.aero-playful .ap-about-credit-group li a,
+.aero-playful .ap-about-credit-group li strong { display: inline; color: var(--uf-ink); font-size: 14px; line-height: 1.5; font-weight: 900; text-decoration: none; }
+.aero-playful .ap-about-credit-group li a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+.aero-playful .ap-about-credit-group li a:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
+.aero-playful .ap-about-credit-group li p { margin: 5px 0 0; color: var(--uf-ink); font-size: 13px; line-height: 1.6; font-weight: 600; }
+.aero-playful .ap-about-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; max-width: 760px; min-height: 68px; padding: 16px 20px; background: var(--uf-yellow); border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); color: var(--uf-ink); font-size: 15px; line-height: 1.5; font-weight: 900; text-decoration: none; }
+.aero-playful .ap-about-mail:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--uf-ink); }
+.aero-playful .ap-about-mail:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--uf-ink); }
+.aero-playful .ap-about-mail:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 4px; }
+.aero-playful .ap-about-mail-note { max-width: 760px; margin: 14px 0 0; font-size: 14px; line-height: 1.65; font-weight: 600; }
+@media (max-width: 700px) {
+  .aero-playful .ap-about-intro { grid-template-columns: 1fr; }
+  .aero-playful .ap-about-stamp { grid-column: 1; grid-row: auto; }
+  .aero-playful .ap-about-intro p { grid-column: 1; }
+  .aero-playful .ap-about-credit-grid { grid-template-columns: 1fr; }
+  .aero-playful .ap-about-letter { padding: 20px 17px; border-left-width: 8px; }
+  .aero-playful .ap-about-mail { align-items: flex-start; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aero-playful .ap-about-mail { transition: none; }
+}

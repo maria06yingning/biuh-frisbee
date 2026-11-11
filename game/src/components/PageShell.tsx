@@ -8,7 +8,7 @@ import SiteHeader from './SiteHeader';
 import '@/styles/aero-home.css';
 import '@/styles/aero-playful.css';
 
-/** Hero + body + "next page" + footer, shared by Rules / Fouls / Spirit / Why. */
+/** Hero + body + "next page" + footer, shared by the content pages. */
 export default function PageShell({
   slug,
   children,

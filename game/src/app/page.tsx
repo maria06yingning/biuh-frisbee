@@ -46,7 +46,7 @@ export default function Home() {
 
   return (
     <>
-      <AeroHome onPlay={() => { window.scrollTo(0, 0); setPlaying(true); }} onLab={() => { window.scrollTo(0, 0); setLab(true); }} onCodex={() => setCodex(loadUnlocked())} />
+      <AeroHome onPlay={() => { window.scrollTo(0, 0); setPlaying(true); }} onLab={() => { window.scrollTo(0, 0); setLab(true); }} onCodex={() => setCodex(loadUnlocked())} promoEnabled={codex === null} />
       {codex && <CodexPanel unlocked={codex} onClose={() => setCodex(null)} />}
     </>
   );

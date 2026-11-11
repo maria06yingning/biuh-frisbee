@@ -597,7 +597,7 @@
 .aero-playful .ap-rule-scene, .aero-playful .ap-foul-scene { display: block; width: 100%; height: auto; border: 2px solid var(--aero-ink); border-radius: 14px; }
 .aero-playful .ap-codex-entry:hover .ap-scene-disc { transform-box: fill-box; transform-origin: center; animation: ap-disc-wiggle 650ms ease-in-out; }
 .aero-playful .ap-codex-entry:hover .ap-scene-player { transform-box: fill-box; transform-origin: bottom center; animation: ap-player-bob 600ms ease-in-out; }
-.aero-playful .ap-codex-copy { display: grid; align-content: start; gap: 12px; min-width: 0; margin: 0; font-size: 15px; line-height: 1.7; font-weight: 600; }
+.aero-playful .ap-codex-copy { display: grid; align-self: center; align-content: start; gap: 12px; min-width: 0; margin: 0; text-align: left; font-size: 15px; line-height: 1.7; font-weight: 600; }
 .aero-playful .ap-codex-copy p { margin: 0; }
 .aero-playful .ap-rule-citation { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px 10px; margin-top: 4px; padding-top: 12px; border-top: 2px solid var(--uf-ink); }
 .aero-playful .ap-rule-citation-label { display: inline-flex; width: max-content; padding: 3px 7px; border: 2px solid var(--uf-ink); background: var(--uf-yellow); font-size: 10px; line-height: 1.25; font-weight: 900; white-space: nowrap; }
@@ -632,7 +632,13 @@
 .ap-love-bubble { display: grid; grid-template-columns: auto 1fr auto; align-items: start; gap: 14px; padding: 18px 20px; background: #fff9e9; border: 2px solid var(--aero-ink); border-radius: 16px; box-shadow: 3px 3px 0 var(--aero-ink); animation: ap-reveal 260ms ease both; }
 .ap-love-quote-mark { font: 900 44px/0.8 Georgia,serif; color: #e87962; }
 .ap-love-bubble h3 { margin: 9px 0 0; font-size: 16px; font-weight: 900; }
-.ap-love-reason { margin: 0; line-height: 1.65; font-weight: 600; }
+.ap-love-voice-copy { min-width: 0; }
+.ap-love-topic { display: inline-block; max-width: 100%; margin: 0 0 8px; padding: 4px 8px; background: var(--uf-cyan); border: 2px solid var(--uf-ink); font-size: 11px; line-height: 1.3; font-weight: 900; }
+.ap-love-reason { margin: 0; line-height: 1.65; font-weight: 600; white-space: pre-line; }
+.aero-playful .ap-love-full { margin-top: 9px; }
+.aero-playful .ap-love-full summary { display: inline-block; cursor: pointer; font-size: 13px; line-height: 1.5; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
+.aero-playful .ap-love-full summary:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
+.aero-playful .ap-love-full p { margin: 9px 0 0; padding: 12px; background: var(--uf-cream); border-left: 4px solid var(--uf-yellow); color: var(--uf-ink); font-size: 14px; line-height: 1.7; font-weight: 600; white-space: pre-line; }
 .ap-love-turn { padding: 5px 8px; background: #ffe27a; border: 1.5px solid var(--aero-ink); border-radius: 8px; font-size: 12px; font-weight: 900; white-space: nowrap; }
 .aero-playful .ap-start-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
 .aero-playful .ap-start-action { display: flex; align-items: stretch; justify-content: space-between; gap: 16px; min-width: 0; min-height: 136px; padding: 18px; color: var(--uf-ink); background: var(--uf-paper); border: 3px solid var(--uf-ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--uf-ink); text-decoration: none; transition: transform 120ms ease, box-shadow 120ms ease; }
@@ -654,6 +660,7 @@
 }
 @media (max-width: 700px) {
   .aero-playful .ap-codex-panel { grid-template-columns: 1fr; }
+  .aero-playful .ap-codex-copy { justify-self: stretch; }
   .aero-playful .ap-rule-citation { grid-template-columns: 1fr; gap: 7px; }
   .aero-playful .ap-call-scenario { grid-template-columns: 1fr; }
   .aero-playful .ap-signal-grid { grid-template-columns: 1fr; }
