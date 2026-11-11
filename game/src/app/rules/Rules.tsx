@@ -6,6 +6,7 @@ import { pick, type Bi } from '@/content/shared';
 import PageShell, { Section, Term } from '@/components/PageShell';
 import PointFlow from '@/components/PointFlow';
 import RuleIllustration, { type RuleSceneId } from '@/components/RuleIllustrations';
+import RuleCitation from '@/components/RuleCitation';
 
 /* ───────── Interactive top-down field (facts from WFDF Rules 2.x) ───────── */
 type Zone = 'central' | 'ez' | 'brick' | 'line';
@@ -162,10 +163,10 @@ function RuleManual() {
                   alt={`${pick(lang, item.t)} — ${pick(lang, item.d)}`}
                   lang={lang}
                 />
-                <small className="ap-diagram-source">{zh ? `WFDF《极限飞盘规则 2025–2028》· 第 ${turnover ? TURNOVER_SOURCES[-index - 1] : RULE_SOURCES[index]} 条` : `WFDF Rules of Ultimate 2025–2028 · Rule ${turnover ? TURNOVER_SOURCES[-index - 1] : RULE_SOURCES[index]}`}</small>
                 <div className="ap-codex-copy">
                   <p>{pick(lang, item.d)}</p>
                   {!turnover && <p className="ap-codex-aside">{pick(lang, CORE[index].why)}</p>}
+                  <RuleCitation reference={turnover ? TURNOVER_SOURCES[-index - 1] : RULE_SOURCES[index]} lang={lang} />
                 </div>
               </div>
             </article>

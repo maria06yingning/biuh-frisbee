@@ -21,10 +21,12 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
   const [sceneIndex, setSceneIndex] = useState(0);
   const season = SEASONS[sceneIndex % SEASONS.length];
   const [discColor, setDiscColor] = useState(() => defaultDiscColor('summer'));
+  const [discStowed, setDiscStowed] = useState(false);
   const [discLanded, setDiscLanded] = useState(false);
   const [nearDisc, setNearDisc] = useState(false);
   const [pickupToken, setPickupToken] = useState(0);
   const [returnToken, setReturnToken] = useState(0);
+  const [viewResetToken, setViewResetToken] = useState(0);
   const [soundOn, setSoundOn] = useState(true);
   const [fullscreen, setFullscreen] = useState(false);
   const heroRef = useRef<HTMLElement>(null);
@@ -50,6 +52,7 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
   };
 
   const nextScene = () => {
+    setPaused(false);
     const nextIndex = (sceneIndex + 1) % 8;
     const nextSeason = SEASONS[nextIndex % SEASONS.length];
     setSceneIndex(nextIndex);
@@ -69,8 +72,11 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         discColor={discColor}
         pickupToken={pickupToken}
         returnToken={returnToken}
+        viewResetToken={viewResetToken}
         onDiscLanded={setDiscLanded}
         onNearDisc={setNearDisc}
+        discStowed={discStowed}
+        onDiscStowedChange={setDiscStowed}
         soundOn={soundOn}
       />
 
@@ -83,6 +89,15 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         onClick={nextScene}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h15m-4-4 4 4-4 4M20 17H5m4-4-4 4 4 4" /></svg>
         <span>{zh ? `场景 ${sceneIndex + 1}/8 · ${SCENE_NAMES_ZH[sceneIndex]}` : `Scene ${sceneIndex + 1}/8 · ${SCENE_NAMES_EN[sceneIndex]}`}</span>
+      </button>
+
+      <button className="aero-play-control aero-view-reset" type="button" onClick={() => setViewResetToken(value => value + 1)} aria-label={zh ? '将视角复位到正前方' : 'Reset view to center'}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.5M4 4v4.5h4.5" /></svg>
+        <span>{zh ? '重置视角' : 'Reset view'}</span>
+      </button>
+      <button className="aero-play-control aero-replay-reset" type="button" onClick={replayFlight} aria-label={zh ? '复位飞盘和玩家位置' : 'Reset disc and player position'}>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>
+        <span>{zh ? '复位' : 'Reset'}</span>
       </button>
 
       <button className="aero-play-control aero-fullscreen" type="button" aria-pressed={fullscreen} onClick={toggleFullscreen}>
@@ -110,9 +125,11 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         <button className="aero-play-control" type="button" onClick={() => setDiscColor(defaultDiscColor(season))}>
           <span>{zh ? '默认颜色' : 'Default'}</span>
         </button>
-        <button className="aero-play-control" type="button" onClick={replayFlight}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>
-          <span>{zh ? '再飞一次' : 'Replay'}</span>
+        <button className="aero-play-control" type="button" aria-pressed={discStowed} onClick={() => setDiscStowed(value => !value)}>
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            {discStowed ? <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z M12 9a3 3 0 1 0 0 6 3 3 0 0 0 0-6Z" /> : <path d="M3 3l18 18M10.6 6.2A11.7 11.7 0 0 1 12 6c6.5 0 10 6 10 6a17 17 0 0 1-3.1 3.7M6.2 6.2C3.5 8 2 12 2 12s3.5 6 10 6c1.8 0 3.4-.5 4.8-1.2" />}
+          </svg>
+          <span>{discStowed ? (zh ? '显示飞盘' : 'Show disc') : (zh ? '收起飞盘' : 'Stow disc')}</span>
         </button>
         <button className="aero-play-control" type="button" aria-pressed={soundOn}
           onPointerDown={() => { if (!soundOn && sceneIndex >= 4) window.dispatchEvent(new Event('uf-starvalley-audio-gesture')); }}

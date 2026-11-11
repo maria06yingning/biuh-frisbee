@@ -13,7 +13,7 @@
 .aero-page main:focus { outline: none; }
 
 /* Body links inside prose read as text links, not 44px flex buttons. */
-.aero-page .ap-prose a:not(.aero-primary):not(.aero-text-link) {
+.aero-page .ap-prose a:not(.aero-primary):not(.aero-text-link):not(.ap-start-action) {
   min-height: 0;
   display: inline;
   color: var(--aero-accent);

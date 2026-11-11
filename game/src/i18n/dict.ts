@@ -63,6 +63,7 @@ const ENTRIES: Record<string, Entry> = {
   'ctl.fake': ['假动作', 'Fake'],
   'ctl.call': ['喊违规', 'Call a violation'],
   'ctl.pause': ['暂停', 'Pause'],
+  'ctl.sound': ['音效开关', 'Toggle sound effects'],
   'menu.rules': [
     '极限飞盘规则速览：持盘者不能跑动（只能转身）· 防守者贴近后开始数秒，10 秒内必须传出 · 在对方得分区内接到盘得 1 分 · 飞盘落地、被截、出界就换攻 · 全程无身体接触 · 持盘者 3 米内只能有 1 名盯防者（多了叫双防）',
     'Ultimate at a glance: the thrower can’t run (pivot only) · the stall count starts when a defender is close and you must throw within 10 seconds · catch the disc in the opponents’ end zone to score 1 point · a drop, interception or out-of-bounds disc turns it over · no physical contact · only one marker within 3 m of the thrower (a second one is a double team)',

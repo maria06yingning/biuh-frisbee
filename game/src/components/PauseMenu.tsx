@@ -199,6 +199,7 @@ export default function PauseMenu({
           <span><kbd>V</kbd> {t('ctl.fake')}</span>
           <span><kbd>F</kbd> {t('ctl.call')}</span>
           <span><kbd>Esc</kbd> {t('ctl.pause')}</span>
+          <span><kbd>M</kbd> {t('ctl.sound')}</span>
         </div>
 
         <p className="pause-rules">{t('menu.rules')}</p>

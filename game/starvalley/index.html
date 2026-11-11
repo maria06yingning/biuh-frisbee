@@ -5259,6 +5259,8 @@ const State = {
   fps:60, frameMs:16, adapt:1.0,
   trainActive:false, trainDist:999, trainPan:0, grassNear:1,
 };
+const EMBED_QUALITY = Object.freeze({ ...QUALITY[0], shadow:1024, wind:128, px:0.72, bloomLv:2 });
+const currentQuality = () => EMBED_MODE ? EMBED_QUALITY : QUALITY[State.q];
 if(QS.has('t')) window.__startT = +QS.get('t');
 let sceneRT, bloomRTs=[], upRTs=[], softRT=[], shadowRT=null, windRT=null, reflRT=null;
 let composite, brightMat, downMats=[], upMats=[], blurMats=[], windMat, windViewMat, softDownMat;
@@ -5520,8 +5522,9 @@ async function boot(){
 
   /*── grass ──*/
   setStat('sowing a million blades', 0.88); await idle();
-  grass = new GrassField(worldGroup, G, QUALITY[State.q]);
-  grass.build(QUALITY[State.q]);
+  const quality = currentQuality();
+  grass = new GrassField(worldGroup, G, quality);
+  grass.build(quality);
   for(const ring of grass.rings) for(const m of ring.meshes) m.userData.noCast = true;
 
   /*── camera / rig ──*/
@@ -5584,7 +5587,7 @@ async function boot(){
 
 /*──────── render targets ────────*/
 function buildTargets(){
-  const q = QUALITY[State.q];
+  const q = currentQuality();
   const dpr = Math.min(window.devicePixelRatio||1, EMBED_MODE ? 1 : 1.5);
   const hostRect = EMBED_MODE ? EMBED_OPTIONS.host.getBoundingClientRect() : null;
   const viewWidth = Math.max(1, hostRect?.width ?? window.innerWidth);
@@ -6205,7 +6208,7 @@ function setQuality(q){
   toast(['low','medium','high','ultra'][q]);
 }
 function rebuildGrass(){
-  grass.build(QUALITY[State.q]);
+  grass.build(currentQuality());
   grass.setAngular(ANG_PER_PX);
   for(const r of grass.rings) for(const m of r.meshes) m.userData.noCast=true;
 }
@@ -6344,6 +6347,11 @@ const ENGINE_API = {
   },
   deactivate(){ worldGroup.visible = false; },
   sampleHeight,
+  sampleWalkHeight(x, z, currentY){ return groundHeightAt(x, z, currentY); },
+  resolveWalk(x, z, currentY, radius){
+    const resolved = collideWalk(x, z, currentY, radius);
+    return { x:resolved[0], z:resolved[1] };
+  },
   spawn: CFG.spawn,
   eyeHeight: CFG.eyeHeight,
   sunDirection: SUN.clone(),

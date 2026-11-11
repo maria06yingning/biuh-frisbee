@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { pick, type Bi } from '@/content/shared';
 import PageShell, { Section } from '@/components/PageShell';
 import FoulIllustration, { CallDiagram, type FoulSceneId } from '@/components/FoulIllustrations';
+import RuleCitation from '@/components/RuleCitation';
 
 /* ───────── Interactive "what happens after a call" (WFDF Rules 15/16) ───────── */
 type Outcome = 'accepted' | 'contested' | 'retracted' | 'nostop';
@@ -170,8 +171,10 @@ function FoulExplorer() {
                   alt={`${pick(lang, item.t)} — ${pick(lang, item.d)}`}
                   lang={lang}
                 />
-                <small className="ap-diagram-source">{zh ? `WFDF《极限飞盘规则 2025–2028》· 第 ${sourceRefs[group][index]} 条` : `WFDF Rules of Ultimate 2025–2028 · Rule ${sourceRefs[group][index]}`}</small>
-                <p className="ap-codex-copy">{pick(lang, item.d)}</p>
+                <div className="ap-codex-copy">
+                  <p>{pick(lang, item.d)}</p>
+                  <RuleCitation reference={sourceRefs[group][index]} lang={lang} />
+                </div>
               </div>
             </article>
           );

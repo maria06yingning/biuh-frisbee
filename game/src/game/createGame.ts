@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { createScene } from './createScene';
+import { createGameSounds } from './audio';
 import { createField } from './createField';
 import {
   animateAgents,
@@ -98,6 +99,11 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
   const startMode = config?.mode ?? '3v3';
   applyMatchConfig({ ...defaultMatchConfig(startMode), ...config, mode: startMode, teamSize: startMode === '7v7' ? 7 : 3 });
   const bus = new Emitter<GameEvents>();
+  const sounds = createGameSounds();
+  const onSoundToggle = (event: KeyboardEvent) => {
+    if (event.code === 'KeyM' && !event.repeat) sounds.toggle();
+  };
+  window.addEventListener('keydown', onSoundToggle);
   const ctx = createScene(container);
   const canvas = ctx.renderer.domElement;
   const field = createField(ctx.scene);
@@ -205,6 +211,12 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
   const _land = new THREE.Vector3();
   const _tg = new THREE.Vector3();
   const aim = { dir: new THREE.Vector3(), speed: 0 };
+  const limitedThrowPitch = () => clamp(control.pitch, -0.36, 0.55);
+  const aimThrowDirection = (out: THREE.Vector3) => {
+    const pitch = limitedThrowPitch();
+    const cp = Math.cos(pitch);
+    return out.set(-Math.sin(control.yaw) * cp, Math.sin(pitch), -Math.cos(control.yaw) * cp).normalize();
+  };
 
   const rules = new Rules(handleRule);
 
@@ -520,6 +532,7 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
       bus.emit('toast', { title: 'tut.retry.t', sub: 'tut.retry.s', kind: 'info' });
       return;
     }
+    sounds.play(gained ? 'turnoverGain' : 'turnoverLoss');
     bus.emit('codex', { id: 'turnover' });
     const base = `turnover.${reason}.${gained ? 'gain' : 'lose'}`;
     bus.emit('toast', { title: `${base}.t`, sub: `${base}.s`, note: note || undefined, kind: gained ? 'good' : 'bad' });
@@ -634,6 +647,8 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
 
   function afterThrow(thrower: Agent): void {
     const wasPull = world.pullPending;
+    if (wasPull) sounds.play('pull');
+    else if (thrower.isUser) sounds.play('throw');
     if (world.pullPending) {
       // 开盘踢出：另一方成为进攻方，踢盘方开始冲回来盯人
       world.pullPending = false;
@@ -725,10 +740,12 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
     pickupReadyAt = world.time + 0.25;
     const scoring = inAttackZone(a.pos.z, teamDir(rules.dirA, a.team));
     if (tut) {
+      sounds.play('catch');
       tutOnCatch(a, thrower, wasGuided, scoring);
       return;
     }
     if (scoring) rules.scorePoint(a.team);
+    else sounds.play('catch');
   }
 
   function resolveContest(): void {
@@ -757,6 +774,7 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
         return;
       }
       giveDisc(winner);
+      sounds.play('catch');
       chain = 0;
       hitStop(0.05, 0.06);
       pickupReadyAt = world.time + 0.25;
@@ -839,9 +857,8 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
   /* ───────── 玩家投掷 ───────── */
   function doUserThrow(): void {
     const power = Math.max(0.12, charge);
-    const cp = Math.cos(control.pitch);
-    _dir.set(-Math.sin(control.yaw) * cp, Math.sin(control.pitch), -Math.cos(control.yaw) * cp);
-    const noise = releaseNoise({ type: curve, stall: world.stallElapsed, power, pitch: control.pitch, stepOff });
+    aimThrowDirection(_dir);
+    const noise = releaseNoise({ type: curve, stall: world.stallElapsed, power, pitch: limitedThrowPitch(), stepOff });
     handPos(user, _hp);
     throwDisc(disc, _hp, user, power, _dir, curve === 'backhand' ? -1 : 1, noise);
     afterThrow(user);
@@ -969,6 +986,7 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
         world.frozen = true;
         hitStop(0.35, 0.7);
         const mine = e.team === 0;
+        sounds.play(mine ? 'score' : 'opponentScore');
         bus.emit('toast', {
           title: mine ? 'toast.score.me.t' : 'toast.score.opp.t',
           sub: mine ? 'toast.score.me.s' : 'toast.score.opp.s',
@@ -1723,8 +1741,7 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
     if (show) {
       const power = Math.max(0.12, charge);
       const speed = MIN_SPEED + (MAX_SPEED - MIN_SPEED) * power;
-      const cp = Math.cos(control.pitch);
-      _dir.set(-Math.sin(control.yaw) * cp, Math.sin(control.pitch), -Math.cos(control.yaw) * cp);
+      aimThrowDirection(_dir);
       handPos(user, _hp);
       _vel.copy(_dir).multiplyScalar(speed);
       const { count } = simulateFlight(_hp, _vel, curve === 'backhand' ? -1 : 1, _land, trajArr);
@@ -1876,6 +1893,7 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
   return {
     bus,
     requestLock() {
+      sounds.unlock();
       const p: unknown = canvas.requestPointerLock();
       if (p && typeof (p as Promise<void>).catch === 'function') (p as Promise<void>).catch(() => undefined);
     },
@@ -1948,6 +1966,8 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
       disposed = true;
       cancelAnimationFrame(raf);
       input.dispose();
+      window.removeEventListener('keydown', onSoundToggle);
+      sounds.dispose();
       if (document.pointerLockElement === canvas) document.exitPointerLock();
       bus.clear();
       ctx.dispose();

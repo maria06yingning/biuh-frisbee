@@ -16,6 +16,8 @@ export type StarvalleyEngineApi = {
   activate(): void;
   deactivate(): void;
   sampleHeight(x: number, z: number): number;
+  sampleWalkHeight(x: number, z: number, currentY: number): number;
+  resolveWalk(x: number, z: number, currentY: number, radius: number): { x: number; z: number };
   spawn: { x: number; z: number; heading: number; pitch: number };
   eyeHeight: number;
   sunDirection: Three.Vector3;

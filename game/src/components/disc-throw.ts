@@ -53,6 +53,7 @@ export function createUserThrow(
   aspect: number,
   style: ThrowStyle = 'flat',
   groundAt: (x: number, z: number) => number = () => -7.4,
+  forwardYaw = 0,
 ) {
   const force = clamp(impulse.force, 0, 1);
   const hammer = style === 'hammer';
@@ -61,15 +62,21 @@ export function createUserThrow(
   const spread = clamp(aspect, 0.45, 2.5);
   const direction = impulse.x;
   const lift = Math.max(0, impulse.y);
+  const forwardX = -Math.sin(forwardYaw), forwardZ = -Math.cos(forwardYaw);
+  const rightX = Math.cos(forwardYaw), rightZ = -Math.sin(forwardYaw);
   const curveSide = Math.abs(direction) < 0.12 ? 1 : Math.sign(direction);
   const curve = curveSign * curveSide * (1.8 + force * 6.2) * spread;
   const travelDepth = 22 + force * 58;
-  const landX = start.x + direction * (3 + force * 18) * spread;
-  const landZ = start.z - travelDepth;
+  const lateral = direction * (3 + force * 18) * spread;
+  const landX = start.x + forwardX * travelDepth + rightX * lateral;
+  const landZ = start.z + forwardZ * travelDepth + rightZ * lateral;
   const landY = groundAt(landX, landZ) + DISC_REST_HEIGHT;
+  const firstSide = direction * (2 + force * 8) * spread + curve;
+  const firstForward = Math.max(8, travelDepth * 0.24);
+  const middleSide = lateral * 1.15 - curve * 0.72;
   const path = [start,
-    { x: start.x + direction * (2 + force * 8) * spread + curve, y: Math.max(-0.85, start.y + impulse.y * (hammer ? 4.2 : 3.2)), z: start.z - Math.max(8, travelDepth * 0.24) },
-    { x: landX + (landX - start.x) * 0.15 - curve * 0.72, y: landY + 2.2 + force * 2.6 + lift * 3.4 + (hammer ? 3 : 0), z: start.z + (landZ - start.z) * 0.65 },
+    { x: start.x + forwardX * firstForward + rightX * firstSide, y: Math.max(-0.85, start.y + impulse.y * (hammer ? 4.2 : 3.2)), z: start.z + forwardZ * firstForward + rightZ * firstSide },
+    { x: start.x + forwardX * travelDepth * 0.65 + rightX * middleSide, y: landY + 2.2 + force * 2.6 + lift * 3.4 + (hammer ? 3 : 0), z: start.z + forwardZ * travelDepth * 0.65 + rightZ * middleSide },
     { x: landX, y: landY, z: landZ }];
 
   return {

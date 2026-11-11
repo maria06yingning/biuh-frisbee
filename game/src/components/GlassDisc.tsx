@@ -12,11 +12,14 @@ import { createMeadowSound, type MeadowSound } from './meadow-audio';
 import { defaultDiscColor } from './disc-palette';
 
 const WALK_SPEED = 7;
-const STARVALLEY_WALK_SPEED = WALK_SPEED * 1.4;
-/** Expanded walk limits stay within the existing fixed grass carpet. */
-const WALK_BOUNDS = { minX: -50, maxX: 50, minZ: -135, maxZ: 8 } as const;
+const STARVALLEY_WALK_SPEED = WALK_SPEED * 1.1;
+/** The meadow lawn is laid out across x ±200 and z -280…18. */
+const MEADOW_WALK_BOUNDS = { minX: -180, maxX: 180, minZ: -280, maxZ: 18 } as const;
+/** Local bounds cover the bridge, village, and both stretches of the valley around the spawn. */
+const STARVALLEY_WALK_BOUNDS = { minX: -360, maxX: 360, minZ: -900, maxZ: 800 } as const;
 /** Pick-up range: how close the walker must stand to the landed disc. */
 const PICKUP_RANGE = 9;
+const DISC_PICK_RADIUS = 2.7;
 const BASE_FOV = 36;
 
 export type DiscCommand = { pickup: number; return: number };
@@ -30,8 +33,11 @@ export default function GlassDisc({
   discColor = defaultDiscColor(season),
   pickupToken = 0,
   returnToken = 0,
+  viewResetToken = 0,
   onDiscLanded,
   onNearDisc,
+  discStowed = false,
+  onDiscStowedChange,
   soundOn = true,
 }: {
   paused: boolean;
@@ -41,8 +47,11 @@ export default function GlassDisc({
   discColor?: number;
   pickupToken?: number;
   returnToken?: number;
+  viewResetToken?: number;
   onDiscLanded?: (landed: boolean) => void;
   onNearDisc?: (near: boolean) => void;
+  discStowed?: boolean;
+  onDiscStowedChange?: (stowed: boolean) => void;
   soundOn?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
@@ -53,8 +62,11 @@ export default function GlassDisc({
   const discColorRef = useRef(discColor);
   const pickupRef = useRef(pickupToken);
   const returnRef = useRef(returnToken);
+  const viewResetRef = useRef(viewResetToken);
   const landedCallback = useRef(onDiscLanded);
   const nearCallback = useRef(onNearDisc);
+  const discStowedRef = useRef(discStowed);
+  const stowCallback = useRef(onDiscStowedChange);
   const soundRef = useRef(soundOn);
   soundRef.current = soundOn;
   pause.current = paused;
@@ -64,8 +76,11 @@ export default function GlassDisc({
   discColorRef.current = discColor;
   pickupRef.current = pickupToken;
   returnRef.current = returnToken;
+  viewResetRef.current = viewResetToken;
   landedCallback.current = onDiscLanded;
   nearCallback.current = onNearDisc;
+  discStowedRef.current = discStowed;
+  stowCallback.current = onDiscStowedChange;
   const { lang } = useI18n();
 
   useEffect(() => {
@@ -236,7 +251,7 @@ export default function GlassDisc({
       let reduced = mq.matches;
       let raf = 0, starEngineTimer = 0, elapsed = reduced ? DISC_FLIGHT_DURATION : 0, windTime = 0;
       let last = performance.now(), lastRender = 0, active = true, contextLost = false;
-      let seenReplay = replay.current, seenPickup = pickupRef.current, seenReturn = returnRef.current;
+      let seenReplay = replay.current, seenPickup = pickupRef.current, seenReturn = returnRef.current, seenViewReset = viewResetRef.current;
       let wasPaused = pause.current, ready = false;
       let lastSceneIndex = sceneIndexRef.current;
       let tx = 0, ty = 0, px = 0, py = 0, spinAngle = 0;
@@ -244,6 +259,11 @@ export default function GlassDisc({
       let currentDiscInfluence = 0;
       let lastSeason: MeadowSeason = seasonRef.current;
       let zoom = 1, zoomTarget = 1;
+      let viewYaw = 0, viewYawTarget = 0, viewPitch = 0, viewPitchTarget = 0;
+      let walkCycle = 0, walkBlend = 0, walkBobOffset = 0, walkRoll = 0;
+      let autoStowArmed = true;
+      let lastDiscStowed = discStowedRef.current;
+      let viewPointerId: number | null = null, viewLastX = 0, viewLastY = 0;
       let wipe: { snap: HTMLCanvasElement; t: number } | null = null;
       let soundFx: MeadowSound | null = createMeadowSound();
       let starFootstepTimer = 0;
@@ -253,6 +273,7 @@ export default function GlassDisc({
       const grassVelocity = new T.Vector2();
       let rangeX = 2.4, rangeUp = 0.9, rangeDown = 0.85;
       const ease = (v: number) => Math.tanh(v * 1.25) / Math.tanh(1.25);
+      const wrapAngle = (value: number) => Math.atan2(Math.sin(value), Math.cos(value));
       const baseEuler = new T.Euler(0, 0, 0, 'YXZ');
       const baseTurn = new T.Quaternion();
       const tipTurn = new T.Quaternion();
@@ -275,7 +296,7 @@ export default function GlassDisc({
       const throwRestRotation = new T.Quaternion().setFromEuler(new T.Euler(0.82, 0, -0.18, 'YXZ'));
       const raycaster = new T.Raycaster();
       const pointer = new T.Vector2();
-      const discPickSphere = new T.Sphere(new T.Vector3(), 2.7);
+      const discPickSphere = new T.Sphere(new T.Vector3(), DISC_PICK_RADIUS);
       const dragPlane = new T.Plane();
       const dragHit = new T.Vector3();
       const dragOffset = new T.Vector3();
@@ -291,41 +312,95 @@ export default function GlassDisc({
       let starEnginePromise: Promise<StarvalleyEngineApi> | null = null;
       let starWorldReady = false;
       let starWorldActive = false;
+      let starGroundWorldY = BASE_Y;
       let starSeasonalEffects: ReturnType<typeof createMeadowLandscape> | null = null;
       let starEnvironmentTarget: typeof environmentTarget | null = null;
       const frameOffset = new T.Vector3();
       const groundScratch = new T.Vector3();
+      const walkDelta = new T.Vector3();
       const localCameraPosition = new T.Vector3();
       const localLookAt = new T.Vector3();
+      const localViewDirection = new T.Vector3();
+      const localViewRight = new T.Vector3();
       const worldLookAt = new T.Vector3();
       const worldDiscPosition = new T.Vector3();
       const worldDiscVelocity = new T.Vector3();
       const worldPlayerPosition = new T.Vector3();
+      const showDiscDirection = new T.Vector3();
+      const showDiscPosition = new T.Vector3();
+      const cameraWorldQuaternion = new T.Quaternion();
+      const frameWorldQuaternion = new T.Quaternion();
+      const faceCameraRotation = new T.Quaternion().setFromEuler(new T.Euler(Math.PI / 2, 0, 0, 'YXZ'));
       const groundAt = (x: number, z: number) => {
         if (!starWorldActive || !starWorldReady || !starEngine) return grass.groundAt(x, z);
         groundScratch.set(x, 0, z);
         homeFrame.localToWorld(groundScratch);
-        return starEngine.sampleHeight(groundScratch.x, groundScratch.z) - homeFrame.position.y;
+        return starEngine.sampleWalkHeight(groundScratch.x, groundScratch.z, starGroundWorldY) - homeFrame.position.y;
       };
       const alignHomeFrame = () => {
         if (!starEngine) return;
         homeFrame.rotation.set(0, -starEngine.spawn.heading * Math.PI / 180, 0);
         frameOffset.set(0, 0, homeZ).applyQuaternion(homeFrame.quaternion);
         const spawnGround = starEngine.sampleHeight(starEngine.spawn.x, starEngine.spawn.z);
+        starGroundWorldY = spawnGround;
         homeFrame.position.set(starEngine.spawn.x - frameOffset.x, spawnGround - BASE_Y, starEngine.spawn.z - frameOffset.z);
         homeFrame.updateMatrixWorld(true);
+      };
+      const updateStarGround = () => {
+        if (!starWorldActive || !starWorldReady || !starEngine) return;
+        worldPlayerPosition.set(player.x, 0, homeZ + player.z);
+        homeFrame.localToWorld(worldPlayerPosition);
+        starGroundWorldY = starEngine.sampleWalkHeight(worldPlayerPosition.x, worldPlayerPosition.z, starGroundWorldY);
+      };
+      const resolveStarWalk = (targetX: number, targetZ: number) => {
+        if (!starEngine) return;
+        worldPlayerPosition.set(player.x, 0, homeZ + player.z);
+        homeFrame.localToWorld(worldPlayerPosition);
+        let wx = worldPlayerPosition.x, wz = worldPlayerPosition.z, wy = starGroundWorldY;
+        walkDelta.set(targetX - player.x, 0, targetZ - player.z).applyQuaternion(homeFrame.quaternion);
+        const distance = Math.hypot(walkDelta.x, walkDelta.z);
+        const steps = Math.max(1, Math.ceil(distance / 0.16));
+        const stepX = walkDelta.x / steps, stepZ = walkDelta.z / steps;
+        const attempt = (dx: number, dz: number) => {
+          if (Math.abs(dx) + Math.abs(dz) < 1e-6) return false;
+          const cx = wx + dx, cz = wz + dz;
+          const resolved = starEngine!.resolveWalk(cx, cz, wy, 0.42);
+          if (Math.hypot(resolved.x - cx, resolved.z - cz) > 0.75) return false;
+          const nextGround = starEngine!.sampleWalkHeight(resolved.x, resolved.z, wy);
+          if (Math.abs(nextGround - wy) > 2.5) return false;
+          wx = resolved.x; wz = resolved.z; wy = nextGround;
+          return true;
+        };
+        for (let i = 0; i < steps; i++) {
+          if (!attempt(stepX, stepZ)) {
+            if (Math.abs(stepX) >= Math.abs(stepZ)) {
+              attempt(stepX, 0); attempt(0, stepZ);
+            } else {
+              attempt(0, stepZ); attempt(stepX, 0);
+            }
+          }
+        }
+        groundScratch.set(wx, 0, wz);
+        homeFrame.worldToLocal(groundScratch);
+        player.x = Math.max(STARVALLEY_WALK_BOUNDS.minX, Math.min(STARVALLEY_WALK_BOUNDS.maxX, groundScratch.x));
+        player.z = Math.max(STARVALLEY_WALK_BOUNDS.minZ, Math.min(STARVALLEY_WALK_BOUNDS.maxZ, groundScratch.z - homeZ));
+        starGroundWorldY = wy;
       };
       const placeCamera = () => {
         const cx = player.x;
         const cz = homeZ + player.z;
         homeFrame.updateMatrixWorld(true);
-        localCameraPosition.set(cx, groundAt(cx, cz) + eyeOffset, cz);
+        localCameraPosition.set(cx, groundAt(cx, cz) + eyeOffset + walkBobOffset, cz);
         localLookAt.set(cx, localCameraPosition.y - homeY, cz - homeZ);
+        localViewDirection.copy(localLookAt).sub(localCameraPosition).applyAxisAngle(AXIS_Y, viewYaw);
+        localViewRight.copy(AXIS_X).applyAxisAngle(AXIS_Y, viewYaw);
+        localViewDirection.applyAxisAngle(localViewRight, viewPitch);
+        localLookAt.copy(localCameraPosition).add(localViewDirection);
         camera.position.copy(homeFrame.localToWorld(localCameraPosition));
         worldLookAt.copy(homeFrame.localToWorld(localLookAt));
         camera.lookAt(worldLookAt);
+        if (walkRoll) camera.rotateZ(walkRoll);
       };
-
       let sampleFlight = createOutsideInFlight(1, homeZ);
 
       const applyPose = () => {
@@ -351,6 +426,8 @@ export default function GlassDisc({
           attitude.position.set(thrown.position.x, thrown.position.y, thrown.position.z);
           attitude.quaternion.copy(throwStartRotation).slerp(throwRestRotation, thrown.orientationBlend);
         }
+        attitude.visible = !discStowedRef.current;
+        node.dataset.discStowed = String(discStowedRef.current);
         spinner.rotation.y = spinAngle;
         if (ready !== pose.ready || !node.dataset.flight) {
           ready = pose.ready;
@@ -359,7 +436,7 @@ export default function GlassDisc({
         node.dataset.flight = userThrow ? (returningFlight ? 'returning' : 'thrown') : discLanded ? 'landed' : (ready ? 'settled' : 'flying');
         node.dataset.dragging = String(touchId !== null && pressMode === 'locked' && movedDuringPress);
         node.dataset.mode = inspecting ? 'inspect' : 'locked';
-        node.dataset.interactive = String(ready && !userThrow && !discLanded && !reduced && !pause.current);
+        node.dataset.interactive = String(!discStowedRef.current && ready && !userThrow && !discLanded && !reduced && !pause.current);
         return pose;
       };
       const applyGrass = (pose: { x: number; y: number; z: number }, motion: boolean) => {
@@ -454,6 +531,17 @@ export default function GlassDisc({
         ty = Math.max(-1, Math.min(1, ((event.clientY - box.top) / Math.max(1, box.height) - 0.5) * 2));
       };
       const move = (event: PointerEvent) => {
+        if (viewPointerId !== null) {
+          if (event.pointerId !== viewPointerId) return;
+          const dx = event.clientX - viewLastX;
+          const dy = event.clientY - viewLastY;
+          viewYawTarget = wrapAngle(viewYawTarget + dx * 0.0045);
+          viewPitchTarget = Math.max(-0.55, Math.min(0.55, viewPitchTarget - dy * 0.004));
+          viewLastX = event.clientX;
+          viewLastY = event.clientY;
+          node.dataset.viewDragging = 'true';
+          return;
+        }
         if (!ready || userThrow || discLanded || pause.current || reduced) return;
         aimRay(event);
         if (touchId !== null) {
@@ -476,11 +564,28 @@ export default function GlassDisc({
         if (inspecting && event.pointerType === 'mouse') updateInspection(event);
       };
       const down = (event: PointerEvent) => {
-        if (touchId !== null || !event.isPrimary || event.button !== 0 || !ready || userThrow || discLanded || pause.current || reduced) return;
+        if (touchId !== null || viewPointerId !== null || !event.isPrimary || event.button !== 0) return;
         aimRay(event);
         attitude.updateWorldMatrix(true, true);
         attitude.getWorldPosition(discPickSphere.center);
-        if (!raycaster.ray.intersectsSphere(discPickSphere)) return;
+        const hitsDisc = !discStowedRef.current && raycaster.ray.intersectsSphere(discPickSphere);
+        const canThrow = !discStowedRef.current && ready && !userThrow && !discLanded && !pause.current && !reduced;
+        if (!hitsDisc) {
+          event.preventDefault();
+          if (inspecting) {
+            lockedRotation.copy(attitude.quaternion);
+            lockedPosition.copy(attitude.position);
+            inspecting = false;
+            tx = ty = px = py = 0;
+          }
+          viewPointerId = event.pointerId;
+          viewLastX = event.clientX;
+          viewLastY = event.clientY;
+          node.dataset.viewDragging = 'false';
+          node.setPointerCapture(event.pointerId);
+          return;
+        }
+        if (!canThrow) return;
         event.preventDefault();
         touchId = event.pointerId;
         pressMode = inspecting ? 'inspect' : 'locked';
@@ -499,6 +604,12 @@ export default function GlassDisc({
         if (touchId === null && inspecting) { tx = px; ty = py; }
       };
       const release = (event: PointerEvent) => {
+        if (event.pointerId === viewPointerId) {
+          viewPointerId = null;
+          delete node.dataset.viewDragging;
+          if (node.hasPointerCapture(event.pointerId)) node.releasePointerCapture(event.pointerId);
+          return;
+        }
         if (event.pointerId !== touchId) return;
         remember(event);
         const box = node.getBoundingClientRect();
@@ -521,12 +632,16 @@ export default function GlassDisc({
         } else if (impulse) {
           throwStartRotation.copy(lockedRotation);
           const faceNormal = new T.Vector3(0, 1, 0).applyQuaternion(lockedRotation).normalize();
-          const travelDirection = new T.Vector3(impulse.x, 0, -1).normalize();
+          const travelDirection = new T.Vector3(
+            -Math.sin(viewYaw) + Math.cos(viewYaw) * impulse.x * 0.25,
+            0,
+            -Math.cos(viewYaw) - Math.sin(viewYaw) * impulse.x * 0.25,
+          ).normalize();
           const travelSide = new T.Vector3().crossVectors(travelDirection, AXIS_Y).normalize();
           const edgeTilt = faceNormal.dot(travelSide);
           const throwStyle = classifyThrowStyle(faceNormal.y, edgeTilt);
           const localRelease = homeFrame.worldToLocal(dragPosition.clone());
-          userThrow = createUserThrow(localRelease, impulse, camera.aspect, throwStyle, groundAt);
+          userThrow = createUserThrow(localRelease, impulse, camera.aspect, throwStyle, groundAt, viewYaw);
           returningFlight = false;
           throwTime = 0;
         } else if (pressMode === 'locked' && validRelease && movedDuringPress) {
@@ -549,6 +664,24 @@ export default function GlassDisc({
       };
       const handPosition = () => new T.Vector3(player.x,
         groundAt(player.x, homeZ + player.z) + eyeOffset - homeY, player.z);
+      lockedPosition.copy(handPosition());
+      const showDiscInView = () => {
+        userThrow = null; returningFlight = false; inspecting = false;
+        throwTime = 0; throwWind = 0; spinAngle = 0;
+        elapsed = DISC_FLIGHT_DURATION;
+        tx = ty = px = py = 0;
+        camera.updateMatrixWorld(true);
+        homeFrame.updateMatrixWorld(true);
+        camera.getWorldDirection(showDiscDirection);
+        showDiscPosition.copy(camera.position).addScaledVector(showDiscDirection, 10.5);
+        homeFrame.worldToLocal(showDiscPosition);
+        lockedPosition.copy(showDiscPosition);
+        camera.getWorldQuaternion(cameraWorldQuaternion);
+        homeFrame.getWorldQuaternion(frameWorldQuaternion).invert();
+        lockedRotation.copy(frameWorldQuaternion).multiply(cameraWorldQuaternion).multiply(faceCameraRotation);
+        if (discLanded) setLanded(false);
+        if (nearFlag) setNear(false);
+      };
       const resetToHand = () => {
         userThrow = null; returningFlight = false; inspecting = false;
         lockedPosition.copy(handPosition());
@@ -580,11 +713,12 @@ export default function GlassDisc({
           userThrow = null; returningFlight = false;
           if (touchId !== null && node.hasPointerCapture(touchId)) node.releasePointerCapture(touchId);
           touchId = null; gesture = []; node.dataset.dragging = 'false';
-          inspecting = false; lockedPosition.set(0, 0, 0);
+          inspecting = false;
           lockedRotation.setFromEuler(baseEuler.set(0.82, 0, -0.18, 'YXZ'));
           elapsed = DISC_FLIGHT_DURATION; windTime = 0; tx = ty = px = py = spinAngle = 0;
           if (discLanded) setLanded(false);
           player.x = 0; player.z = 0;
+          lockedPosition.copy(handPosition());
         }
       };
       const onContextLost = (event: Event) => {
@@ -596,6 +730,14 @@ export default function GlassDisc({
       const onKeyDown = (event: KeyboardEvent) => {
         if (isTyping(event.target)) return;
         const key = event.key.toLowerCase();
+        if (document.activeElement === node) {
+          const viewStep = 0.1;
+          if (key === 'arrowleft') { event.preventDefault(); viewYawTarget = wrapAngle(viewYawTarget - viewStep); }
+          if (key === 'arrowright') { event.preventDefault(); viewYawTarget = wrapAngle(viewYawTarget + viewStep); }
+          if (key === 'arrowup') { event.preventDefault(); viewPitchTarget = Math.min(0.55, viewPitchTarget + viewStep); }
+          if (key === 'arrowdown') { event.preventDefault(); viewPitchTarget = Math.max(-0.55, viewPitchTarget - viewStep); }
+          if (key === 'home') { event.preventDefault(); viewYawTarget = viewPitchTarget = 0; }
+        }
         if (key === 'w' || key === 'a' || key === 's' || key === 'd') {
           keys[key] = true;
           if (starWorldActive) {
@@ -617,6 +759,16 @@ export default function GlassDisc({
       const clearKeys = () => {
         keys.w = keys.a = keys.s = keys.d = false;
         soundFx?.setWalking(false, seasonRef.current);
+      };
+      const resetForWorldSwitch = (enteringStarvalley: boolean) => {
+        clearKeys();
+        if (enteringStarvalley) { player.x = 0; player.z = 0; }
+        userThrow = null; returningFlight = false; inspecting = false;
+        elapsed = DISC_FLIGHT_DURATION; throwTime = 0; throwWind = 0; spinAngle = 0;
+        tx = ty = px = py = 0;
+        if (discLanded) setLanded(false);
+        if (nearFlag) setNear(false);
+        walkCycle = 0; walkBlend = 0; walkBobOffset = 0; walkRoll = 0; starFootstepTimer = 0;
       };
 
       // Draws the old frame over the new scene, revealed left to right through a soft feathered edge.
@@ -664,7 +816,7 @@ export default function GlassDisc({
 
       const tick = (now: number) => {
         const dt = Math.min(0.05, Math.max(0, (now - last) / 1000)); last = now;
-        let walkedThisFrame = false;
+        let walkedThisFrame = false, walkedDistance = 0;
         if (seenReplay !== replay.current) {
           seenReplay = replay.current;
           elapsed = reduced ? DISC_FLIGHT_DURATION : 0;
@@ -717,9 +869,14 @@ export default function GlassDisc({
           // Command tokens from the buttons.
           if (seenPickup !== pickupRef.current) { seenPickup = pickupRef.current; pickUp(); }
           if (seenReturn !== returnRef.current) { seenReturn = returnRef.current; sendBack(); }
+          if (seenViewReset !== viewResetRef.current) {
+            seenViewReset = viewResetRef.current;
+            viewYawTarget = 0;
+            viewPitchTarget = 0;
+          }
 
           // Recovery leaves the walker in place. Only WASD changes player position.
-          if (!userThrow && !pause.current && !reduced) {
+          if (!returningFlight && !pause.current) {
             const previousHand = handPosition();
             const dx = (keys.d ? 1 : 0) - (keys.a ? 1 : 0);
             const dz = (keys.s ? 1 : 0) - (keys.w ? 1 : 0);
@@ -727,17 +884,30 @@ export default function GlassDisc({
               const len = Math.hypot(dx, dz);
               const oldX = player.x, oldZ = player.z;
               const speed = starWorldActive ? STARVALLEY_WALK_SPEED : WALK_SPEED;
-              player.x = Math.max(WALK_BOUNDS.minX, Math.min(WALK_BOUNDS.maxX, player.x + dx / len * speed * dt));
-              player.z = Math.max(WALK_BOUNDS.minZ, Math.min(WALK_BOUNDS.maxZ, player.z + dz / len * speed * dt));
-              walkedThisFrame = player.x !== oldX || player.z !== oldZ;
+              const bounds = starWorldActive ? STARVALLEY_WALK_BOUNDS : MEADOW_WALK_BOUNDS;
+              const nextX = Math.max(bounds.minX, Math.min(bounds.maxX, player.x + dx / len * speed * dt));
+              const nextZ = Math.max(bounds.minZ, Math.min(bounds.maxZ, player.z + dz / len * speed * dt));
+              if (starWorldActive && starEngine) resolveStarWalk(nextX, nextZ);
+              else { player.x = nextX; player.z = nextZ; }
+              walkedDistance = Math.hypot(player.x - oldX, player.z - oldZ);
+              walkedThisFrame = walkedDistance > 0.0001;
               if (walkedThisFrame && !discLanded) lockedPosition.add(handPosition().sub(previousHand));
             }
           }
+          if (starWorldActive && walkedThisFrame && !reduced) {
+            walkCycle += walkedDistance * (Math.PI * 2 / Math.max(3.2, STARVALLEY_WALK_SPEED * 0.48));
+          }
+          const walkTarget = starWorldActive && walkedThisFrame && !reduced ? 1 : 0;
+          walkBlend += (walkTarget - walkBlend) * (1 - Math.exp(-dt / (walkTarget ? 0.08 : 0.18)));
+          walkBobOffset = walkBlend * Math.sin(walkCycle * 2) * 0.045;
+          walkRoll = walkBlend * Math.sin(walkCycle) * 0.008;
           // Scene order: original meadow Summer/Autumn/Winter/Night, then Starvalley Summer/Autumn/Winter/Night.
           const selectedScene = sceneIndexRef.current;
           const sceneChanged = selectedScene !== lastSceneIndex;
           const seasonChanged = seasonRef.current !== lastSeason;
           let sceneSnapshot: HTMLCanvasElement | null = null;
+          let recenterMeadow = false;
+          let worldChanged = false;
           if ((sceneChanged || seasonChanged) && !reduced && renderer.domElement.width > 0) {
             sceneSnapshot = document.createElement('canvas');
             sceneSnapshot.width = renderer.domElement.width;
@@ -747,9 +917,12 @@ export default function GlassDisc({
           if (sceneChanged) {
             const wantsStarvalley = selectedScene >= 4;
             if (starEngine && starWorldReady && wantsStarvalley !== starWorldActive) {
+              worldChanged = true;
+              resetForWorldSwitch(wantsStarvalley);
               if (wantsStarvalley) {
                 starWorldActive = true;
                 alignHomeFrame();
+                updateStarGround();
                 classicSeasonalEffects.group.visible = false;
                 if (starSeasonalEffects) starSeasonalEffects.group.visible = true;
                 grass.group.visible = false;
@@ -765,6 +938,11 @@ export default function GlassDisc({
                 homeFrame.position.set(0, 0, 0);
                 homeFrame.rotation.set(0, 0, 0);
                 homeFrame.updateMatrixWorld(true);
+                if (player.x < MEADOW_WALK_BOUNDS.minX || player.x > MEADOW_WALK_BOUNDS.maxX
+                  || player.z < MEADOW_WALK_BOUNDS.minZ || player.z > MEADOW_WALK_BOUNDS.maxZ) {
+                  player.x = 0; player.z = 0;
+                  recenterMeadow = true;
+                }
                 if (starSeasonalEffects) starSeasonalEffects.group.visible = false;
                 classicSeasonalEffects.group.visible = true;
                 grass.group.visible = true;
@@ -774,6 +952,14 @@ export default function GlassDisc({
                 restoreFallbackRendererState();
               }
               eyeOffset = homeY - groundAt(0, homeZ);
+              if (worldChanged) resetToHand();
+              else if (!userThrow && !discLanded) lockedPosition.copy(handPosition());
+              if (recenterMeadow) {
+                if (userThrow) { userThrow = null; returningFlight = false; }
+                if (discLanded) setLanded(false);
+                if (nearFlag) setNear(false);
+                resetToHand();
+              }
               updateLighting(seasonRef.current);
               placeCamera();
               resize();
@@ -794,12 +980,31 @@ export default function GlassDisc({
             }
           }
           zoom += (zoomTarget - zoom) * (1 - Math.exp(-dt / 0.18));
+          const viewEase = reduced ? 1 : 1 - Math.exp(-dt / 0.14);
+          const yawDelta = wrapAngle(viewYawTarget - viewYaw);
+          viewYaw = wrapAngle(viewYaw + yawDelta * viewEase);
+          viewPitch += (viewPitchTarget - viewPitch) * viewEase;
           const fov = Math.min(52, Math.max(22, BASE_FOV * zoom));
           if (Math.abs(fov - camera.fov) > 0.01) {
             camera.fov = fov;
             camera.updateProjectionMatrix();
           }
           placeCamera();
+          const discIsStowed = discStowedRef.current;
+          if (lastDiscStowed && !discIsStowed) {
+            autoStowArmed = false;
+            showDiscInView();
+          }
+          lastDiscStowed = discIsStowed;
+          const yawMagnitude = Math.abs(wrapAngle(viewYaw));
+          const pitchMagnitude = Math.abs(viewPitch);
+          const viewIsCentered = yawMagnitude < 0.52 && pitchMagnitude < 0.30;
+          if (viewIsCentered) autoStowArmed = true;
+          else if (autoStowArmed && !discIsStowed && ready && !userThrow && !discLanded
+            && (yawMagnitude > 0.78 || pitchMagnitude > 0.42)) {
+            autoStowArmed = false;
+            stowCallback.current?.(true);
+          }
           if (discLanded) {
             const dxp = player.x - lockedPosition.x;
             const dzp = homeZ + player.z - lockedPosition.z;
@@ -811,8 +1016,9 @@ export default function GlassDisc({
           const pose = applyPose();
           applyGrass(attitude.position, !reduced && !pause.current);
           const interacting = Math.abs(tx - px) + Math.abs(ty - py) > 0.002;
+          const turningView = Math.abs(wrapAngle(viewYawTarget - viewYaw)) + Math.abs(viewPitchTarget - viewPitch) > 0.002;
           const moving = keys.w || keys.a || keys.s || keys.d;
-          const frameInterval = starWorldActive || !pose.ready || userThrow || touchId !== null || interacting || moving || wipe !== null
+          const frameInterval = starWorldActive || !pose.ready || userThrow || touchId !== null || viewPointerId !== null || turningView || interacting || moving || wipe !== null
             ? 1000 / 60 : 1000 / 30;
           if (now - lastRender >= frameInterval || wasPaused !== pause.current) {
             renderStarvalley(now); lastRender = now;
@@ -826,7 +1032,7 @@ export default function GlassDisc({
             worldPlayerPosition.set(player.x, 0, homeZ + player.z);
             homeFrame.localToWorld(worldPlayerPosition);
             starEngine.footstep(STARVALLEY_WALK_SPEED, worldPlayerPosition.x, worldPlayerPosition.z);
-            starFootstepTimer = 0.38;
+            starFootstepTimer = Math.max(0.24, 1.9 / STARVALLEY_WALK_SPEED);
           }
         } else {
           starFootstepTimer = 0;
@@ -895,8 +1101,11 @@ export default function GlassDisc({
             starEngine = api;
             starWorldReady = true;
             starWorldActive = sceneIndexRef.current >= 4;
+            if (starWorldActive) resetForWorldSwitch(true);
             alignHomeFrame();
+            if (starWorldActive) updateStarGround();
             eyeOffset = homeY - groundAt(0, homeZ);
+            if (starWorldActive) resetToHand();
             starSeasonalEffects = createMeadowLandscape(T, BASE_Y, { groundAt, includeTree: false });
             const skyEnvironment = api.createEnvironment();
             const nextPmrem = new T.PMREMGenerator(renderer);
@@ -973,14 +1182,14 @@ export default function GlassDisc({
   }, []);
 
   const discColorCss = `#${discColor.toString(16).padStart(6, '0')}`;
-  return <div ref={host} className="aero-object" role="img" aria-label={lang === 'zh' ? '季节配色飞盘位于草甸上；可用 WASD 行走，落地后按 E 或点击一键飞回，将飞盘收回当前位置' : 'A season-colored disc over a meadow; walk with WASD, and press E or Fly back to recall the landed disc to your current position'}>
+  return <div ref={host} className="aero-object" role="group" tabIndex={0} aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home" aria-label={lang === 'zh' ? '季节草甸飞盘场景。拖动场地空白处可左右、上下环顾，滚轮缩放；聚焦场景后用方向键环顾、Home 复位。WASD 行走，落地后按 E 或点击一键飞回。' : 'Seasonal meadow disc scene. Drag open ground to look left, right, up and down; scroll to zoom. When focused, use arrow keys to look and Home to reset. Walk with WASD; press E or Fly back to recall a landed disc.'}>
     <svg className="aero-fallback" viewBox="0 0 800 500" aria-hidden="true">
       <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill={discColorCss} fillOpacity=".92" stroke="#1b1a2e" strokeWidth="5"/>
         {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff8e8' : discColorCss} strokeWidth={i%3 ? 2:3}/>)}</g>
     </svg>
     <span className="aero-disc-hint" aria-hidden="true">
-      <span className="aero-hint-desktop">{lang === 'zh' ? '点击查看并调整盘体倾斜，再点锁定后甩出；WASD 行走，按 E 让落地飞盘飞回当前位置' : 'Inspect, lock, then throw; walk with WASD and press E to recall the landed disc to your current position'}</span>
-      <span className="aero-hint-touch">{lang === 'zh' ? '轻点查看并锁定后甩出；飞盘落地后，可点“一键飞回”或走到它旁边拾起' : 'Tap to inspect, lock, and throw; after it lands, use One-click return or walk to it to pick it up'}</span>
+      <span className="aero-hint-desktop">{lang === 'zh' ? '拖动空地环顾；点击飞盘查看，再拖拽甩出。大幅转动视角会自动收起，右下按钮可显示。WASD 行走。' : 'Drag open ground to look around; click and drag the disc to inspect and throw. A wide turn stows it; use Show disc at the lower right to restore it.'}</span>
+      <span className="aero-hint-touch">{lang === 'zh' ? '拖动空地环顾；轻点飞盘查看，再拖拽甩出。大幅转动视角会自动收起。' : 'Drag open ground to look around; tap and drag the disc. A wide turn stows it automatically.'}</span>
     </span>
   </div>;
 }

@@ -228,7 +228,7 @@ export default function GameHUD({ hud, toast, tips }: { hud: HudState; toast: To
         </div>
       )}
 
-      {/* 攻防转换 / 得分：漫画贴纸 */}
+      {/* 盘权转换 / 得分：漫画贴纸 */}
       {toast && (
         <div key={toast.id} className={`hud-toast hud-toast-${toast.kind}`}>
           <div className="hud-toast-title">{t(toast.title, toast.params)}</div>

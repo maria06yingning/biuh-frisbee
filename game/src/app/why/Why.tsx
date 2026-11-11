@@ -48,10 +48,10 @@ const PLAYERS: Player[] = [
   { x: 95, y: 240, skin: '#d99b71', hair: '#443248', shirt: '#e6a84e', hairStyle: 6, shorts: '#638f91' },
 ];
 
-function PlayerFigure({ player, active, index }: { player: Player; active: boolean; index: number }) {
+function PlayerFigure({ player, active, index, running }: { player: Player; active: boolean; index: number; running: boolean }) {
   const { x, y, skin, hair, shirt, shorts, hairStyle } = player;
   return (
-    <g className={`ap-love-player${active ? ' is-holder' : ''}`} transform={`translate(${x} ${y})`}>
+    <g className={`ap-love-player${active ? ' is-holder' : ''}${running ? ' is-running' : ''}`} transform={`translate(${x} ${y})`}>
       <ellipse cx="0" cy="39" rx="31" ry="7" fill="#486b42" opacity=".17" />
       {active && <circle className="ap-love-halo" cx="0" cy="0" r="42" fill="#fff5b6" opacity=".85" />}
       {/* Legs and shoes */}
@@ -80,16 +80,42 @@ function PassTheLove() {
   const [holder, setHolder] = useState(0);
   const [target, setTarget] = useState<number | null>(null);
   const [flying, setFlying] = useState(false);
+  const [players, setPlayers] = useState<Player[]>(() => PLAYERS.map(player => ({ ...player })));
+  const [running, setRunning] = useState(false);
   const timer = useRef<number | null>(null);
   const discHolder = flying && target !== null ? target : holder;
-  const current = PLAYERS[holder];
-  const next = (holder + 1) % PLAYERS.length;
-  const disc = PLAYERS[discHolder];
+  const current = players[holder];
+  const receiver = target === null ? current : players[target];
+  const disc = players[discHolder];
+
+  useEffect(() => {
+    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let interval = 0;
+    const movePlayers = () => setPlayers(currentPlayers => currentPlayers.map(player => ({
+      ...player,
+      x: Math.max(72, Math.min(728, player.x + (Math.random() - 0.5) * 180)),
+      y: Math.max(78, Math.min(315, player.y + (Math.random() - 0.5) * 90)),
+    })));
+    const syncMotion = () => {
+      window.clearInterval(interval);
+      const shouldRun = !motion.matches && !flying;
+      setRunning(shouldRun);
+      if (shouldRun) interval = window.setInterval(movePlayers, 2300);
+    };
+    syncMotion();
+    motion.addEventListener('change', syncMotion);
+    return () => {
+      window.clearInterval(interval);
+      motion.removeEventListener('change', syncMotion);
+    };
+  }, [flying]);
 
   useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
 
   const pass = () => {
     if (flying) return;
+    const candidates = players.map((_, index) => index).filter(index => index !== holder);
+    const next = candidates[Math.floor(Math.random() * candidates.length)];
     setTarget(next);
     setFlying(true);
     timer.current = window.setTimeout(() => {
@@ -109,20 +135,20 @@ function PassTheLove() {
 
   return (
     <div className="ap-love-pass">
-      <p className="ap-love-instruction">{zh ? '点一下飞盘，让它传给下一个人。' : 'Tap the disc to pass it to the next person.'}</p>
-      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员之间传盘' : 'A disc being passed between teammates'}>
+      <p className="ap-love-instruction">{zh ? '队员在场地里跑动；点飞盘，随机传给一位队友。' : 'Players move around the field. Tap the disc to pass it to a random teammate.'}</p>
+      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员在场地范围内跑动，点击飞盘即可随机传给一位队友' : 'Players run within the field; click the disc to pass it to a random teammate'}>
         <rect x="0" y="0" width="800" height="410" rx="22" fill="#f8f0d9" />
         <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
         <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />
         <path d="M0 355 Q100 315 190 355 M610 330 Q700 295 800 335" fill="none" stroke="#fff8e6" strokeWidth="7" strokeLinecap="round" opacity=".8" />
-        <path d={`M${current.x} ${current.y - 49} Q${(current.x + PLAYERS[next].x) / 2} ${Math.min(current.y, PLAYERS[next].y) - 105} ${PLAYERS[next].x} ${PLAYERS[next].y - 49}`} fill="none" stroke="#ff826e" strokeWidth="3" strokeDasharray="6 8" opacity={flying ? .9 : .35} />
-        {PLAYERS.map((player, index) => <PlayerFigure key={index} player={player} index={index} active={index === holder} />)}
+        {flying && target !== null && <path d={`M${current.x} ${current.y - 49} Q${(current.x + receiver.x) / 2} ${Math.min(current.y, receiver.y) - 105} ${receiver.x} ${receiver.y - 49}`} fill="none" stroke="#ff826e" strokeWidth="3" strokeDasharray="6 8" opacity=".9" />}
+        {players.map((player, index) => <PlayerFigure key={index} player={player} index={index} active={index === holder} running={running} />)}
         <g
           className={`ap-love-disc${flying ? ' is-flying' : ''}`}
           transform={`translate(${disc.x} ${disc.y - 52}) rotate(-12)`}
           role="button"
           tabIndex={0}
-          aria-label={zh ? '把飞盘传给下一个人' : 'Pass the disc to the next person'}
+          aria-label={zh ? '把飞盘随机传给一位队友' : 'Pass the disc to a random teammate'}
           onClick={pass}
           onKeyDown={handleKey}
           aria-disabled={flying}
@@ -189,15 +215,25 @@ export default function Why() {
         <div className="ap-prose">
           <p>
             {zh
-              ? '还没机会去草地上？先进本站的 3D 游戏感受传盘和跑位，或者去战术实验室看看七个人怎么配合。'
-              : 'No field nearby yet? Try the passing and cutting in our 3D game, or open the Tactics Lab to see how seven players move together.'}
+              ? '还没机会去草地上？先选一种方式：亲自体验传盘，或看看队员怎样配合。'
+              : 'No field nearby? Choose a first step: try the passing yourself or see how the team moves together.'}
           </p>
-          <div className="ap-cta-row">
-            <a className="aero-primary" href={withBase('/?open=play')}>
-              {zh ? '进入游戏' : 'Enter the game'} <span aria-hidden="true">↗</span>
+          <div className="ap-start-actions">
+            <a className="ap-start-action is-primary" href={withBase('/?open=play')}>
+              <span className="ap-start-action-copy">
+                <span className="ap-start-kicker">{zh ? '先上场' : 'START HERE'}</span>
+                <strong>{zh ? '进入游戏' : 'Enter the game'}</strong>
+                <small>{zh ? '亲自传盘、跑位，感受一场比赛。' : 'Pass, move and feel the game yourself.'}</small>
+              </span>
+              <span className="ap-start-arrow" aria-hidden="true">↗</span>
             </a>
-            <a className="aero-text-link" href={withBase('/?open=lab')}>
-              {zh ? '去战术实验室' : 'Open the Tactics Lab'} <span aria-hidden="true">→</span>
+            <a className="ap-start-action" href={withBase('/?open=lab')}>
+              <span className="ap-start-action-copy">
+                <span className="ap-start-kicker">{zh ? '看懂配合' : 'EXPLORE TACTICS'}</span>
+                <strong>{zh ? '去战术实验室' : 'Open the Tactics Lab'}</strong>
+                <small>{zh ? '看看七名队员怎样移动和配合。' : 'See how seven players move as a unit.'}</small>
+              </span>
+              <span className="ap-start-arrow" aria-hidden="true">→</span>
             </a>
           </div>
           <p className="ap-hint">{zh ? '游戏需要电脑和鼠标，战术实验室支持触屏。' : 'The game needs a computer and mouse. The Tactics Lab supports touch.'}</p>
