@@ -1,10 +1,10 @@
 'use client';
 
-import Link from 'next/link';
 import type { ReactNode } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
-import { PAGES, pick, type Bi, type PageLink } from '@/content/shared';
+import { PAGES, pick, withBase, type Bi, type PageLink } from '@/content/shared';
 import SiteHeader from './SiteHeader';
+import DiscPromo from './DiscPromo';
 import '@/styles/aero-home.css';
 import '@/styles/aero-playful.css';
 
@@ -33,12 +33,12 @@ export default function PageShell({
         {children}
 
         <nav className="ap-next" aria-label={zh ? '下一页' : 'Next page'}>
-          <Link href={next.slug}>
+          <a className="ap-next-link" href={withBase(next.slug === '/' ? '/' : `${next.slug}/`)}>
             <span className="ap-next-label">
               {next.slug === '/' ? (zh ? '继续' : 'Continue') : zh ? '下一页' : 'Next'} · {next.num}
             </span>
             <h2 className="ap-next-title">{pick(lang, next.label)}</h2>
-          </Link>
+          </a>
         </nav>
       </main>
 
@@ -59,6 +59,7 @@ export default function PageShell({
             : ' (CC BY 4.0). This site is a plain-language summary; the official text takes precedence.'}
         </span>
       </footer>
+      {slug !== '/about' && <DiscPromo />}
     </div>
   );
 }

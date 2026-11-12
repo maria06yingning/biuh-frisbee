@@ -3,13 +3,15 @@
 import { useEffect, useId, useRef, useState, type MouseEvent } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
 import { CONTACT_EMAIL } from '@/content/shared';
+import '@/styles/aero-promo.css';
 
-const PROMO_SEEN_KEY = 'ultimate-field-promo-seen';
+const PROMO_SEEN_KEY = 'ultimate-field-promo-seen-content-v2';
 
 export default function DiscPromo({ enabled = true }: { enabled?: boolean }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const [teaserVisible, setTeaserVisible] = useState(false);
+  const [teaserSide, setTeaserSide] = useState<'left' | 'right'>('right');
   const [open, setOpen] = useState(false);
   const id = useId().replace(/:/g, '');
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -27,6 +29,7 @@ export default function DiscPromo({ enabled = true }: { enabled?: boolean }) {
     } catch {}
     const delay = 25000 + Math.round(Math.random() * 20000);
     const timer = window.setTimeout(() => {
+      setTeaserSide(Math.random() < 0.5 ? 'left' : 'right');
       setTeaserVisible(true);
       try { window.sessionStorage.setItem(PROMO_SEEN_KEY, '1'); } catch {}
     }, delay);
@@ -81,21 +84,21 @@ export default function DiscPromo({ enabled = true }: { enabled?: boolean }) {
       {teaserVisible && (
         <button
           ref={triggerRef}
-          className="ap-promo-teaser"
+          className={`ap-promo-teaser is-${teaserSide}`}
           type="button"
           onClick={() => setOpen(true)}
           aria-haspopup="dialog"
           aria-expanded={open}
           aria-label={zh ? '打开飞盘活动海报占位预览' : 'Open the frisbee event poster preview'}
         >
-          <span className="ap-promo-teaser-disc" aria-hidden="true">
-            <svg viewBox="0 0 64 44"><ellipse cx="32" cy="22" rx="28" ry="16" /><ellipse cx="32" cy="22" rx="18" ry="9" /><path d="M22 22q10-6 20 0" /></svg>
-          </span>
-          <span className="ap-promo-teaser-copy">
-            <b>{zh ? '飞盘活动' : 'Disc event'}</b>
-            <small>{zh ? '点开看看' : 'Open preview'}</small>
-          </span>
-          <span className="ap-promo-teaser-arrow" aria-hidden="true">↗</span>
+          <svg className="ap-promo-teaser-disc" viewBox="0 0 180 100" aria-hidden="true">
+            <ellipse className="ap-promo-disc-shadow" cx="90" cy="78" rx="68" ry="17" />
+            <ellipse className="ap-promo-disc-body" cx="90" cy="52" rx="76" ry="34" />
+            <ellipse className="ap-promo-disc-highlight" cx="90" cy="50" rx="57" ry="22" />
+            <ellipse className="ap-promo-disc-groove" cx="90" cy="52" rx="29" ry="11" />
+            <path className="ap-promo-disc-seam" d="M70 52q20-11 40 0" />
+            <text className="ap-promo-disc-label" x="90" y="57" textAnchor="middle">{zh ? '活动' : 'EVENT'}</text>
+          </svg>
         </button>
       )}
 
@@ -111,17 +114,16 @@ export default function DiscPromo({ enabled = true }: { enabled?: boolean }) {
             <button ref={closeRef} className="ap-promo-close" type="button" onClick={close} aria-label={zh ? '关闭活动预览' : 'Close event preview'}>
               <span aria-hidden="true">×</span>
             </button>
-            <div className="ap-promo-flight">
+            <div className={`ap-promo-flight from-${teaserSide}`}>
               <div className="ap-promo-card">
                 <div className="ap-promo-face ap-promo-front" aria-hidden="true">
-                  <span className="ap-promo-front-kicker">ULTIMATE FIELD</span>
                   <svg className="ap-promo-large-disc" viewBox="0 0 280 180">
-                    <ellipse cx="140" cy="90" rx="124" ry="62" fill="#14c2d8" stroke="#1b1a2e" strokeWidth="8" />
-                    <ellipse cx="140" cy="90" rx="95" ry="43" fill="none" stroke="#fff8e6" strokeWidth="6" />
-                    <ellipse cx="140" cy="90" rx="54" ry="22" fill="none" stroke="#1b1a2e" strokeWidth="5" />
-                    <path d="M104 90q36-22 72 0" fill="none" stroke="#1b1a2e" strokeWidth="5" strokeLinecap="round" />
+                    <ellipse className="ap-promo-disc-shadow" cx="140" cy="146" rx="102" ry="17" />
+                    <ellipse className="ap-promo-disc-body" cx="140" cy="90" rx="124" ry="62" />
+                    <ellipse className="ap-promo-disc-highlight" cx="140" cy="86" rx="95" ry="43" />
+                    <ellipse className="ap-promo-disc-groove" cx="140" cy="90" rx="54" ry="22" />
+                    <path className="ap-promo-disc-seam" d="M104 90q36-22 72 0" />
                   </svg>
-                  <span className="ap-promo-front-note">{zh ? '一张盘，一起上场。' : 'One disc. Let’s play.'}</span>
                 </div>
                 <div className="ap-promo-face ap-promo-back">
                   <div className="ap-promo-poster-head">

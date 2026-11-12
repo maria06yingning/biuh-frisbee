@@ -3,11 +3,13 @@ import type { Bi } from './shared';
 /**
  * Add future community messages by appending one record here.
  * Keep `quote` as the full original; add `summary` only when the message is long.
- * Use the name or nickname the contributor wants displayed publicly.
+ * Use the public name chosen by a real contributor. AI examples have no name
+ * and must keep their explicit source label in the interface.
  */
 export type FrisbeeVoice = {
   id: string;
-  name: string;
+  source: 'community' | 'ai';
+  name?: string;
   topic: Bi;
   quote: Bi;
   summary?: Bi;
@@ -16,6 +18,7 @@ export type FrisbeeVoice = {
 export const FRISBEE_VOICES: FrisbeeVoice[] = [
   {
     id: 'happy-weekend',
+    source: 'community',
     name: '快乐周末',
     topic: ['和朋友在一起', 'Playing with friends'],
     quote: [
@@ -25,6 +28,7 @@ export const FRISBEE_VOICES: FrisbeeVoice[] = [
   },
   {
     id: 'youxingran',
+    source: 'community',
     name: '悠星然',
     topic: ['专注接住一张盘', 'The focus of a catch'],
     summary: [
@@ -38,6 +42,7 @@ export const FRISBEE_VOICES: FrisbeeVoice[] = [
   },
   {
     id: 'laura',
+    source: 'community',
     name: 'Laura',
     topic: ['团队、社群与旅行', 'Team, community & travel'],
     summary: [
@@ -47,6 +52,69 @@ export const FRISBEE_VOICES: FrisbeeVoice[] = [
     quote: [
       'community bonding很强，是很注重合作意识和团队精神的运动。然后我觉得社交属性也挺大的，就是参加比赛可以认识很多打盘的人。还有就是可以一起去不同的城市、场地打比赛也很有意思',
       'The community bonding is strong. It is a sport that really values cooperation and team spirit. It also has a strong social side: you meet lots of other players at tournaments, and it is fun to travel together to different cities and fields.',
+    ],
+  },
+  {
+    id: 'echo-community',
+    source: 'community',
+    name: 'Echo',
+    topic: ['喜欢和大家在一起', 'I love being with this group'],
+    quote: [
+      '我感觉就是很喜欢这群人。',
+      'I think I just really like these people.',
+    ],
+  },
+  {
+    id: 'ai-first-catch',
+    source: 'ai',
+    topic: ['第一次接住一张盘', 'A first catch'],
+    quote: [
+      '一开始我只敢站在边线看。有人把盘递给我，接住的那一刻，我突然觉得自己也属于这块草地。',
+      'At first I only watched from the sideline. Someone passed me the disc, and the moment I caught it, I felt I belonged on the field too.',
+    ],
+  },
+  {
+    id: 'ai-clear-head',
+    source: 'ai',
+    topic: ['跑起来，暂时放下杂念', 'Run, and let the noise fade'],
+    summary: [
+      '跑起来以后，待办清单暂时安静了；眼里只剩队友的位置、飞盘的弧线，以及下一步能跑向哪里。',
+      'Once the running starts, the to-do list goes quiet. There is only a teammate’s position, the disc’s arc and the next place to move.',
+    ],
+    quote: [
+      '跑起来的时候，脑子里的待办清单好像都被风吹远了。眼里只剩下队友的位置、飞盘的弧线，以及下一步可以跑向哪里。一次次传盘和接盘之间，我好像重新找回了专注。',
+      'When I start running, the to-do list in my head seems to drift away with the wind. I focus on where my teammates are, the disc’s arc, and where I can move next. Between one pass and the next catch, I find my focus again.',
+    ],
+  },
+  {
+    id: 'ai-look-up',
+    source: 'ai',
+    topic: ['一起抬头看盘', 'Looking up together'],
+    quote: [
+      '最喜欢盘飞出去之后，所有人一起抬头看它的那几秒。大家都在等它落向谁，也都在笑。',
+      'My favourite seconds are just after the disc flies: everyone looks up together, waiting to see who will catch it, and smiling.',
+    ],
+  },
+  {
+    id: 'ai-make-space',
+    source: 'ai',
+    topic: ['给队友留出空间', 'Make room for a teammate'],
+    summary: [
+      '配合不必一开始就很熟练。及时回传、给队友拉开空当，进攻就会慢慢连起来。',
+      'Teamwork does not have to be perfect from the start. A timely reset and a little space can help the whole attack connect.',
+    ],
+    quote: [
+      '刚开始我以为自己要先变得很厉害，才有资格加入进攻。后来发现，一个及时的回传、一个给队友拉开的空当，也能让整次进攻变得更顺。大家不是等我完美才把盘传过来，而是边打边一起学会配合。',
+      'At first, I thought I had to become really good before I could join the attack. Then I learned that a timely reset or making space for a teammate can help the whole play flow. Nobody waits for me to be perfect before passing; we learn to work together as we play.',
+    ],
+  },
+  {
+    id: 'ai-after-game',
+    source: 'ai',
+    topic: ['比分之外的小片刻', 'Beyond the score'],
+    quote: [
+      '一场比赛结束后，最留在脑子里的常常不是比分，而是有人喊了一声“好接”，还有大家一起收盘回家的路。',
+      'After a game, the score is not always what stays with me. It might be someone calling “nice catch,” or the walk back while we pack up together.',
     ],
   },
 ];

@@ -12,6 +12,26 @@
 .aero-playful .ap-about-intro p { grid-column: 2; margin: 0; font-size: 16px; line-height: 1.7; font-weight: 650; }
 .aero-playful .ap-about-stamp { grid-column: 1; grid-row: 1 / span 2; display: grid; place-items: center; width: 58px; height: 58px; border: 3px solid var(--uf-ink); border-radius: 50%; background: var(--uf-cyan); }
 .aero-playful .ap-about-stamp svg { width: 42px; height: 30px; fill: var(--uf-paper); stroke: var(--uf-ink); stroke-width: 2.5; stroke-linecap: round; }
+.aero-playful .ap-about-letter-experience { max-width: 1000px; margin: 0 auto; }
+.aero-playful .ap-about-envelope { position: relative; display: block; width: 100%; min-height: 190px; padding: 0; overflow: hidden; background: var(--uf-cyan); border: 3px solid var(--uf-ink); box-shadow: 5px 5px 0 var(--uf-ink); color: var(--uf-ink); cursor: pointer; text-align: left; }
+.aero-playful .ap-about-envelope:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 4px; }
+.aero-playful .ap-about-envelope-art { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.aero-playful .ap-about-envelope-flap { transform-box: fill-box; transform-origin: 50% 0%; backface-visibility: hidden; transition: transform 260ms cubic-bezier(.2,1,.35,1); }
+.aero-playful .ap-about-envelope.is-open .ap-about-envelope-flap { transform: rotateX(180deg); }
+.aero-playful .ap-about-envelope-copy { position: absolute; z-index: 2; left: clamp(14px, 4vw, 28px); bottom: 16px; display: grid; gap: 3px; max-width: min(72%, 520px); padding: 9px 12px; background: var(--uf-paper); border: 2px solid var(--uf-ink); box-shadow: 3px 3px 0 var(--uf-ink); }
+.aero-playful .ap-about-envelope-copy strong { font-size: 17px; line-height: 1.3; font-weight: 900; }
+.aero-playful .ap-about-envelope-copy small { font-size: 12px; line-height: 1.4; font-weight: 700; }
+.aero-playful .ap-about-envelope-seal { position: absolute; z-index: 2; right: clamp(14px, 4vw, 28px); bottom: 18px; display: grid; place-items: center; width: 54px; height: 54px; border: 3px solid var(--uf-ink); border-radius: 50%; background: var(--uf-paper); }
+.aero-playful .ap-about-envelope-seal svg { width: 38px; height: 27px; fill: var(--uf-cyan); stroke: var(--uf-ink); stroke-width: 2.5; stroke-linecap: round; }
+.aero-playful .ap-about-letter-reveal { position: relative; z-index: 2; margin: -24px auto 0; animation: ap-letter-emerge 260ms ease-out both; }
+.aero-playful .ap-about-letter-image-placeholder { display: grid; justify-items: center; gap: 12px; max-width: 860px; min-height: 300px; margin: 24px auto; padding: 24px; background: var(--uf-cream); border: 3px dashed var(--uf-ink); text-align: center; animation: ap-letter-image-appear 240ms 40ms ease-out both; }
+.aero-playful .ap-about-letter-placeholder-tag { justify-self: start; padding: 4px 8px; background: var(--uf-yellow); border: 2px solid var(--uf-ink); font-size: 10px; line-height: 1.3; font-weight: 900; letter-spacing: .05em; }
+.aero-playful .ap-about-letter-image { display: block; width: min(100%, 700px); height: auto; border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); }
+.aero-playful .ap-about-letter-image-placeholder figcaption,
+.aero-playful .ap-about-letter-image-placeholder p { max-width: 60ch; margin: 0; font-size: 13px; line-height: 1.6; font-weight: 700; }
+.aero-playful .ap-about-text-preview { margin-top: 24px; padding-top: 18px; border-top: 2px dashed var(--uf-ink); }
+.aero-playful .ap-about-text-preview summary { display: inline-block; cursor: pointer; font-size: 14px; line-height: 1.5; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
+.aero-playful .ap-about-text-preview summary:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
 .aero-playful .ap-about-letter {
   max-width: 1000px;
   margin: 0 auto;
@@ -42,12 +62,20 @@
 .aero-playful .ap-about-credit-group li a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .aero-playful .ap-about-credit-group li a:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
 .aero-playful .ap-about-credit-group li p { margin: 5px 0 0; color: var(--uf-ink); font-size: 13px; line-height: 1.6; font-weight: 600; }
-.aero-playful .ap-about-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; max-width: 760px; min-height: 68px; padding: 16px 20px; background: var(--uf-yellow); border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); color: var(--uf-ink); font-size: 15px; line-height: 1.5; font-weight: 900; text-decoration: none; }
+.aero-playful .ap-about-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; max-width: 760px; min-height: 68px; margin-top: 32px; padding: 16px 20px; background: var(--uf-yellow); border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); color: var(--uf-ink); font-size: 15px; line-height: 1.5; font-weight: 900; text-decoration: none; }
 .aero-playful .ap-about-mail:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--uf-ink); }
 .aero-playful .ap-about-mail:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--uf-ink); }
 .aero-playful .ap-about-mail:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 4px; }
-.aero-playful .ap-about-mail-note { max-width: 760px; margin: 14px 0 0; font-size: 14px; line-height: 1.65; font-weight: 600; }
+.aero-playful .ap-about-mail-note { max-width: 760px; margin: 18px 0 0; font-size: 14px; line-height: 1.65; font-weight: 600; }
+@keyframes ap-letter-emerge { from { opacity: 0; transform: translateY(10px) scale(.99); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes ap-letter-image-appear { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 700px) {
+  .aero-playful .ap-about-envelope { min-height: 160px; }
+  .aero-playful .ap-about-envelope-copy { left: 12px; bottom: 12px; max-width: calc(100% - 86px); padding: 7px 9px; }
+  .aero-playful .ap-about-envelope-copy strong { font-size: 15px; }
+  .aero-playful .ap-about-envelope-copy small { font-size: 10px; }
+  .aero-playful .ap-about-envelope-seal { right: 12px; bottom: 13px; width: 48px; height: 48px; }
+  .aero-playful .ap-about-letter-image-placeholder { min-height: 245px; padding: 18px 12px; }
   .aero-playful .ap-about-intro { grid-template-columns: 1fr; }
   .aero-playful .ap-about-stamp { grid-column: 1; grid-row: auto; }
   .aero-playful .ap-about-intro p { grid-column: 1; }
@@ -56,5 +84,8 @@
   .aero-playful .ap-about-mail { align-items: flex-start; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .aero-playful .ap-about-mail { transition: none; }
+  .aero-playful .ap-about-mail,
+  .aero-playful .ap-about-envelope-flap,
+  .aero-playful .ap-about-letter-reveal,
+  .aero-playful .ap-about-letter-image-placeholder { transition: none; animation: none; }
 }

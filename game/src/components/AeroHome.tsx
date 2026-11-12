@@ -4,18 +4,16 @@ import { useEffect, useRef, useState } from 'react';
 import type { MeadowSeason } from './meadow-season';
 import { defaultDiscColor, randomDiscColor } from './disc-palette';
 import GlassDisc from './GlassDisc';
-import DiscPromo from './DiscPromo';
 import SiteHeader from './SiteHeader';
 import { useI18n } from '@/i18n/I18nProvider';
 import '@/styles/aero-home.css';
 import '@/styles/aero-playground.css';
-import '@/styles/aero-promo.css';
 
 const SEASONS: MeadowSeason[] = ['summer', 'autumn', 'winter', 'night'];
 const SCENE_NAMES_ZH = ['原版·夏', '原版·秋', '原版·冬', '原版·夜', '星谷·夏', '星谷·秋', '星谷·冬', '星谷·夜'];
 const SCENE_NAMES_EN = ['Meadow · Summer', 'Meadow · Autumn', 'Meadow · Winter', 'Meadow · Night', 'Valley · Summer', 'Valley · Autumn', 'Valley · Winter', 'Valley · Night'];
 
-export default function AeroHome({ onPlay, onLab, onCodex, promoEnabled = true }: { onPlay: () => void; onLab: () => void; onCodex: () => void; promoEnabled?: boolean }) {
+export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => void; onLab: () => void; onCodex: () => void }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
   const [paused, setPaused] = useState(false);
@@ -145,6 +143,5 @@ export default function AeroHome({ onPlay, onLab, onCodex, promoEnabled = true }
         </button>
       </div>
     </section>
-    <DiscPromo enabled={promoEnabled} />
   </main>;
 }

@@ -4,6 +4,7 @@ import dynamic from 'next/dynamic';
 import { useCallback, useEffect, useState } from 'react';
 import CodexPanel from '@/components/CodexPanel';
 import AeroHome from '@/components/AeroHome';
+import DiscPromo from '@/components/DiscPromo';
 import TacticsLab from '@/components/TacticsLab';
 import { loadUnlocked } from '@/components/FieldExperience';
 
@@ -41,13 +42,13 @@ export default function Home() {
     });
   }, []);
 
-  if (lab) return <TacticsLab onExit={exitLab} />;
+  if (lab) return <><TacticsLab onExit={exitLab} /><DiscPromo /></>;
   if (playing) return <FieldExperience onExit={() => setPlaying(false)} />;
 
   return (
     <>
-      <AeroHome onPlay={() => { window.scrollTo(0, 0); setPlaying(true); }} onLab={() => { window.scrollTo(0, 0); setLab(true); }} onCodex={() => setCodex(loadUnlocked())} promoEnabled={codex === null} />
-      {codex && <CodexPanel unlocked={codex} onClose={() => setCodex(null)} />}
+      <AeroHome onPlay={() => { window.scrollTo(0, 0); setPlaying(true); }} onLab={() => { window.scrollTo(0, 0); setLab(true); }} onCodex={() => setCodex(loadUnlocked())} />
+      {codex && <><CodexPanel unlocked={codex} onClose={() => setCodex(null)} /><DiscPromo /></>}
     </>
   );
 }

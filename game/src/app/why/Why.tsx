@@ -17,7 +17,23 @@ const PLAYERS: Player[] = [
   { x: 95, y: 240, skin: '#d99b71', hair: '#443248', shirt: '#e6a84e', hairStyle: 6, shorts: '#638f91' },
 ];
 
-function PlayerFigure({ player, active, index, running }: { player: Player; active: boolean; index: number; running: boolean }) {
+const PASS_SPOTS: [number, number][] = [
+  [126, 150], [254, 92], [350, 170], [522, 96], [680, 151], [620, 228],
+  [676, 302], [486, 314], [304, 320], [160, 286], [102, 218], [410, 254],
+];
+
+function findOpenSpot(players: Player[], movingIndex: number): [number, number] {
+  const start = Math.floor(Math.random() * PASS_SPOTS.length);
+  for (let offset = 0; offset < PASS_SPOTS.length; offset++) {
+    const [x, y] = PASS_SPOTS[(start + offset) % PASS_SPOTS.length];
+    const movedFarEnough = Math.hypot(players[movingIndex].x - x, players[movingIndex].y - y) > 64;
+    const clearOfTeammates = players.every((player, index) => index === movingIndex || Math.hypot(player.x - x, player.y - y) > 82);
+    if (movedFarEnough && clearOfTeammates) return [x, y];
+  }
+  return [players[movingIndex].x, players[movingIndex].y];
+}
+
+function PlayerFigure({ player, active, running }: { player: Player; active: boolean; running: boolean }) {
   const { x, y, skin, hair, shirt, shorts, hairStyle } = player;
   return (
     <g className={`ap-love-player${active ? ' is-holder' : ''}${running ? ' is-running' : ''}`} transform={`translate(${x} ${y})`}>
@@ -38,7 +54,6 @@ function PlayerFigure({ player, active, index, running }: { player: Player; acti
       <circle cx="-5" cy="-21" r="1.4" fill="#1b1a2e" />
       <circle cx="5" cy="-21" r="1.4" fill="#1b1a2e" />
       <path d="M-3 -15 Q0 -12 3 -15" fill="none" stroke="#1b1a2e" strokeWidth="1.5" strokeLinecap="round" />
-      <text x="0" y="76" textAnchor="middle" className="ap-love-player-label">{String(index + 1).padStart(2, '0')}</text>
     </g>
   );
 }
@@ -51,37 +66,19 @@ function PassTheLove() {
   const [flying, setFlying] = useState(false);
   const [voiceIndex, setVoiceIndex] = useState(0);
   const [players, setPlayers] = useState<Player[]>(() => PLAYERS.map(player => ({ ...player })));
-  const [running, setRunning] = useState(false);
-  const timer = useRef<number | null>(null);
-  const discHolder = flying && target !== null ? target : holder;
+  const [runningPlayer, setRunningPlayer] = useState<number | null>(null);
+  const [discFlight, setDiscFlight] = useState<{ x: number; y: number; rotation: number } | null>(null);
+  const passFrame = useRef<number | null>(null);
   const current = players[holder];
   const receiver = target === null ? current : players[target];
-  const disc = players[discHolder];
+  const discX = discFlight?.x ?? current.x;
+  const discY = discFlight?.y ?? current.y - 52;
+  const discRotation = discFlight?.rotation ?? -12;
   const voice = FRISBEE_VOICES[voiceIndex];
 
-  useEffect(() => {
-    const motion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let interval = 0;
-    const movePlayers = () => setPlayers(currentPlayers => currentPlayers.map(player => ({
-      ...player,
-      x: Math.max(72, Math.min(728, player.x + (Math.random() - 0.5) * 180)),
-      y: Math.max(78, Math.min(315, player.y + (Math.random() - 0.5) * 90)),
-    })));
-    const syncMotion = () => {
-      window.clearInterval(interval);
-      const shouldRun = !motion.matches && !flying;
-      setRunning(shouldRun);
-      if (shouldRun) interval = window.setInterval(movePlayers, 2300);
-    };
-    syncMotion();
-    motion.addEventListener('change', syncMotion);
-    return () => {
-      window.clearInterval(interval);
-      motion.removeEventListener('change', syncMotion);
-    };
-  }, [flying]);
-
-  useEffect(() => () => { if (timer.current !== null) window.clearTimeout(timer.current); }, []);
+  useEffect(() => () => {
+    if (passFrame.current !== null) window.cancelAnimationFrame(passFrame.current);
+  }, []);
 
   const pass = () => {
     if (flying) return;
@@ -89,15 +86,49 @@ function PassTheLove() {
     const next = candidates[Math.floor(Math.random() * candidates.length)];
     const otherVoices = FRISBEE_VOICES.map((_, index) => index).filter(index => index !== voiceIndex);
     const nextVoice = otherVoices.length ? otherVoices[Math.floor(Math.random() * otherVoices.length)] : voiceIndex;
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduceMotion) {
+      setHolder(next);
+      setVoiceIndex(nextVoice);
+      return;
+    }
+
+    const [endX, endY] = findOpenSpot(players, next);
+    const startX = current.x;
+    const startY = current.y - 52;
+    const targetX = endX;
+    const targetY = endY - 52;
+    const controlX = (startX + targetX) / 2;
+    const controlY = Math.min(startY, targetY) - 53;
+    const startedAt = performance.now();
+    const duration = 300;
+
+    setPlayers(currentPlayers => currentPlayers.map((player, index) => index === next ? { ...player, x: endX, y: endY } : player));
+    setRunningPlayer(next);
     setTarget(next);
     setFlying(true);
-    timer.current = window.setTimeout(() => {
+    setDiscFlight({ x: startX, y: startY, rotation: -12 });
+
+    const animatePass = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      const inverse = 1 - eased;
+      const x = inverse * inverse * startX + 2 * inverse * eased * controlX + eased * eased * targetX;
+      const y = inverse * inverse * startY + 2 * inverse * eased * controlY + eased * eased * targetY;
+      setDiscFlight({ x, y, rotation: -12 + 300 * eased });
+      if (progress < 1) {
+        passFrame.current = window.requestAnimationFrame(animatePass);
+        return;
+      }
+      passFrame.current = null;
       setHolder(next);
       setVoiceIndex(nextVoice);
       setTarget(null);
       setFlying(false);
-      timer.current = null;
-    }, 520);
+      setRunningPlayer(null);
+      setDiscFlight(null);
+    };
+    passFrame.current = window.requestAnimationFrame(animatePass);
   };
 
   const handleKey = (event: KeyboardEvent<SVGGElement>) => {
@@ -115,11 +146,11 @@ function PassTheLove() {
         <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
         <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />
         <path d="M0 355 Q100 315 190 355 M610 330 Q700 295 800 335" fill="none" stroke="#fff8e6" strokeWidth="7" strokeLinecap="round" opacity=".8" />
-        {flying && target !== null && <path d={`M${current.x} ${current.y - 49} Q${(current.x + receiver.x) / 2} ${Math.min(current.y, receiver.y) - 105} ${receiver.x} ${receiver.y - 49}`} fill="none" stroke="#ff826e" strokeWidth="3" strokeDasharray="6 8" opacity=".9" />}
-        {players.map((player, index) => <PlayerFigure key={index} player={player} index={index} active={index === holder} running={running} />)}
+        {flying && target !== null && <path d={`M${current.x} ${current.y - 52} Q${(current.x + receiver.x) / 2} ${Math.min(current.y, receiver.y) - 105} ${receiver.x} ${receiver.y - 52}`} fill="none" stroke="#ffd23f" strokeWidth="5" strokeLinecap="round" opacity=".9" />}
+        {players.map((player, index) => <PlayerFigure key={index} player={player} active={index === holder} running={index === runningPlayer} />)}
         <g
           className={`ap-love-disc${flying ? ' is-flying' : ''}`}
-          transform={`translate(${disc.x} ${disc.y - 52}) rotate(-12)`}
+          transform={`translate(${discX} ${discY}) rotate(${discRotation})`}
           role="button"
           tabIndex={0}
           aria-label={zh ? '把飞盘传给队友，再听一条朋友留言' : 'Pass the disc and hear another message from a friend'}
@@ -128,9 +159,10 @@ function PassTheLove() {
           aria-disabled={flying}
         >
           <ellipse className="ap-love-disc-hit" rx="36" ry="24" fill="transparent" />
-          <ellipse rx="28" ry="10" fill="#ff826e" stroke="#1b1a2e" strokeWidth="2.5" />
-          <ellipse rx="16" ry="5" fill="none" stroke="#fff9e9" strokeWidth="2" />
-          <circle r="3" fill="#ffd564" />
+          <ellipse rx="28" ry="10" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="2.5" />
+          <ellipse rx="22" ry="7" fill="none" stroke="#ff6a1a" strokeWidth="2.5" />
+          <ellipse rx="12" ry="4" fill="none" stroke="#fff8e6" strokeWidth="1.7" />
+          <circle r="3" fill="#1b1a2e" />
           <path d="M-8 0 Q0 -4 8 0" fill="none" stroke="#1b1a2e" strokeWidth="1.3" opacity=".7" />
         </g>
         <text x="400" y="395" textAnchor="middle" className="ap-love-field-note">{zh ? '一张盘，轮到每个人。' : 'One disc. Everyone gets a turn.'}</text>
@@ -139,6 +171,7 @@ function PassTheLove() {
         <span className="ap-love-quote-mark" aria-hidden="true">“</span>
         <div className="ap-love-voice-copy">
           <span className="ap-love-topic">{pick(lang, voice.topic)}</span>
+          {voice.source === 'ai' && <span className="ap-love-source">{zh ? 'AI 生成灵感 · 非真实玩家留言' : 'AI-generated inspiration · not a real testimonial'}</span>}
           <p className="ap-love-reason">{pick(lang, voice.summary ?? voice.quote)}</p>
           {voice.summary && (
             <details className="ap-love-full">
@@ -146,7 +179,7 @@ function PassTheLove() {
               <p>{pick(lang, voice.quote)}</p>
             </details>
           )}
-          <h3>{voice.name}</h3>
+          {voice.name && <h3>{voice.name}</h3>}
         </div>
         <span className="ap-love-turn">{zh ? '留言' : 'VOICE'} {String(voiceIndex + 1).padStart(2, '0')} / {String(FRISBEE_VOICES.length).padStart(2, '0')}</span>
       </div>
@@ -161,9 +194,9 @@ export default function Why() {
     <PageShell slug="/why">
       <Section
         id="pass-the-love"
-        label={zh ? '草地上的几种回答' : 'A few answers from the field'}
-        heading={zh ? '每个人，都有自己的理由。' : 'Everyone has their own reason.'}
-        intro={zh ? '点飞盘传给队友，再听听一位朋友分享的真实理由。' : 'Pass the disc and hear a real reason shared by a friend.'}
+        label={zh ? '来自草地的留言' : 'Messages from the field'}
+        heading={zh ? '喜欢飞盘的理由，不止一种。' : 'There are many reasons to love ultimate.'}
+        intro={zh ? '点飞盘传给队友，再读一条留言。AI 生成的灵感会明确标注，不代表真实玩家。' : 'Pass the disc and read a message. AI-generated prompts are labelled and are not real testimonials.'}
         full
       >
         <PassTheLove />
