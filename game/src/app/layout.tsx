@@ -10,9 +10,7 @@ export const metadata: Metadata = {
   manifest: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/site.webmanifest`,
   icons: {
     icon: [
-      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/favicon.svg`, type: 'image/svg+xml', sizes: 'any' },
-      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon-192.png`, type: 'image/png', sizes: '192x192' },
-      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/icon-512.png`, type: 'image/png', sizes: '512x512' },
+      { url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/favicon.png`, type: 'image/png', sizes: '800x800' },
     ],
     apple: [{ url: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/apple-touch-icon.png`, sizes: '180x180', type: 'image/png' }],
   },

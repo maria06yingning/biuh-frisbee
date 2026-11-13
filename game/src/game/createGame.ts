@@ -778,10 +778,11 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
       chain = 0;
       hitStop(0.05, 0.06);
       pickupReadyAt = world.time + 0.25;
+      const ours = winner.team === 0;
       bus.emit('toast', {
-        title: 'toast.pull.caught.t',
-        sub: 'toast.pull.caught.s',
-        kind: winner.team === 0 ? 'good' : 'info',
+        title: ours ? 'toast.pull.caught.ours.t' : 'toast.pull.caught.theirs.t',
+        sub: ours ? 'toast.pull.caught.ours.s' : 'toast.pull.caught.theirs.s',
+        kind: ours ? 'good' : 'info',
       });
       return;
     }
@@ -986,7 +987,8 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
         world.frozen = true;
         hitStop(0.35, 0.7);
         const mine = e.team === 0;
-        sounds.play(mine ? 'score' : 'opponentScore');
+        const victory = mine && e.scoreA >= WIN_SCORE;
+        sounds.play(victory ? 'victory' : mine ? 'score' : 'opponentScore');
         bus.emit('toast', {
           title: mine ? 'toast.score.me.t' : 'toast.score.opp.t',
           sub: mine ? 'toast.score.me.s' : 'toast.score.opp.s',

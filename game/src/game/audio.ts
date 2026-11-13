@@ -1,4 +1,4 @@
-export type GameSoundCue = 'score' | 'opponentScore' | 'turnoverGain' | 'turnoverLoss' | 'catch' | 'throw' | 'pull' | 'foulCall';
+export type GameSoundCue = 'score' | 'victory' | 'opponentScore' | 'turnoverGain' | 'turnoverLoss' | 'catch' | 'throw' | 'pull' | 'foulCall';
 
 /** Small synthesized match cues; AudioContext is created only from the start/resume gesture. */
 export function createGameSounds() {
@@ -88,15 +88,29 @@ export function createGameSounds() {
     if (!enabled || !context || context.state !== 'running') return;
     switch (cue) {
       case 'score':
-        // Arcade-style score: a bass hit, rising brass-like fanfare, and a short crowd-like swell.
-        tone(104, 54, 0, 0.32, 0.26, 'sawtooth');
-        noise(0, 0.15, 110, 720, 0.18);
-        tone(392, 523.25, 0, 0.22, 0.20, 'sawtooth');
-        tone(523.25, 659.25, 0.08, 0.25, 0.19, 'sawtooth');
-        tone(659.25, 783.99, 0.17, 0.30, 0.20, 'triangle');
-        tone(783.99, 1046.5, 0.27, 0.43, 0.23, 'sawtooth');
-        tone(1046.5, 1318.5, 0.38, 0.55, 0.20, 'triangle');
-        noise(0.10, 0.68, 460, 1900, 0.12);
+        // A quick, playful rising arpeggio for an ordinary point.
+        tone(523.25, 523.25, 0, 0.14, 0.19, 'triangle');
+        tone(659.25, 659.25, 0.08, 0.14, 0.20, 'triangle');
+        tone(783.99, 783.99, 0.16, 0.16, 0.21, 'sawtooth');
+        tone(1046.5, 1046.5, 0.25, 0.24, 0.22, 'triangle');
+        tone(1318.5, 1046.5, 0.39, 0.20, 0.15, 'sine');
+        tone(176, 70, 0, 0.22, 0.12, 'sawtooth');
+        noise(0, 0.11, 240, 900, 0.11);
+        noise(0.22, 0.28, 900, 3200, 0.08);
+        break;
+      case 'victory':
+        // A fuller, brighter fanfare reserved for reaching the five-point win.
+        tone(392, 392, 0, 0.14, 0.18, 'triangle');
+        tone(523.25, 523.25, 0.09, 0.15, 0.20, 'triangle');
+        tone(659.25, 659.25, 0.18, 0.15, 0.22, 'triangle');
+        tone(783.99, 783.99, 0.27, 0.17, 0.23, 'sawtooth');
+        tone(987.77, 987.77, 0.38, 0.20, 0.24, 'triangle');
+        tone(1174.66, 1174.66, 0.50, 0.22, 0.25, 'sawtooth');
+        tone(1567.98, 1567.98, 0.64, 0.38, 0.24, 'triangle');
+        tone(196, 58, 0, 0.38, 0.18, 'sawtooth');
+        noise(0, 0.16, 180, 1300, 0.15);
+        noise(0.37, 0.62, 280, 3800, 0.16);
+        noise(0.66, 0.42, 4000, 1800, 0.09);
         break;
       case 'opponentScore':
         // Dramatic descending buzzer and a low impact, rather than a quiet sad chime.

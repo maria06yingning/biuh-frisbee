@@ -23,22 +23,31 @@ export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCode
   const zh = lang === 'zh';
   const onHome = !current;
   const [menu, setMenu] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const wrapRef = useRef<HTMLSpanElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
-  const menuId = `aero-pages-${useId().replace(/:/g, '')}`;
+  const mobileWrapRef = useRef<HTMLSpanElement>(null);
+  const mobileToggleRef = useRef<HTMLButtonElement>(null);
+  const id = useId().replace(/:/g, '');
+  const menuId = `aero-pages-${id}`;
+  const mobileMenuId = `aero-mobile-${id}`;
   const pagesNav = PAGES.filter((page) => page.slug !== '/about');
   const aboutPage = PAGES.find((page) => page.slug === '/about');
 
-  // Close the pages disclosure on outside click or Escape.
+  // Close either navigation disclosure on outside click or Escape.
   useEffect(() => {
-    if (!menu) return;
+    if (!menu && !mobileMenuOpen) return;
     const onDown = (e: PointerEvent) => {
-      if (!wrapRef.current?.contains(e.target as Node)) setMenu(false);
+      const target = e.target as Node;
+      if (menu && !wrapRef.current?.contains(target)) setMenu(false);
+      if (mobileMenuOpen && !mobileWrapRef.current?.contains(target)) setMobileMenuOpen(false);
     };
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setMenu(false);
-        toggleRef.current?.focus();
+        setMobileMenuOpen(false);
+        if (mobileMenuOpen) mobileToggleRef.current?.focus();
+        else toggleRef.current?.focus();
       }
     };
     document.addEventListener('pointerdown', onDown);
@@ -47,7 +56,7 @@ export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCode
       document.removeEventListener('pointerdown', onDown);
       document.removeEventListener('keydown', onKey);
     };
-  }, [menu]);
+  }, [menu, mobileMenuOpen]);
 
   // Tool actions: the original buttons on the homepage, intent links elsewhere.
   // Intent links are full page loads on purpose: the homepage reads ?open= once on mount.
@@ -57,7 +66,7 @@ export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCode
         type="button"
         className={primary ? 'aero-primary' : undefined}
         aria-current={kind === 'lab' && current === 'lab' ? 'page' : undefined}
-        onClick={handler}
+        onClick={() => { setMobileMenuOpen(false); handler(); }}
       >
         {label}
       </button>
@@ -81,61 +90,75 @@ export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCode
           </Link>
         )}
 
-        {/* Content pages: inline on wide screens */}
-        <span className="aero-pages-inline">
-          {pagesNav.map((p) => (
-            <Link key={p.slug} href={p.slug} aria-current={current === p.slug ? 'page' : undefined}>
-              {pick(lang, p.label)}
-            </Link>
-          ))}
-        </span>
-
-        {/* Content pages: a disclosure on narrower screens */}
-        <span className="aero-nav-pages" ref={wrapRef}>
+        <span className="aero-mobile-nav" ref={mobileWrapRef}>
           <button
-            ref={toggleRef}
+            ref={mobileToggleRef}
             type="button"
-            className="aero-pages-toggle"
-            aria-expanded={menu}
-            aria-controls={menuId}
-            onClick={() => setMenu((m) => !m)}
+            className="aero-mobile-nav-toggle"
+            aria-expanded={mobileMenuOpen}
+            aria-controls={mobileMenuId}
+            onClick={() => setMobileMenuOpen((open) => !open)}
           >
-            {zh ? '页面' : 'Pages'} <span aria-hidden="true">▾</span>
+            {zh ? '菜单' : 'Menu'} <span aria-hidden="true">{mobileMenuOpen ? '×' : '☰'}</span>
           </button>
-          <span className="aero-pages-menu" id={menuId} hidden={!menu}>
-            {current === 'lab' ? (
-              <button type="button" onClick={() => { setMenu(false); onHomeClick?.(); }}>
-                <b>{zh ? '首页' : 'Home'}</b>
-                <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+          <span className="aero-mobile-nav-items" id={mobileMenuId} data-open={mobileMenuOpen}>
+            {/* Content pages: inline on wide screens */}
+            <span className="aero-pages-inline">
+              {pagesNav.map((p) => (
+                <Link key={p.slug} href={p.slug} aria-current={current === p.slug ? 'page' : undefined}>
+                  {pick(lang, p.label)}
+                </Link>
+              ))}
+            </span>
+
+            {/* Content pages: a disclosure on narrower screens */}
+            <span className="aero-nav-pages" ref={wrapRef}>
+              <button
+                ref={toggleRef}
+                type="button"
+                className="aero-pages-toggle"
+                aria-expanded={menu}
+                aria-controls={menuId}
+                onClick={() => setMenu((m) => !m)}
+              >
+                {zh ? '页面' : 'Pages'} <span aria-hidden="true">▾</span>
               </button>
-            ) : (
-              <Link href="/" aria-current={onHome ? 'page' : undefined} onClick={() => setMenu(false)}>
-                <b>{zh ? '首页' : 'Home'}</b>
-                <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+              <span className="aero-pages-menu" id={menuId} hidden={!menu}>
+                {current === 'lab' ? (
+                  <button type="button" onClick={() => { setMenu(false); onHomeClick?.(); }}>
+                    <b>{zh ? '首页' : 'Home'}</b>
+                    <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+                  </button>
+                ) : (
+                  <Link href="/" aria-current={onHome ? 'page' : undefined} onClick={() => setMenu(false)}>
+                    <b>{zh ? '首页' : 'Home'}</b>
+                    <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+                  </Link>
+                )}
+                {pagesNav.map((p) => (
+                  <Link
+                    key={p.slug}
+                    href={p.slug}
+                    aria-current={current === p.slug ? 'page' : undefined}
+                    onClick={() => setMenu(false)}
+                  >
+                    <b>{pick(lang, p.label)}</b>
+                    <small>{pick(lang, p.tagline)}</small>
+                  </Link>
+                ))}
+              </span>
+            </span>
+
+            {tool('lab', onLab, zh ? '战术实验室' : 'Tactics Lab')}
+            {aboutPage && (
+              <Link href={aboutPage.slug} aria-current={current === aboutPage.slug ? 'page' : undefined}>
+                {pick(lang, aboutPage.label)}
               </Link>
             )}
-            {pagesNav.map((p) => (
-              <Link
-                key={p.slug}
-                href={p.slug}
-                aria-current={current === p.slug ? 'page' : undefined}
-                onClick={() => setMenu(false)}
-              >
-                <b>{pick(lang, p.label)}</b>
-                <small>{pick(lang, p.tagline)}</small>
-              </Link>
-            ))}
+            {tool('codex', onCodex, zh ? '规则图鉴' : 'Rule codex')}
+            <button onClick={() => setLang(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
           </span>
         </span>
-
-        {tool('lab', onLab, zh ? '战术实验室' : 'Tactics Lab')}
-        {aboutPage && (
-          <Link href={aboutPage.slug} aria-current={current === aboutPage.slug ? 'page' : undefined}>
-            {pick(lang, aboutPage.label)}
-          </Link>
-        )}
-        {tool('codex', onCodex, zh ? '规则图鉴' : 'Rule codex')}
-        <button onClick={() => setLang(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
         {tool(
           'play',
           onPlay,

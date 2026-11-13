@@ -177,6 +177,35 @@
   .aero-playground .aero-header nav { width: 100%; justify-content: space-between; gap: 0; border-radius: 6px; padding: 3px; }
   .aero-playground .aero-header nav a, .aero-playground .aero-header nav button { font-size: 12px; padding: 6px; min-height: 44px; gap: 4px; }
   .aero-playground .aero-header nav button.aero-primary { padding: 6px 9px; margin-left: 1px; }
+  .aero-playground .aero-header nav .aero-mobile-nav { display: flex; position: relative; flex: 0 0 auto; align-items: center; }
+  .aero-playground .aero-header nav .aero-mobile-nav-toggle { display: inline-flex; align-items: center; justify-content: center; }
+  .aero-playground .aero-header nav .aero-mobile-nav-toggle span { font-size: 14px; line-height: 1; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items {
+    position: absolute;
+    top: calc(100% + 8px);
+    left: 50%;
+    z-index: 50;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 3px;
+    width: min(276px, calc(100vw - 40px));
+    max-height: calc(100svh - 112px);
+    overflow-y: auto;
+    transform: translateX(-50%);
+    padding: 8px;
+    background: var(--aero-paper);
+    border: 3px solid var(--aero-ink);
+    border-radius: 6px;
+    box-shadow: var(--play-shadow);
+  }
+  .aero-playground .aero-header nav .aero-mobile-nav-items[data-open='false'] { display: none; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items > a,
+  .aero-playground .aero-header nav .aero-mobile-nav-items > button,
+  .aero-playground .aero-header nav .aero-mobile-nav-items > .aero-nav-pages { width: 100%; justify-content: flex-start; text-align: left; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items > .aero-nav-pages { display: block; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items .aero-pages-toggle { width: 100%; justify-content: space-between; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items .aero-pages-menu { position: static; width: 100%; min-width: 0; margin-top: 4px; }
   .aero-playground .aero-header .aero-pages-menu a { padding: 10px; }
   .aero-playground .aero-pages-menu { min-width: min(264px, calc(100vw - 42px)); border-radius: 6px; }
   .aero-playground .aero-scene-switch { top: max(74px, calc(env(safe-area-inset-top) + 58px)); }
