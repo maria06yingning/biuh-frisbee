@@ -22,12 +22,19 @@ function Hand({ x, y, skin, kind }: { x:number; y:number; skin:string; kind:Hand
   </g>;
 }
 
-export default function PlayerFigure({ x, y, team='o', pose='stand', flip=false, scale=1 }: {
+export default function PlayerFigure({ x, y, team='o', pose='stand', flip=false, scale=1, shirtColor, skinColor, hairColor, shortsColor, hairStyle=0, headband=false }: {
   x:number; y:number; team?:'o'|'d'; pose?:PlayerPose; flip?:boolean; scale?:number;
+  shirtColor?:string; skinColor?:string; hairColor?:string; shortsColor?:string; hairStyle?:number; headband?:boolean;
 }) {
-  const shirt = team === 'o' ? '#14c2d8' : '#ff5a4a';
-  const skin = team === 'o' ? '#e6b48d' : '#c9825e';
-  const hair = team === 'o' ? '#3a2b29' : '#24202b';
+  const shirt = shirtColor ?? (team === 'o' ? '#14c2d8' : '#ff5a4a');
+  const skin = skinColor ?? (team === 'o' ? '#e6b48d' : '#c9825e');
+  const hair = hairColor ?? (team === 'o' ? '#3a2b29' : '#24202b');
+  const shorts = shortsColor ?? INK;
+  const hairShape = hairStyle % 3 === 1
+    ? 'M-10 16Q-13 6-6 2Q1-1 8 3Q14 8 10 18L6 14Q0 12-5 17Q-8 18-10 16Z'
+    : hairStyle % 3 === 2
+      ? 'M-10 17Q-12 4-3 2Q7-2 12 8L11 27Q7 25 6 17Q1 15-3 17Q-7 21-10 24Z'
+      : 'M-10 17Q-11 3 0 4Q12 5 11 18L4 12Q-3 17-9 14Z';
   const leftArm = pose === 'reach' || pose === 'jump' ? 'M-10 39L-20 25L-23 11'
     : pose === 'run' ? 'M-10 39L-22 31L-30 37'
     : pose === 'listen' ? 'M-10 39L-20 46L-29 40'
@@ -77,9 +84,10 @@ export default function PlayerFigure({ x, y, team='o', pose='stand', flip=false,
     <path d="M-4 25v8q4 4 8 0v-8" fill={skin} stroke={INK} strokeWidth="2"/>
     <path d="M-12 34Q0 29 12 34L15 63Q0 69-15 63Z" fill={shirt} stroke={INK} strokeWidth="2.5" strokeLinejoin="round"/>
     <path d="M-7 34L0 40L7 34" fill="none" stroke={INK} strokeWidth="2" strokeLinejoin="round"/>
-    <path d="M-14 61h28l-2 11Q0 76-12 72Z" fill={INK} stroke={INK} strokeWidth="2"/>
+    <path d="M-14 61h28l-2 11Q0 76-12 72Z" fill={shorts} stroke={INK} strokeWidth="2"/>
     <circle cy="17" r="10.5" fill={skin} stroke={INK} strokeWidth="2.5"/>
-    <path d="M-10 17Q-11 3 0 4Q12 5 11 18L4 12Q-3 17-9 14Z" fill={hair} stroke={INK} strokeWidth="2" strokeLinejoin="round"/>
+    <path d={hairShape} fill={hair} stroke={INK} strokeWidth="2" strokeLinejoin="round"/>
+    {headband && <path d="M-9 13Q0 11 9 13v3Q0 14-9 16Z" fill="#fff8e6" stroke={INK} strokeWidth="1.2" strokeLinejoin="round"/>}
     <circle cx="4" cy="18" r="1.2" fill={INK}/><path d="M5 23l3 1" stroke={INK} strokeWidth="1.2" strokeLinecap="round"/>
     {limb(leftArm)}{limb(rightArm)}
     <Hand x={leftHand.x} y={leftHand.y} skin={skin} kind={leftHand.kind}/><Hand x={rightHand.x} y={rightHand.y} skin={skin} kind={rightHand.kind}/>

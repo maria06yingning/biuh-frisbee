@@ -7,21 +7,18 @@ import { PAGES, pick, withBase, type PageLink } from '@/content/shared';
 import '@/styles/aero-nav.css';
 
 /**
- * One header for the whole site. On the homepage it fires the existing
- * in-page handlers (onPlay / onLab / onCodex), exactly as before. On the content
- * pages those become plain links back to the homepage with an ?open= intent,
- * so the Three.js game and the Tactics Lab are only ever started by the homepage.
- *
- * `current` is the slug of the content page you're on (undefined on the homepage).
+ * One shared navigation for the homepage, content pages and the Tactics Lab.
+ * `current` is the active content-page slug, 'lab', or undefined on the homepage.
  */
 export interface SiteHeaderProps {
-  current?: PageLink['slug'];
+  current?: PageLink['slug'] | 'lab';
+  onHomeClick?: () => void;
   onPlay?: () => void;
   onLab?: () => void;
   onCodex?: () => void;
 }
 
-export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHeaderProps) {
+export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCodex }: SiteHeaderProps) {
   const { lang, setLang } = useI18n();
   const zh = lang === 'zh';
   const onHome = !current;
@@ -29,6 +26,8 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
   const wrapRef = useRef<HTMLSpanElement>(null);
   const toggleRef = useRef<HTMLButtonElement>(null);
   const menuId = `aero-pages-${useId().replace(/:/g, '')}`;
+  const pagesNav = PAGES.filter((page) => page.slug !== '/about');
+  const aboutPage = PAGES.find((page) => page.slug === '/about');
 
   // Close the pages disclosure on outside click or Escape.
   useEffect(() => {
@@ -53,8 +52,13 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
   // Tool actions: the original buttons on the homepage, intent links elsewhere.
   // Intent links are full page loads on purpose: the homepage reads ?open= once on mount.
   const tool = (kind: 'lab' | 'codex' | 'play', handler: (() => void) | undefined, label: ReactNode, primary = false) =>
-    onHome && handler ? (
-      <button className={primary ? 'aero-primary' : undefined} onClick={handler}>
+    handler ? (
+      <button
+        type="button"
+        className={primary ? 'aero-primary' : undefined}
+        aria-current={kind === 'lab' && current === 'lab' ? 'page' : undefined}
+        onClick={handler}
+      >
         {label}
       </button>
     ) : (
@@ -67,13 +71,19 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
     <header className="aero-header">
       <nav aria-label={zh ? '主导航' : 'Main navigation'}>
         {/* Home link is always available; content links follow it on wide screens. */}
-        <Link href="/" aria-current={onHome ? 'page' : undefined}>
-          {zh ? '首页' : 'Home'}
-        </Link>
+        {current === 'lab' ? (
+          <button type="button" onClick={onHomeClick}>
+            {zh ? '首页' : 'Home'}
+          </button>
+        ) : (
+          <Link href="/" aria-current={onHome ? 'page' : undefined}>
+            {zh ? '首页' : 'Home'}
+          </Link>
+        )}
 
         {/* Content pages: inline on wide screens */}
         <span className="aero-pages-inline">
-          {PAGES.map((p) => (
+          {pagesNav.map((p) => (
             <Link key={p.slug} href={p.slug} aria-current={current === p.slug ? 'page' : undefined}>
               {pick(lang, p.label)}
             </Link>
@@ -93,11 +103,18 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
             {zh ? '页面' : 'Pages'} <span aria-hidden="true">▾</span>
           </button>
           <span className="aero-pages-menu" id={menuId} hidden={!menu}>
-            <Link href="/" aria-current={onHome ? 'page' : undefined} onClick={() => setMenu(false)}>
-              <b>{zh ? '首页' : 'Home'}</b>
-              <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
-            </Link>
-            {PAGES.map((p) => (
+            {current === 'lab' ? (
+              <button type="button" onClick={() => { setMenu(false); onHomeClick?.(); }}>
+                <b>{zh ? '首页' : 'Home'}</b>
+                <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+              </button>
+            ) : (
+              <Link href="/" aria-current={onHome ? 'page' : undefined} onClick={() => setMenu(false)}>
+                <b>{zh ? '首页' : 'Home'}</b>
+                <small>{zh ? '回到晴空飞盘游乐场' : 'Back to the disc playground'}</small>
+              </Link>
+            )}
+            {pagesNav.map((p) => (
               <Link
                 key={p.slug}
                 href={p.slug}
@@ -111,9 +128,12 @@ export default function SiteHeader({ current, onPlay, onLab, onCodex }: SiteHead
           </span>
         </span>
 
-        <span className="aero-nav-sep" aria-hidden="true" />
-
         {tool('lab', onLab, zh ? '战术实验室' : 'Tactics Lab')}
+        {aboutPage && (
+          <Link href={aboutPage.slug} aria-current={current === aboutPage.slug ? 'page' : undefined}>
+            {pick(lang, aboutPage.label)}
+          </Link>
+        )}
         {tool('codex', onCodex, zh ? '规则图鉴' : 'Rule codex')}
         <button onClick={() => setLang(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
         {tool(

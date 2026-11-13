@@ -1342,6 +1342,7 @@ export function createGame(container: HTMLElement, config?: Partial<MatchConfig>
    *  · 自己的犯规（进攻方，9.5.2）：数秒最多回到 9，不会因为犯规反而多出时间 */
   function callFoul(): void {
     if (rules.phase !== 'playing' || world.frozen || world.time < callCD) return;
+    sounds.play('foulCall');
     bus.emit('codex', { id: 'spirit' });
     const open = (x: (typeof viols)[number]) => !x.done && world.time - x.at <= violWindow();
     // 有「被犯规时出手」的传球时，优先处理那次贴身犯规

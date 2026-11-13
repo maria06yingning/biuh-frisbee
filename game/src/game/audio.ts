@@ -1,4 +1,4 @@
-export type GameSoundCue = 'score' | 'opponentScore' | 'turnoverGain' | 'turnoverLoss' | 'catch' | 'throw' | 'pull';
+export type GameSoundCue = 'score' | 'opponentScore' | 'turnoverGain' | 'turnoverLoss' | 'catch' | 'throw' | 'pull' | 'foulCall';
 
 /** Small synthesized match cues; AudioContext is created only from the start/resume gesture. */
 export function createGameSounds() {
@@ -132,6 +132,12 @@ export function createGameSounds() {
         tone(174, 262, 0.12, 0.28, 0.15, 'triangle');
         noise(0, 0.34, 2400, 190, 0.21);
         noise(0.10, 0.48, 320, 1200, 0.10);
+        break;
+      case 'foulCall':
+        // Short, soft whistle cue when the player stops play to call a foul.
+        tone(2100, 1750, 0, 0.24, 0.16, 'sine');
+        tone(2800, 2300, 0, 0.22, 0.06, 'triangle');
+        noise(0, 0.16, 6000, 2800, 0.035);
         break;
     }
   };

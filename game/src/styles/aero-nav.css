@@ -11,14 +11,6 @@
 }
 .aero-home .aero-header nav a.aero-primary { padding: 12px 22px; }
 
-/* Divider between content pages and tool actions */
-.aero-nav-sep {
-  width: 1px;
-  align-self: stretch;
-  margin: 8px 4px;
-  background: var(--aero-line);
-}
-
 /* Inline page links (desktop) */
 .aero-pages-inline { display: flex; gap: 2px; align-items: center; }
 .aero-home .aero-pages-inline a { padding: 10px 12px; font-size: 14px; min-height: 44px; }
@@ -42,9 +34,9 @@
   z-index: 40;
   min-width: 268px;
   background: var(--aero-paper);
-  border: 1px solid var(--aero-line);
-  border-radius: var(--aero-radius);
-  box-shadow: 0 22px 48px -28px rgba(14, 36, 51, 0.5);
+  border: 3px solid var(--aero-ink);
+  border-radius: 6px;
+  box-shadow: 4px 4px 0 var(--aero-ink);
   padding: 8px;
   display: flex;
   flex-direction: column;
@@ -86,7 +78,7 @@
 .aero-page-footer .afo-cite a { min-height: 0; padding: 0; display: inline; color: var(--aero-accent); text-decoration: underline; text-underline-offset: 2px; }
 
 @media (max-width: 1260px) {
-  .aero-pages-inline, .aero-nav-sep { display: none; }
+  .aero-pages-inline { display: none; }
 }
 @media (min-width: 1261px) {
   .aero-nav-pages { display: none; }

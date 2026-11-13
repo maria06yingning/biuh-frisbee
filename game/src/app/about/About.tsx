@@ -57,7 +57,6 @@ export default function About() {
         id="about-intro"
         label={zh ? '关于我与这个网站' : 'About me & this site'}
         heading={zh ? '把喜欢的飞盘，做成一个小小的网页。' : 'A small website made from a love of ultimate.'}
-        intro={zh ? '嗨，我是 Maria。这里有我对极限飞盘（ultimate）的解释、互动体验，也有我和朋友们的故事。' : 'Hi, I’m Maria. This site brings together plain-language explanations, playful experiences, and stories from me and my friends.'}
       >
         <div className="ap-about-intro">
           <span className="ap-about-stamp" aria-hidden="true"><svg viewBox="0 0 64 44"><ellipse cx="32" cy="22" rx="28" ry="16"/><ellipse cx="32" cy="22" rx="18" ry="9"/><path d="M22 22q10-6 20 0"/></svg></span>
@@ -91,7 +90,7 @@ export default function About() {
             </svg>
             <span className="ap-about-envelope-copy">
               <strong>{letterOpen ? (zh ? '信已展开 · 点此合上' : 'Letter open · close it') : (zh ? '点开这封信' : 'Open this letter')}</strong>
-              <small>{zh ? '展开书信图片占位与当前文字稿' : 'Reveal the image placeholder and current text draft'}</small>
+              
             </span>
             <span className="ap-about-envelope-seal" aria-hidden="true">
               <svg viewBox="0 0 64 44"><ellipse cx="32" cy="22" rx="28" ry="16"/><ellipse cx="32" cy="22" rx="18" ry="9"/><path d="M22 22q10-6 20 0"/></svg>
@@ -100,31 +99,16 @@ export default function About() {
 
           <div id={letterPanelId} hidden={!letterOpen}>
             {letterOpen && (
-              <article className="ap-about-letter ap-about-letter-reveal" lang={zh ? 'zh-CN' : 'en'}>
-              <div className="ap-about-letter-top">
-                <span>{zh ? '私人信笺 · 给飞盘' : 'A personal note · to ultimate'}</span>
-                <span>{zh ? '第六年' : 'Year six'}</span>
+              <div className="ap-about-letter-reveal">
+                <Image
+                  className="ap-about-letter-image"
+                  src={withBase(zh ? '/maria-letter-zh.png' : '/maria-letter-en.png')}
+                  alt={zh ? 'Maria 写给飞盘的中文手写信' : 'Maria’s handwritten English letter to ultimate'}
+                  width={4961}
+                  height={7016}
+                  unoptimized
+                />
               </div>
-              {zh ? (
-                <figure className="ap-about-letter-image-placeholder">
-                  <span className="ap-about-letter-placeholder-tag">手写原稿 · 图片</span>
-                  <Image
-                    className="ap-about-letter-image"
-                    src={withBase('/maria-handwritten-letter.png')}
-                    alt="Maria 写给飞盘的一封中文手写信"
-                    width={4961}
-                    height={7016}
-                    unoptimized
-                  />
-                  <figcaption>这是中文手写原稿；英文版本稍后补上。</figcaption>
-                </figure>
-              ) : (
-                <figure className="ap-about-letter-image-placeholder">
-                  <span className="ap-about-letter-placeholder-tag">LETTER IMAGE · ENGLISH VERSION PENDING</span>
-                  <p>Maria’s handwritten Chinese letter is available in the Chinese version. The English version will be added later.</p>
-                </figure>
-              )}
-              </article>
             )}
           </div>
         </div>

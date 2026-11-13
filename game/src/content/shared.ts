@@ -52,7 +52,7 @@ export const PAGES: PageLink[] = [
   {
     slug: '/about',
     num: '06',
-    label: ['关于我', 'About'],
+    label: ['关于', 'About'],
     tagline: ['写给飞盘的一封信，也写下网站的来处', 'A letter to ultimate and the story behind this site'],
   },
 ];

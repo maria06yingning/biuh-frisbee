@@ -1,10 +1,13 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { useI18n } from '@/i18n/I18nProvider';
+import { loadUnlocked } from '@/game/codex';
 import { PAGES, pick, withBase, type Bi, type PageLink } from '@/content/shared';
 import SiteHeader from './SiteHeader';
 import DiscPromo from './DiscPromo';
+import CodexPanel from './CodexPanel';
 import '@/styles/aero-home.css';
 import '@/styles/aero-playful.css';
 
@@ -18,6 +21,7 @@ export default function PageShell({
 }) {
   const { lang } = useI18n();
   const zh = lang === 'zh';
+  const [codex, setCodex] = useState<string[] | null>(null);
   const i = PAGES.findIndex((p) => p.slug === slug);
   const next: { slug: string; num: string; label: Bi } =
     i < PAGES.length - 1 ? PAGES[i + 1] : { slug: '/', num: '01', label: ['回到首页', 'Back to the start'] };
@@ -27,7 +31,7 @@ export default function PageShell({
       <a className="aero-skip" href="#ap-main">
         {zh ? '跳至正文' : 'Skip to content'}
       </a>
-      <SiteHeader current={slug} />
+      <SiteHeader current={slug} onCodex={() => setCodex(loadUnlocked())} />
 
       <main id="ap-main" className="ap-body">
         {children}
@@ -59,6 +63,7 @@ export default function PageShell({
             : ' (CC BY 4.0). This site is a plain-language summary; the official text takes precedence.'}
         </span>
       </footer>
+      {codex !== null && <CodexPanel unlocked={codex} onClose={() => setCodex(null)} />}
       {slug !== '/about' && <DiscPromo />}
     </div>
   );

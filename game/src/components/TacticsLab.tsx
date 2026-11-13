@@ -2,8 +2,12 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { FIELD_H, FIELD_W, GOAL_Y, SCENES, ZONE_RADIUS, buildFrames, type Frames, type Pt, type Scene } from '@/lab/scenes';
-import { addUnlocked } from '@/game/codex';
+import { addUnlocked, loadUnlocked } from '@/game/codex';
+import CodexPanel from './CodexPanel';
+import SiteHeader from './SiteHeader';
 import { useI18n } from '@/i18n/I18nProvider';
+import '@/styles/aero-home.css';
+import '@/styles/aero-playful.css';
 
 const SC = 10; // 每米 10 个 SVG 单位
 const BEAT_SECONDS = 1.8;
@@ -35,8 +39,8 @@ function discAt(scene: Scene, frames: Frames, beat: number, p: number, pos: Reco
   return [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e - Math.sin(q * Math.PI) * 26];
 }
 
-export default function TacticsLab({ onExit }: { onExit: () => void }) {
-  const { t, lang, setLang } = useI18n();
+export default function TacticsLab({ onExit, onPlay }: { onExit: () => void; onPlay: () => void }) {
+  const { t } = useI18n();
   const [sceneId, setSceneId] = useState<string>(SCENES[0].id);
   const scene = SCENES.find((s) => s.id === sceneId) ?? SCENES[0];
   const frames = useMemo(() => buildFrames(scene), [scene]);
@@ -49,6 +53,8 @@ export default function TacticsLab({ onExit }: { onExit: () => void }) {
   const [mode, setMode] = useState<'watch' | 'quiz'>('watch');
   const [picked, setPicked] = useState<string | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
+  const [codexOpen, setCodexOpen] = useState(false);
+  const [unlocked, setUnlocked] = useState<string[]>([]);
 
   // 切换战术：重置播放，并解锁对应图鉴
   useEffect(() => {
@@ -136,6 +142,7 @@ export default function TacticsLab({ onExit }: { onExit: () => void }) {
     setPicked(null);
   };
   const cycleSpeed = () => setSpeed((s) => (s === 1 ? 2 : s === 2 ? 0.5 : 1));
+  const openCodex = () => { setUnlocked(loadUnlocked()); setCodexOpen(true); };
   const nextScene = () => {
     const i = SCENES.findIndex((s) => s.id === scene.id);
     setSceneId(SCENES[(i + 1) % SCENES.length].id);
@@ -147,18 +154,11 @@ export default function TacticsLab({ onExit }: { onExit: () => void }) {
   const line = (a: string, b: string) => ({ x1: sx(pos[a][0]), y1: sy(pos[a][1]), x2: sx(pos[b][0]), y2: sy(pos[b][1]) });
 
   return (
-    <div className="lab">
-      <header className="lab-top">
-        <button className="btn" onClick={onExit}>
-          ← {t('lab.back')}
-        </button>
-        <div className="lab-top-title">
-          <h1>{t('lab.title')}</h1>
-          <span>{t('lab.sub')}</span>
-        </div>
-        <button className="btn" onClick={() => setLang(lang === 'zh' ? 'en' : 'zh')}>
-          {t('lang.toggle')}
-        </button>
+    <div className="lab aero-page aero-playful">
+      <SiteHeader current="lab" onHomeClick={onExit} onLab={() => {}} onCodex={openCodex} onPlay={onPlay} />
+      <header className="lab-heading">
+        <h1>{t('lab.title')}</h1>
+        <p>{t('lab.sub')}</p>
       </header>
 
       <div className="lab-body">
@@ -297,6 +297,7 @@ export default function TacticsLab({ onExit }: { onExit: () => void }) {
       </div>
 
       {banner && <div className="exp-unlock">{t('exp.unlocked', { name: t(`lab.${banner}.name`) })}</div>}
+      {codexOpen && <CodexPanel unlocked={unlocked} onClose={() => setCodexOpen(false)} />}
     </div>
   );
 }

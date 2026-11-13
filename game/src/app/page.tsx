@@ -42,13 +42,13 @@ export default function Home() {
     });
   }, []);
 
-  if (lab) return <><TacticsLab onExit={exitLab} /><DiscPromo /></>;
+  if (lab) return <><TacticsLab onExit={exitLab} onPlay={() => { setLab(false); setPlaying(true); window.scrollTo(0, 0); }} /><DiscPromo /></>;
   if (playing) return <FieldExperience onExit={() => setPlaying(false)} />;
 
   return (
     <>
       <AeroHome onPlay={() => { window.scrollTo(0, 0); setPlaying(true); }} onLab={() => { window.scrollTo(0, 0); setLab(true); }} onCodex={() => setCodex(loadUnlocked())} />
-      {codex && <><CodexPanel unlocked={codex} onClose={() => setCodex(null)} /><DiscPromo /></>}
+      {codex && <CodexPanel unlocked={codex} onClose={() => setCodex(null)} />}
     </>
   );
 }

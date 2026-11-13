@@ -43,7 +43,7 @@
 .ap-promo-close { position: absolute; z-index: 2; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); display: grid; place-items: center; width: 48px; height: 48px; min-height: 48px; padding: 0; background: var(--ap-promo-paper); border: 3px solid var(--ap-promo-ink); box-shadow: 3px 3px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); font-size: 30px; line-height: 1; font-weight: 900; cursor: pointer; pointer-events: auto; }
 .ap-promo-close:hover { background: var(--ap-promo-yellow); }
 .ap-promo-close:focus-visible { outline: 3px solid var(--ap-promo-hot); outline-offset: 4px; }
-.ap-promo-flight { width: min(440px, calc(100vw - 40px)); height: min(560px, calc(100svh - 48px)); perspective: 1000px; }
+.ap-promo-flight { width: min(440px, calc(100vw - 40px)); height: min(820px, calc(100svh - 48px)); perspective: 1000px; }
 .ap-promo-flight.from-left { animation: ap-promo-arrive-left 300ms cubic-bezier(.2, 1.35, .35, 1) both; }
 .ap-promo-flight.from-right { animation: ap-promo-arrive-right 300ms cubic-bezier(.2, 1.35, .35, 1) both; }
 .ap-promo-card { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; animation: ap-promo-flip 260ms 40ms ease-in-out forwards; }
@@ -51,16 +51,13 @@
 .ap-promo-front { padding: 0; background: transparent; }
 .ap-promo-front > * { position: relative; z-index: 1; }
 .ap-promo-large-disc { display: block; width: min(92%, 390px); height: auto; }
-.ap-promo-back { transform: rotateY(180deg); align-content: start; justify-items: stretch; gap: 14px; overflow-y: auto; background: var(--ap-promo-paper); border: 4px solid var(--ap-promo-ink); box-shadow: 8px 8px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); }
+.ap-promo-back { transform: rotateY(180deg); align-content: start; justify-items: stretch; gap: 14px; overflow-x: hidden; overflow-y: auto; padding: clamp(18px, 4vw, 32px); background: var(--ap-promo-paper); border: 4px solid var(--ap-promo-ink); box-shadow: 8px 8px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); }
 .ap-promo-poster-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 3px dashed var(--ap-promo-ink); font-size: 10px; line-height: 1.3; font-weight: 900; letter-spacing: .08em; }
 .ap-promo-poster-head span:last-child { display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid var(--ap-promo-ink); border-radius: 50%; background: var(--ap-promo-cyan); }
 .ap-promo-poster-stamp svg { width: 24px; height: 18px; fill: var(--ap-promo-paper); stroke: var(--ap-promo-ink); stroke-width: 2; stroke-linecap: round; }
 .ap-promo-back h2 { margin: 0; font-size: clamp(24px, 5vw, 34px); line-height: 1.2; font-weight: 900; }
-.ap-promo-poster-box { display: grid; justify-items: center; gap: 10px; min-height: 185px; padding: 18px; background: var(--ap-promo-cream); border: 3px dashed var(--ap-promo-ink); text-align: center; }
-.ap-promo-poster-disc { display: flex; align-items: center; justify-content: center; gap: 5px; width: 92px; height: 52px; border: 3px solid var(--ap-promo-ink); border-radius: 50%; background: var(--ap-promo-cyan); transform: rotate(-12deg); box-shadow: 3px 3px 0 var(--ap-promo-ink); }
-.ap-promo-poster-disc i { display: block; width: 10px; height: 10px; border: 2px solid var(--ap-promo-ink); border-radius: 50%; background: var(--ap-promo-yellow); }
-.ap-promo-poster-box b { font-size: 13px; line-height: 1.35; font-weight: 900; }
-.ap-promo-poster-box small { font-size: 12px; line-height: 1.5; font-weight: 700; }
+.ap-promo-poster-box { box-sizing: border-box; position: relative; display: grid; place-items: center; width: min(100%, 320px); aspect-ratio: 2381 / 3367; margin-inline: auto; overflow: hidden; background: var(--ap-promo-cream); border: 3px dashed var(--ap-promo-ink); text-align: center; }
+.ap-promo-poster-image { display: block; width: 100%; height: 100%; object-fit: contain; }
 .ap-promo-back p { margin: 0; font-size: 13px; line-height: 1.6; font-weight: 600; }
 .ap-promo-contact { display: inline-flex; align-items: center; justify-content: center; gap: 8px; justify-self: start; min-height: 42px; padding: 8px 12px; background: var(--ap-promo-yellow); border: 3px solid var(--ap-promo-ink); box-shadow: 3px 3px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); font-size: 12px; line-height: 1.3; font-weight: 900; text-decoration: none; }
 .ap-promo-contact:focus-visible { outline: 3px solid var(--ap-promo-hot); outline-offset: 3px; }
@@ -72,13 +69,12 @@
 @media (max-width: 560px) {
   .ap-promo-teaser { width: 116px; }
   .ap-promo-overlay { padding: 16px; }
-  .ap-promo-flight { width: min(380px, calc(100vw - 32px)); height: min(560px, calc(100svh - 32px)); }
-  .ap-promo-back { gap: 11px; }
+  .ap-promo-flight { width: min(380px, calc(100vw - 32px)); height: min(720px, calc(100svh - 32px)); }
+  .ap-promo-back { gap: 11px; padding: 16px; }
 }
 @media (max-height: 480px) {
   .ap-promo-flight { height: calc(100svh - 40px); }
   .ap-promo-back { gap: 8px; padding: 16px; }
-  .ap-promo-poster-box { min-height: 120px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .ap-promo-teaser,

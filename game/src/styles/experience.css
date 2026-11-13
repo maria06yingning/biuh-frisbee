@@ -246,7 +246,7 @@ button { font-family: inherit; }
 }
 @keyframes slide-up { from { opacity: 0; transform: translate(-50%, 12px); } to { opacity: 1; transform: translate(-50%, 0); } }
 
-.codex { position: fixed; inset: 0; z-index: 20; background: rgba(27,26,46,0.78); display: flex; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
+.codex { position: fixed; inset: 0; z-index: 200; background: rgba(27,26,46,0.78); display: flex; align-items: center; justify-content: center; padding: 20px; overflow: auto; }
 .codex-card { width: min(920px, 100%); max-height: 100%; overflow: auto; background: var(--paper); border: 4px solid var(--ink); box-shadow: 8px 8px 0 var(--ink); padding: 18px 22px 22px; color: var(--ink); }
 .codex-head { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
 .codex-head h2 { margin: 0; font-size: 26px; background: var(--yellow); border: var(--line); padding: 0 12px; transform: rotate(-1deg); box-shadow: 3px 3px 0 var(--ink); }
@@ -279,13 +279,18 @@ button { font-family: inherit; }
 @media (max-height: 700px) { .hud-tut { width: 280px; top: 100px; } .hud-tut-body p { font-size: 12.5px; } }
 
 /* ───────── 战术实验室 ───────── */
-.lab { min-height: 100vh; background: var(--cream); color: var(--ink); padding: 16px 20px 40px; }
-.lab-top { display: flex; align-items: center; gap: 16px; max-width: 1180px; margin: 0 auto 16px; }
-.lab-top-title { flex: 1; }
-.lab-top-title h1 { margin: 0; font-size: 28px; display: inline-block; background: var(--yellow); border: var(--line); padding: 0 12px; transform: rotate(-1deg); box-shadow: 3px 3px 0 var(--ink); }
-.lab-top-title span { display: block; margin-top: 6px; font-weight: 600; font-size: 14px; }
-.lab-body { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: auto minmax(320px, 1fr); gap: 24px; align-items: start; }
-.lab-board-wrap { width: min(420px, 90vw); }
+.lab { min-height: 100vh; background: var(--cream); color: var(--ink); padding: 0 20px 40px; }
+.lab.aero-page.aero-playful { min-height: 100vh; height: auto; display: block; overflow: visible; }
+.lab.aero-page.aero-playful > .aero-header { position: sticky; inset: auto; top: 0; z-index: 100; width: calc(100% + 40px); max-width: none; height: auto; margin: 0 -20px; padding: 12px max(18px, env(safe-area-inset-left)); display: flex; justify-content: center; background: var(--cream); border-bottom: 3px solid var(--ink); box-shadow: 0 3px 0 var(--ink); }
+.lab .aero-header nav { width: fit-content; max-width: 100%; display: flex; flex-wrap: wrap; justify-content: center; align-items: center; gap: 7px; background: transparent; border: 0; box-shadow: none; padding: 0; }
+.lab .aero-header nav a,
+.lab .aero-header nav button { min-height: 44px; padding: 8px 12px; border: 3px solid var(--ink); border-radius: 6px; background: var(--paper); color: var(--ink); font-size: 14px; font-weight: 800; box-shadow: 3px 3px 0 var(--ink); }
+.lab .aero-header nav button[aria-current='page'] { background: var(--yellow); }
+.lab-heading { max-width: 1180px; margin: 36px auto 40px; }
+.lab-heading h1 { display: inline-block; margin: 0; padding: 4px 12px; background: var(--yellow); border: var(--line); box-shadow: 3px 3px 0 var(--ink); font-size: clamp(26px, 3vw, 34px); line-height: 1.25; font-weight: 900; transform: rotate(-1deg); }
+.lab-heading p { max-width: 64ch; margin: 18px 0 0; font-size: 16px; line-height: 1.65; font-weight: 600; }
+.lab-body { max-width: 1180px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 32px; align-items: start; }
+.lab-board-wrap { width: min(460px, 100%); justify-self: center; }
 .lab-svg { display: block; width: 100%; height: auto; border: 4px solid var(--ink); box-shadow: 6px 6px 0 var(--ink); background: #8fd17e; }
 .lab-zone-label { font-size: 22px; font-weight: 900; fill: var(--ink); opacity: 0.55; letter-spacing: 0.15em; }
 .lab-attack-label { font-size: 14px; font-weight: 800; fill: var(--cream); stroke: var(--ink); stroke-width: 3px; paint-order: stroke; }
@@ -314,20 +319,20 @@ button { font-family: inherit; }
 .lg-mark { border-style: dashed !important; background: transparent; }
 .lg-zone { background: rgba(255, 90, 74, 0.2); border-radius: 50%; border-style: dashed !important; }
 
-.lab-side { display: flex; flex-direction: column; gap: 14px; }
-.lab-group-title { font-size: 13px; font-weight: 900; margin-bottom: 4px; opacity: 0.7; }
+.lab-side { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.lab-group-title { font-size: 13px; font-weight: 900; margin-bottom: 8px; opacity: 0.7; }
 .lab-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
 .lab-tab { appearance: none; border: var(--line); background: var(--paper); color: var(--ink); padding: 5px 12px; font-weight: 800; font-size: 14px; cursor: pointer; box-shadow: 3px 3px 0 var(--ink); }
 .lab-tab.is-on { background: var(--yellow); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
-.lab-info { background: var(--paper); border: var(--line); box-shadow: var(--shadow); padding: 10px 14px 12px; }
-.lab-info h2 { margin: 0 0 6px; font-size: 20px; }
-.lab-info p { margin: 0 0 6px; font-size: 14px; line-height: 1.65; font-weight: 600; }
+.lab-info { background: var(--paper); border: var(--line); box-shadow: var(--shadow); padding: 16px 18px; }
+.lab-info h2 { margin: 0 0 10px; font-size: 20px; line-height: 1.3; }
+.lab-info p { margin: 0 0 10px; font-size: 14px; line-height: 1.55; font-weight: 600; }
 .lab-info p:last-child { margin-bottom: 0; }
-.lab-beat { background: #fff; border: var(--line); box-shadow: var(--shadow); }
-.lab-beat-head { background: var(--a); border-bottom: var(--line); padding: 2px 12px; font-size: 13px; font-weight: 900; }
-.lab-beat-title { padding: 8px 14px 0; font-size: 18px; font-weight: 900; }
-.lab-beat p { margin: 4px 14px 12px; font-size: 14px; line-height: 1.65; font-weight: 600; }
-.lab-ctrls { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.lab-beat { background: var(--paper); border: var(--line); box-shadow: var(--shadow); }
+.lab-beat-head { background: var(--a); border-bottom: var(--line); padding: 8px 14px; font-size: 13px; font-weight: 900; }
+.lab-beat-title { padding: 12px 16px 0; font-size: 18px; line-height: 1.35; font-weight: 900; }
+.lab-beat p { margin: 8px 16px 16px; font-size: 14px; line-height: 1.55; font-weight: 600; }
+.lab-ctrls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .lab-ctrls .btn { padding: 6px 14px; font-size: 14px; }
 .lab-ctrls .btn:disabled { opacity: 0.4; cursor: default; }
 .lab-quiz { background: var(--paper); border: var(--line); box-shadow: var(--shadow); }
@@ -338,7 +343,22 @@ button { font-family: inherit; }
 .lab-result.is-ok { background: #d7f7e3; }
 .lab-result.is-bad { background: #ffe0dc; }
 .lab-result p { margin: 4px 0 10px; font-size: 14px; line-height: 1.6; font-weight: 600; }
-@media (max-width: 860px) { .lab-body { grid-template-columns: 1fr; } .lab-board-wrap { margin: 0 auto; } }
+@media (max-width: 860px) {
+  .lab-heading { margin: 28px auto 32px; }
+  .lab-body { grid-template-columns: 1fr; gap: 24px; }
+  .lab-board-wrap { width: min(460px, 100%); margin: 0 auto; }
+  .lab-side { width: min(100%, 680px); margin: 0 auto; }
+}
+@media (max-width: 700px) {
+  .lab { padding-inline: 14px; }
+  .lab.aero-page.aero-playful > .aero-header { width: calc(100% + 28px); margin-inline: -14px; padding-inline: 12px; }
+  .lab .aero-header nav { gap: 5px; }
+  .lab .aero-header nav a,
+  .lab .aero-header nav button { min-height: 40px; padding: 7px 9px; font-size: 12px; }
+  .lab-heading { margin: 24px auto 28px; }
+  .lab-heading p { margin-top: 14px; font-size: 15px; }
+  .lab-body { gap: 20px; }
+}
 @media (prefers-reduced-motion: reduce) { .lab-pulse { animation: none; } }
 
 /* 开始 / 暂停菜单：模式与战术选择 */

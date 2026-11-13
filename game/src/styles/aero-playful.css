@@ -77,9 +77,10 @@
   background: var(--play-yellow);
 }
 .aero-playful .aero-pages-menu {
-  background: var(--aero-paper);
-  border: 2px solid var(--aero-ink);
-  box-shadow: var(--play-shadow);
+  background: var(--uf-paper);
+  border: 3px solid var(--uf-ink);
+  border-radius: 6px;
+  box-shadow: 4px 4px 0 var(--uf-ink);
 }
 .aero-playful main { flex: 1; }
 /* Accessible skip link: hidden visually until keyboard focus. */
@@ -678,49 +679,36 @@
   .aero-playful .ap-start-action { min-height: 112px; padding: 16px; }
 }
 
-/* Pass-the-love animation */
-.ap-love-pass {
-  display: grid;
-  gap: var(--aero-space);
-}
-
-.ap-love-pass svg {
-  width: 100%;
-  height: auto;
-  border-radius: 12px;
-  box-shadow: var(--play-shadow);
-  border: 2.5px solid var(--aero-line);
-}
-
-.ap-love-bubble {
-  background: #fff;
-  border: 2.5px solid var(--aero-line);
-  border-radius: 16px;
-  padding: clamp(16px, 3vw, 24px);
-  box-shadow: var(--play-shadow);
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 16px;
-  align-items: start;
-}
-
-.ap-love-icon {
-  font-size: clamp(32px, 5vw, 48px);
-  line-height: 1;
-}
-
-.ap-love-bubble h4 {
-  font-size: clamp(16px, 2.2vw, 20px);
-  font-weight: 700;
-  color: var(--aero-ink);
-  margin: 0 0 8px;
-}
-
-.ap-love-bubble p {
-  font-size: clamp(14px, 1.8vw, 16px);
-  line-height: 1.6;
-  color: var(--aero-soft);
-  margin: 0;
+/* Pass-the-love: compact quote card and hand-drawn field scene */
+.ap-love-pass { display: grid; gap: 14px; max-width: 1000px; margin-inline: auto; }
+.ap-love-instruction { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 800; }
+.ap-love-pass > svg { box-sizing: border-box; display: block; width: 100%; height: auto; border: 3px solid var(--uf-ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--uf-ink); }
+.ap-love-player { transition: transform 280ms cubic-bezier(.2,.85,.3,1), opacity 180ms ease; }
+.ap-love-player.is-running { animation: ap-player-bob 260ms ease-out 1; }
+.ap-love-player.is-holder { opacity: 1; }
+.ap-love-halo { animation: none; }
+.ap-love-disc { cursor: pointer; transform-box: view-box; transform-origin: center; transition: none; outline: none; }
+.ap-love-disc:hover { filter: none; }
+.ap-love-disc:focus-visible { filter: none; outline: 3px solid var(--uf-hot); outline-offset: 4px; }
+.ap-love-disc.is-flying { pointer-events: none; }
+.ap-love-field-note { font: 800 14px system-ui,sans-serif; fill: #365244; }
+.ap-love-bubble { box-sizing: border-box; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: start; gap: 8px 14px; width: 100%; max-width: 1000px; margin: 0 auto; padding: 16px 18px; background: var(--uf-paper); border: 3px solid var(--uf-ink); border-radius: 6px; box-shadow: 4px 4px 0 var(--uf-ink); animation: ap-reveal 260ms ease both; }
+.ap-love-quote-mark { font: 900 42px/.85 Georgia,serif; color: var(--uf-coral); }
+.ap-love-voice-copy { min-width: 0; }
+.ap-love-tags { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 0 0 7px; }
+.ap-love-topic { display: inline-block; max-width: 100%; margin: 0; padding: 4px 8px; background: var(--uf-cyan); border: 2px solid var(--uf-ink); font-size: 11px; line-height: 1.3; font-weight: 900; }
+.ap-love-source { display: inline-block; max-width: 100%; margin: 0; padding: 4px 8px; background: var(--uf-cream); border-left: 4px solid var(--uf-coral); color: var(--uf-ink); font-size: 11px; line-height: 1.35; font-weight: 900; }
+.ap-love-reason { margin: 0; font-size: 15px; line-height: 1.5; font-weight: 600; white-space: pre-line; }
+.ap-love-bubble h3 { margin: 8px 0 0; font-size: 15px; font-weight: 900; }
+.ap-love-turn { grid-column: 3; justify-self: end; align-self: start; padding: 4px 8px; background: var(--uf-yellow); border: 2px solid var(--uf-ink); border-radius: 4px; font-size: 11px; line-height: 1.3; font-weight: 900; white-space: nowrap; }
+.aero-playful .ap-love-full { margin-top: 7px; }
+.aero-playful .ap-love-full summary { display: inline-block; cursor: pointer; font-size: 12px; line-height: 1.45; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
+.aero-playful .ap-love-full summary:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
+.aero-playful .ap-love-full p { margin: 7px 0 0; padding: 10px 12px; background: var(--uf-cream); border-left: 4px solid var(--uf-yellow); color: var(--uf-ink); font-size: 13px; line-height: 1.5; font-weight: 600; white-space: pre-line; }
+@media (max-width: 700px) {
+  .ap-love-bubble { grid-template-columns: auto minmax(0, 1fr); gap: 8px 10px; padding: 14px; }
+  .ap-love-turn { grid-column: 2; justify-self: start; }
+  .ap-love-quote-mark { font-size: 36px; }
 }
 
 /* Shared game identity: ink, paper, team colors, hard edges and flat grass bands. */
@@ -763,9 +751,32 @@
 }
 .aero-playful .aero-header nav a:hover,
 .aero-playful .aero-header nav button:hover { background: var(--uf-cyan); }
-.aero-playful .aero-header nav a[aria-current='page'] { background: var(--uf-yellow); text-decoration: none; }
+.aero-playful .aero-header nav a[aria-current='page'],
+.aero-playful .aero-header nav button[aria-current='page'] { background: var(--uf-yellow); text-decoration: none; }
 .aero-playful .aero-header nav button.aero-primary { background: var(--uf-yellow); }
 .aero-playful .aero-header nav button.aero-primary:hover { background: #ffca1f; }
+.aero-playful .aero-header nav .aero-pages-menu a,
+.aero-playful .aero-header nav .aero-pages-menu button {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  box-shadow: none;
+  color: var(--uf-ink);
+  text-align: left;
+  text-decoration: none;
+}
+.aero-playful .aero-header nav .aero-pages-menu a:hover,
+.aero-playful .aero-header nav .aero-pages-menu button:hover { background: var(--uf-cyan); }
+.aero-playful .aero-header nav .aero-pages-menu b { font-size: 14px; font-weight: 900; }
+.aero-playful .aero-header nav .aero-pages-menu small { color: var(--uf-ink); font-size: 12px; line-height: 1.4; font-weight: 600; }
 .aero-playful .aero-header :focus-visible,
 .aero-playful :focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
 .aero-playful .ap-body { max-width: var(--aero-max); }

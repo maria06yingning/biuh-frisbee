@@ -91,10 +91,6 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         <span>{zh ? `场景 ${sceneIndex + 1}/8 · ${SCENE_NAMES_ZH[sceneIndex]}` : `Scene ${sceneIndex + 1}/8 · ${SCENE_NAMES_EN[sceneIndex]}`}</span>
       </button>
 
-      <button className="aero-play-control aero-view-reset" type="button" onClick={() => setViewResetToken(value => value + 1)} aria-label={zh ? '将视角复位到正前方' : 'Reset view to center'}>
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.5M4 4v4.5h4.5" /></svg>
-        <span>{zh ? '重置视角' : 'Reset view'}</span>
-      </button>
       <button className="aero-play-control aero-replay-reset" type="button" onClick={replayFlight} aria-label={zh ? '复位飞盘和玩家位置' : 'Reset disc and player position'}>
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 10a8 8 0 1 1 1.2 7M4 4v6h6" /></svg>
         <span>{zh ? '复位' : 'Reset'}</span>
@@ -115,13 +111,19 @@ export default function AeroHome({ onPlay, onLab, onCodex }: { onPlay: () => voi
         )}
         {discLanded && (
           <button className="aero-play-control" type="button" onClick={() => setReturnToken(value => value + 1)}>
-            <span>{zh ? '一键飞回' : 'Fly back'}</span>
+            <span>{zh ? '盘来' : 'Fly back'}</span>
           </button>
         )}
-        <button className="aero-play-control" type="button" onClick={randomColor}>
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l10 10h3M17 7h3v3M4 17h3L17 7h3M4 7l3 0" /></svg>
-          <span>{zh ? '随机颜色' : 'Random color'}</span>
-        </button>
+        <div className="aero-control-pair">
+          <button className="aero-play-control aero-view-reset" type="button" onClick={() => setViewResetToken(value => value + 1)} aria-label={zh ? '将视角复位到正前方' : 'Reset view to center'}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.34-5.66L4 8.5M4 4v4.5h4.5" /></svg>
+            <span>{zh ? '重置视角' : 'Reset view'}</span>
+          </button>
+          <button className="aero-play-control" type="button" onClick={randomColor}>
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h3l10 10h3M17 7h3v3M4 17h3L17 7h3M4 7l3 0" /></svg>
+            <span>{zh ? '随机颜色' : 'Random color'}</span>
+          </button>
+        </div>
         <button className="aero-play-control" type="button" onClick={() => setDiscColor(defaultDiscColor(season))}>
           <span>{zh ? '默认颜色' : 'Default'}</span>
         </button>

@@ -5,6 +5,7 @@ import { useI18n } from '@/i18n/I18nProvider';
 import { pick, withBase } from '@/content/shared';
 import { FRISBEE_VOICES } from '@/content/frisbee-voices';
 import PageShell, { Section } from '@/components/PageShell';
+import FieldPlayerFigure from '@/components/PlayerFigure';
 
 type Player = { x: number; y: number; skin: string; hair: string; shirt: string; hairStyle: number; shorts: string };
 const PLAYERS: Player[] = [
@@ -33,27 +34,29 @@ function findOpenSpot(players: Player[], movingIndex: number): [number, number] 
   return [players[movingIndex].x, players[movingIndex].y];
 }
 
+function heldDiscPoint(player: Player): [number, number] {
+  const facing = player.x > 400 ? -1 : 1;
+  return [player.x + facing * 33, player.y - 23];
+}
+
 function PlayerFigure({ player, active, running }: { player: Player; active: boolean; running: boolean }) {
   const { x, y, skin, hair, shirt, shorts, hairStyle } = player;
   return (
     <g className={`ap-love-player${active ? ' is-holder' : ''}${running ? ' is-running' : ''}`} transform={`translate(${x} ${y})`}>
-      <ellipse cx="0" cy="39" rx="31" ry="7" fill="#486b42" opacity=".17" />
-      {active && <circle className="ap-love-halo" cx="0" cy="0" r="42" fill="#fff5b6" opacity=".85" />}
-      {/* Legs and shoes */}
-      <path d="M-12 29 L-16 49 L-25 58 M12 29 L17 47 L27 53" fill="none" stroke={shorts} strokeWidth="8" strokeLinecap="round" />
-      <path d="M-29 59 l11 0 M22 54 l11 2" fill="none" stroke="#342e3a" strokeWidth="5" strokeLinecap="round" />
-      {/* Arms */}
-      <path d="M-15 4 Q-30 15 -27 26 M15 4 Q28 14 26 25" fill="none" stroke={skin} strokeWidth="8" strokeLinecap="round" />
-      <path d="M-15 1 Q0 -6 15 1 L18 29 Q0 37 -18 29Z" fill={shirt} stroke="#1b1a2e" strokeWidth="2.5" />
-      {/* Neck, face and hair */}
-      <path d="M-5 -14 L-5 -8 M5 -14 L5 -8" stroke={skin} strokeWidth="5" />
-      <circle cx="0" cy="-22" r="15" fill={skin} stroke="#1b1a2e" strokeWidth="2" />
-      {hairStyle % 3 === 0 && <path d="M-15 -22 Q-17 -41 0 -39 Q17 -38 15 -21 L9 -27 Q0 -18 -8 -26Z" fill={hair} stroke="#1b1a2e" strokeWidth="2" />}
-      {hairStyle % 3 === 1 && <path d="M-15 -22 Q-17 -38 -4 -39 Q2 -44 8 -37 Q18 -32 14 -18 Q9 -25 5 -27 Q-2 -20 -12 -24Z" fill={hair} stroke="#1b1a2e" strokeWidth="2" />}
-      {hairStyle % 3 === 2 && <path d="M-15 -24 Q-13 -42 1 -39 Q16 -37 16 -22 L10 -25 L7 -18 L1 -25 L-6 -18 L-10 -25Z" fill={hair} stroke="#1b1a2e" strokeWidth="2" />}
-      <circle cx="-5" cy="-21" r="1.4" fill="#1b1a2e" />
-      <circle cx="5" cy="-21" r="1.4" fill="#1b1a2e" />
-      <path d="M-3 -15 Q0 -12 3 -15" fill="none" stroke="#1b1a2e" strokeWidth="1.5" strokeLinecap="round" />
+      {active && <circle className="ap-love-halo" cx="0" cy="-8" r="42" fill="#ffd23f" opacity=".22" />}
+      <FieldPlayerFigure
+        x={0}
+        y={-59}
+        team="o"
+        pose={running ? 'run' : active ? 'hold' : 'stand'}
+        flip={x > 400}
+        shirtColor={shirt}
+        skinColor={skin}
+        hairColor={hair}
+        shortsColor={shorts}
+        hairStyle={hairStyle}
+        headband
+      />
     </g>
   );
 }
@@ -71,8 +74,10 @@ function PassTheLove() {
   const passFrame = useRef<number | null>(null);
   const current = players[holder];
   const receiver = target === null ? current : players[target];
-  const discX = discFlight?.x ?? current.x;
-  const discY = discFlight?.y ?? current.y - 52;
+  const currentDiscPoint = heldDiscPoint(current);
+  const receiverDiscPoint = heldDiscPoint(receiver);
+  const discX = discFlight?.x ?? currentDiscPoint[0];
+  const discY = discFlight?.y ?? currentDiscPoint[1];
   const discRotation = discFlight?.rotation ?? -12;
   const voice = FRISBEE_VOICES[voiceIndex];
 
@@ -94,10 +99,8 @@ function PassTheLove() {
     }
 
     const [endX, endY] = findOpenSpot(players, next);
-    const startX = current.x;
-    const startY = current.y - 52;
-    const targetX = endX;
-    const targetY = endY - 52;
+    const [startX, startY] = heldDiscPoint(current);
+    const [targetX, targetY] = heldDiscPoint({ ...players[next], x: endX, y: endY });
     const controlX = (startX + targetX) / 2;
     const controlY = Math.min(startY, targetY) - 53;
     const startedAt = performance.now();
@@ -146,7 +149,7 @@ function PassTheLove() {
         <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
         <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />
         <path d="M0 355 Q100 315 190 355 M610 330 Q700 295 800 335" fill="none" stroke="#fff8e6" strokeWidth="7" strokeLinecap="round" opacity=".8" />
-        {flying && target !== null && <path d={`M${current.x} ${current.y - 52} Q${(current.x + receiver.x) / 2} ${Math.min(current.y, receiver.y) - 105} ${receiver.x} ${receiver.y - 52}`} fill="none" stroke="#ffd23f" strokeWidth="5" strokeLinecap="round" opacity=".9" />}
+        {flying && target !== null && <path d={`M${currentDiscPoint[0]} ${currentDiscPoint[1]} Q${(currentDiscPoint[0] + receiverDiscPoint[0]) / 2} ${Math.min(currentDiscPoint[1], receiverDiscPoint[1]) - 53} ${receiverDiscPoint[0]} ${receiverDiscPoint[1]}`} fill="none" stroke="#ffd23f" strokeWidth="5" strokeLinecap="round" opacity=".9" />}
         {players.map((player, index) => <PlayerFigure key={index} player={player} active={index === holder} running={index === runningPlayer} />)}
         <g
           className={`ap-love-disc${flying ? ' is-flying' : ''}`}
@@ -170,8 +173,10 @@ function PassTheLove() {
       <div className="ap-love-bubble" aria-live="polite" key={voice.id}>
         <span className="ap-love-quote-mark" aria-hidden="true">“</span>
         <div className="ap-love-voice-copy">
-          <span className="ap-love-topic">{pick(lang, voice.topic)}</span>
-          {voice.source === 'ai' && <span className="ap-love-source">{zh ? 'AI 生成灵感 · 非真实玩家留言' : 'AI-generated inspiration · not a real testimonial'}</span>}
+          <div className="ap-love-tags">
+            <span className="ap-love-topic">{pick(lang, voice.topic)}</span>
+            {voice.source === 'ai' && <span className="ap-love-source">{zh ? 'AI 生成灵感 · 非真实玩家留言' : 'AI-generated inspiration · not a real testimonial'}</span>}
+          </div>
           <p className="ap-love-reason">{pick(lang, voice.summary ?? voice.quote)}</p>
           {voice.summary && (
             <details className="ap-love-full">

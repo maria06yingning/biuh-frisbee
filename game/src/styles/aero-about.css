@@ -23,12 +23,8 @@
 .aero-playful .ap-about-envelope-copy small { font-size: 12px; line-height: 1.4; font-weight: 700; }
 .aero-playful .ap-about-envelope-seal { position: absolute; z-index: 2; right: clamp(14px, 4vw, 28px); bottom: 18px; display: grid; place-items: center; width: 54px; height: 54px; border: 3px solid var(--uf-ink); border-radius: 50%; background: var(--uf-paper); }
 .aero-playful .ap-about-envelope-seal svg { width: 38px; height: 27px; fill: var(--uf-cyan); stroke: var(--uf-ink); stroke-width: 2.5; stroke-linecap: round; }
-.aero-playful .ap-about-letter-reveal { position: relative; z-index: 2; margin: -24px auto 0; animation: ap-letter-emerge 260ms ease-out both; }
-.aero-playful .ap-about-letter-image-placeholder { display: grid; justify-items: center; gap: 12px; max-width: 860px; min-height: 300px; margin: 24px auto; padding: 24px; background: var(--uf-cream); border: 3px dashed var(--uf-ink); text-align: center; animation: ap-letter-image-appear 240ms 40ms ease-out both; }
-.aero-playful .ap-about-letter-placeholder-tag { justify-self: start; padding: 4px 8px; background: var(--uf-yellow); border: 2px solid var(--uf-ink); font-size: 10px; line-height: 1.3; font-weight: 900; letter-spacing: .05em; }
-.aero-playful .ap-about-letter-image { display: block; width: min(100%, 700px); height: auto; border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); }
-.aero-playful .ap-about-letter-image-placeholder figcaption,
-.aero-playful .ap-about-letter-image-placeholder p { max-width: 60ch; margin: 0; font-size: 13px; line-height: 1.6; font-weight: 700; }
+.aero-playful .ap-about-letter-reveal { width: min(100%, 900px); margin: 24px auto 0; animation: ap-letter-emerge 260ms ease-out both; }
+.aero-playful .ap-about-letter-image { display: block; width: 100%; height: auto; border: 0; box-shadow: none; }
 .aero-playful .ap-about-text-preview { margin-top: 24px; padding-top: 18px; border-top: 2px dashed var(--uf-ink); }
 .aero-playful .ap-about-text-preview summary { display: inline-block; cursor: pointer; font-size: 14px; line-height: 1.5; font-weight: 900; text-decoration: underline; text-underline-offset: 3px; }
 .aero-playful .ap-about-text-preview summary:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
@@ -62,7 +58,8 @@
 .aero-playful .ap-about-credit-group li a { text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
 .aero-playful .ap-about-credit-group li a:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 3px; }
 .aero-playful .ap-about-credit-group li p { margin: 5px 0 0; color: var(--uf-ink); font-size: 13px; line-height: 1.6; font-weight: 600; }
-.aero-playful .ap-about-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; max-width: 760px; min-height: 68px; margin-top: 32px; padding: 16px 20px; background: var(--uf-yellow); border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); color: var(--uf-ink); font-size: 15px; line-height: 1.5; font-weight: 900; text-decoration: none; }
+.aero-playful #contact .ap-section-body { display: flex; flex-direction: column; justify-content: center; }
+.aero-playful .ap-about-mail { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px 16px; max-width: 760px; min-height: 72px; margin-top: 0; padding: 16px 20px; background: var(--uf-yellow); border: 3px solid var(--uf-ink); box-shadow: 4px 4px 0 var(--uf-ink); color: var(--uf-ink); font-size: 15px; line-height: 1.5; font-weight: 900; text-decoration: none; }
 .aero-playful .ap-about-mail:hover { transform: translate(-1px, -1px); box-shadow: 5px 5px 0 var(--uf-ink); }
 .aero-playful .ap-about-mail:active { transform: translate(3px, 3px); box-shadow: 1px 1px 0 var(--uf-ink); }
 .aero-playful .ap-about-mail:focus-visible { outline: 3px solid var(--uf-hot); outline-offset: 4px; }
@@ -81,7 +78,7 @@
   .aero-playful .ap-about-intro p { grid-column: 1; }
   .aero-playful .ap-about-credit-grid { grid-template-columns: 1fr; }
   .aero-playful .ap-about-letter { padding: 20px 17px; border-left-width: 8px; }
-  .aero-playful .ap-about-mail { align-items: flex-start; }
+  .aero-playful .ap-about-mail { align-items: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   .aero-playful .ap-about-mail,

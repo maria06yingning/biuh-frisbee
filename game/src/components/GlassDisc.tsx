@@ -21,6 +21,7 @@ const STARVALLEY_WALK_BOUNDS = { minX: -360, maxX: 360, minZ: -900, maxZ: 800 } 
 const PICKUP_RANGE = 9;
 const DISC_PICK_RADIUS = 2.7;
 const BASE_FOV = 36;
+const HOME_HINT_SEEN_KEY = 'ultimate-field-home-intro-hint-seen-v1';
 
 export type DiscCommand = { pickup: number; return: number };
 
@@ -88,6 +89,12 @@ export default function GlassDisc({
     if (!node) return;
     let disposed = false;
     let cleanup = () => {};
+    let hintShown = false;
+    let hintTimer: number | undefined;
+    try {
+      hintShown = window.sessionStorage.getItem(HOME_HINT_SEEN_KEY) === '1';
+    } catch {}
+    if (hintShown) node.dataset.hintDismissed = 'true';
 
     void import('three').then(T => {
       if (disposed) return;
@@ -436,7 +443,13 @@ export default function GlassDisc({
         node.dataset.flight = userThrow ? (returningFlight ? 'returning' : 'thrown') : discLanded ? 'landed' : (ready ? 'settled' : 'flying');
         node.dataset.dragging = String(touchId !== null && pressMode === 'locked' && movedDuringPress);
         node.dataset.mode = inspecting ? 'inspect' : 'locked';
-        node.dataset.interactive = String(!discStowedRef.current && ready && !userThrow && !discLanded && !reduced && !pause.current);
+        const interactive = !discStowedRef.current && ready && !userThrow && !discLanded && !reduced && !pause.current;
+        node.dataset.interactive = String(interactive);
+        if (interactive && !hintShown) {
+          hintShown = true;
+          try { window.sessionStorage.setItem(HOME_HINT_SEEN_KEY, '1'); } catch {}
+          hintTimer = window.setTimeout(() => { node.dataset.hintDismissed = 'true'; }, 7000);
+        }
         return pose;
       };
       const applyGrass = (pose: { x: number; y: number; z: number }, motion: boolean) => {
@@ -1059,10 +1072,11 @@ export default function GlassDisc({
         fallbackEnvironmentTarget.dispose();
         starEnvironmentTarget?.dispose();
         renderer.dispose(); renderer.domElement.remove(); overlay.remove();
-        delete node.dataset.ready; delete node.dataset.engine; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode;
+        delete node.dataset.ready; delete node.dataset.engine; delete node.dataset.flight; delete node.dataset.interactive; delete node.dataset.fallback; delete node.dataset.dragging; delete node.dataset.mode; delete node.dataset.hintDismissed;
       };
       cleanup = () => {
         cancelAnimationFrame(raf); window.clearTimeout(starEngineTimer);
+        if (hintTimer !== undefined) window.clearTimeout(hintTimer);
         observer.disconnect(); visibility.disconnect();
         zone.removeEventListener('pointermove', move); zone.removeEventListener('pointerleave', leave);
         node.removeEventListener('pointerdown', down);
@@ -1182,7 +1196,7 @@ export default function GlassDisc({
   }, []);
 
   const discColorCss = `#${discColor.toString(16).padStart(6, '0')}`;
-  return <div ref={host} className="aero-object" role="group" tabIndex={0} aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home" aria-label={lang === 'zh' ? '季节草甸飞盘场景。拖动场地空白处可左右、上下环顾，滚轮缩放；聚焦场景后用方向键环顾、Home 复位。WASD 行走，落地后按 E 或点击一键飞回。' : 'Seasonal meadow disc scene. Drag open ground to look left, right, up and down; scroll to zoom. When focused, use arrow keys to look and Home to reset. Walk with WASD; press E or Fly back to recall a landed disc.'}>
+  return <div ref={host} className="aero-object" role="group" tabIndex={0} aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Home" aria-label={lang === 'zh' ? '季节草甸飞盘场景。拖动场地空白处可左右、上下环顾，滚轮缩放；聚焦场景后用方向键环顾、Home 复位。WASD 行走，落地后按 E 或点击“盘来”。' : 'Seasonal meadow disc scene. Drag open ground to look left, right, up and down; scroll to zoom. When focused, use arrow keys to look and Home to reset. Walk with WASD; press E or Fly back to recall a landed disc.'}>
     <svg className="aero-fallback" viewBox="0 0 800 500" aria-hidden="true">
       <g transform="translate(400 250) rotate(-12)"><ellipse rx="240" ry="134" fill={discColorCss} fillOpacity=".92" stroke="#1b1a2e" strokeWidth="5"/>
         {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff8e8' : discColorCss} strokeWidth={i%3 ? 2:3}/>)}</g>
