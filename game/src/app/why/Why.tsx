@@ -162,8 +162,8 @@ function PassTheLove() {
 
   return (
     <div className="ap-love-pass">
-      <p className="ap-love-instruction">{zh ? '点飞盘传给队友：他们会跑位接盘，也会跳起、鱼跃或下蹲接球。' : 'Pass the disc to a teammate: watch them cut, jump, layout or crouch to catch.'}</p>
-      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员在场地范围内跑动，点击飞盘传球，并随机展示一条朋友留言' : 'Players run within the field; click the disc to pass and reveal a random message from a friend'}>
+      <p className="ap-love-instruction">{zh ? '点击飞盘传给队友，看他们跑位、跳起接盘、layout 或下蹲接盘。' : 'Pass the disc to a teammate: watch them cut, jump, layout or crouch to catch.'}</p>
+      <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员在场地范围内跑动，点击飞盘传盘，并随机展示一条朋友留言' : 'Players run within the field; click the disc to pass and reveal a random message from a friend'}>
         <rect x="0" y="0" width="800" height="410" rx="22" fill="#f8f0d9" />
         <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
         <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />

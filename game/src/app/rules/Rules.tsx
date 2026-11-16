@@ -20,14 +20,14 @@ function FieldDiagram() {
   const keys: { z: Zone; label: Bi; desc: Bi }[] = [
     { z: 'central', label: ['中央区 · 64 m', 'Central zone · 64 m'], desc: ['比赛的大部分时间在这里进行。', 'Where most of the game happens.'] },
     { z: 'ez', label: ['得分区 · 两端各 18 m', 'End zones · 18 m each'], desc: ['在你进攻的得分区内接到盘 = 1 分。', 'Catch a pass in the end zone you attack to score.'] },
-    { z: 'brick', label: ['点球标记（brick mark）', 'Brick mark'], desc: ['开盘直接飞出界时，接盘方可选从这里开始；距每条得分线 18 m。', 'If the pull lands out untouched, the offense may start here — 18 m from each goal line.'] },
+    { z: 'brick', label: ['砖点（brick mark）', 'Brick mark'], desc: ['开盘未被接触就直接出界时，接盘方可选择从砖点开始；砖点距各自的得分线 18 m。', 'If the pull lands out untouched, the offense may start here — 18 m from each goal line.'] },
     { z: 'line', label: ['边线算界外', 'The lines are out'], desc: ['边线不属于场内，踩线接盘就是出界。', 'Perimeter lines aren’t part of the field: catch on the line and you’re out.'] },
   ];
 
   return (
     <div className="ap-duo is-field">
       <div className="ap-figure ap-duo-a">
-        <svg viewBox="0 0 108 45" role="img" aria-label={zh ? '极限飞盘球场俯视图：100 × 37 米，两端各 18 米得分区' : 'Top-down ultimate field: 100 × 37 m with an 18 m end zone at each end'}>
+        <svg viewBox="0 0 108 45" role="img" aria-label={zh ? '极限飞盘场地俯视图：100 × 37 米，两端各有 18 米得分区' : 'Top-down ultimate field: 100 × 37 m with an 18 m end zone at each end'}>
           <rect className="ap-fz" x="22" y="4" width="64" height="37" fill="#8fd17e" style={{ opacity: dim('central') }} />
           <g className="ap-fz" style={{ opacity: dim('ez') }}>
             <rect x="4" y="4" width="18" height="37" fill="#bff6ff" />
@@ -67,7 +67,7 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
   {
     t: ['目标：把盘传进得分区', 'The goal: pass it into the end zone'],
     d: ['把飞盘传给队友，并由队友在对方得分区（end zone）内接住，得 1 分。', 'Move the disc by passing; a teammate who catches it in the end zone you’re attacking scores 1 goal.'],
-    why: ['所有跑位和传球，最终都是为了这一次接盘。', 'Every cut and throw is building toward that one catch.'],
+    why: ['所有跑位和传盘，最终都是为了这一次接盘。', 'Every cut and throw is building toward that one catch.'],
   },
   {
     t: ['持盘不能跑', 'No running with the disc'],
@@ -92,7 +92,7 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
   {
     t: ['盘权转换（turnover）', 'Turnover'],
     d: ['传丢（throwaway）、接盘时掉盘（drop）、被拦截（interception）、出界（out of bounds）、被封阻（block）或计数到限（stall-out），都会导致盘权转换；防守方立即成为进攻方。', 'A throwaway, drop, interception, out-of-bounds disc, block or stall-out causes a turnover: the defense immediately becomes the offense.'],
-    why: ['没有停表、没有发球：攻守在一瞬间互换，这是飞盘独特的节奏。', 'No whistle, no reset — the switch is instant. That tempo is ultimate’s signature.'],
+    why: ['没有停表，也不必重新开盘：攻守在一瞬间互换，这是飞盘独特的节奏。', 'No whistle, no reset — the switch is instant. That tempo is ultimate’s signature.']
   },
   {
     t: ['比赛停下后如何恢复', 'Where play restarts'],
@@ -101,12 +101,12 @@ const CORE: { t: Bi; d: Bi; why: Bi }[] = [
   },
   {
     t: ['没有身体接触', 'No contact'],
-    d: ['极限飞盘是非身体接触运动（non-contact sport）：不能推、撞、抢，也不能做掩护（pick）。防守靠站位和手上的功夫。', 'Ultimate is a non-contact sport: no pushing, bumping, grabbing or picks. You defend with positioning and your hands.'],
+    d: ['极限飞盘是非身体接触运动（non-contact sport）：不能推搡、撞人、拉拽，也不能做掩护（pick）。防守靠站位和伸手干扰。', 'Ultimate is a non-contact sport: no pushing, bumping, grabbing or picks. You defend with positioning and your hands.'],
     why: ['安全和尊重优先——这也是飞盘精神的一部分。', 'Safety and respect come first — part of the Spirit of the Game.'],
   },
   {
     t: ['自己裁判', 'You make the calls'],
-    d: ['场上没有裁判。犯规、出界、得分，都由球员自己叫停（call）并一起解决，这叫自我裁决（self-officiating）。', 'There are no referees. Players call and resolve everything themselves — fouls, lines, goals. This is self-officiating.'],
+    d: ['场上没有裁判。犯规、出界和得分，都由队员自行叫停（call）并共同解决，这叫自我裁决（self-officiating）。', 'There are no referees. Players call and resolve everything themselves — fouls, lines, goals. This is self-officiating.'],
     why: ['把公平的责任交到每个人手里。', 'It puts fairness in every player’s hands.'],
   },
   {
@@ -200,7 +200,7 @@ export default function Rules() {
         <div className="ap-prose">
           <p className="ap-lead">
             {zh
-              ? <>两队各 7 人，在 100 × 37 米的场地上用一张飞盘比赛。持盘者不能跑，只能传；传球没接住就<Term zh="盘权转换" en="turnover" />，对方立刻转为进攻。</>
+              ? <>两队各 7 人，在 100 × 37 米的场地上用一张飞盘比赛。持盘者不能跑，只能传盘；传盘未完成就<Term zh="盘权转换" en="turnover" />，对方立刻转为进攻。</>
               : <>Two teams of seven play on a 100 × 37 m field with a single disc. The thrower can’t run, only pass; any incomplete pass is a turnover, and the other team attacks at once.</>}
           </p>
           <dl className="ap-specs">

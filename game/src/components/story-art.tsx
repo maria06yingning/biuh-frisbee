@@ -15,7 +15,7 @@ function Hatch({ id, tone, gap = 7, angle = 45, opacity = 1 }: { id: string; ton
   );
 }
 
-/** 一个正在跑动的球员剪影：平涂色块 + 墨线，用来替代照片里的人物 */
+/** 一个正在跑动的队员剪影：平涂色块 + 墨线，用来替代照片里的人物 */
 export function RunnerArt({ className = '', flip = false }: { className?: string; flip?: boolean }) {
   return (
     <svg className={className} viewBox="0 0 200 260" role="img" aria-label="player running" style={flip ? { transform: 'scaleX(-1)' } : undefined}>

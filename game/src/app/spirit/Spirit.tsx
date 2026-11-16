@@ -56,7 +56,7 @@ function SpiritCircle() {
 const GOOD: Bi[] = [
   ['不再确信时，主动撤回自己的叫停', 'Retract a call once you no longer believe it'],
   ['争议之后，到场边和对手聊两句', 'Check in with an opponent after a tense moment'],
-  ['为对手的好球或好精神鼓掌', 'Compliment an opponent’s play or Spirit'],
+  ['为对手的精彩表现或良好飞盘精神鼓掌', 'Compliment an opponent’s play or Spirit'],
   ['上场前先自我介绍', 'Introduce yourself before the point'],
   ['面对分歧与挑衅，保持冷静', 'Stay calm through disagreement or provocation'],
 ];
@@ -82,7 +82,7 @@ export default function Spirit() {
         <figure className="ap-quote">
           <blockquote>
             {zh
-              ? '“我们相信没有球员会故意违反规则；因此对无心之失没有严厉的处罚，只有一种恢复比赛的方式——尽量还原没有违规时最可能出现的局面。”'
+              ? '“我们相信没有队员会故意违反规则；因此对无心之失不施以严厉处罚，而是尽量恢复到没有违规时最可能出现的比赛局面。”'
               : '“It is trusted that no player will intentionally break the rules; thus there are no harsh penalties for inadvertent breaches, but rather a method for resuming play in a manner which simulates what would most likely have occurred had there been no breach.”'}
           </blockquote>
           <cite>
@@ -94,7 +94,7 @@ export default function Spirit() {
         <div className="ap-prose">
           <p>
             {zh
-              ? '鼓励激烈对抗，但永远不以牺牲相互尊重、规则、球员安全和比赛乐趣为代价。这句话是规则书的第一章，不是写在最后的客套。'
+              ? '鼓励激烈对抗，但永远不能以牺牲相互尊重、遵守规则、队员安全和比赛乐趣为代价。这句话写在规则书第一章，不是结尾的客套话。'
               : 'Highly competitive play is encouraged — but never at the cost of mutual respect, the rules, player safety or the basic joy of play. That line opens the rulebook; it isn’t a closing courtesy.'}
           </p>
         </div>
@@ -103,12 +103,12 @@ export default function Spirit() {
       <Section
         id="why"
         label={zh ? '场上的信任' : 'Trust on the field'}
-        heading={zh ? '你同时是球员和裁判。' : 'You’re a player and a referee.'}
+        heading={zh ? '你既是队员，也参与比赛裁决。' : 'You’re a player and a referee.'}
       >
         <div className="ap-prose">
           <p>
             {zh
-              ? '在仲裁任何争议时，每个球员都是裁判。所以规则要求你：懂规则、公正客观、诚实、把自己的看法说得清楚简短、给对方说话的机会、并尊重对方。'
+              ? '出现争议时，每位队员都要参与判断和沟通。因此规则要求你：懂规则、公正客观、诚实，清楚简短地说明自己的看法，给对方回应的机会，并尊重对方。'
               : 'In any dispute, every player acts as a referee. So the rules ask you to know them, be fair-minded and truthful, explain your view clearly and briefly, let opponents speak, and stay respectful.'}
           </p>
           <p>
@@ -176,7 +176,7 @@ export default function Spirit() {
           <div className="ap-prose ap-duo-b">
             <p>
               {zh
-                ? '比赛结束后，两队球员交替围成一圈——我方、对方、我方、对方。圈里既可以称赞比赛里的亮点，也可以把场上的小摩擦讲开、化解。'
+                ? '比赛结束后，两队队员交替围成一圈——我方、对方、我方、对方。大家可以称赞比赛中的精彩表现，也可以把场上的小摩擦说开、化解。'
                 : 'After a game, both teams form one circle with players alternating — us, them, us, them. It’s a place to highlight the good moments and to talk through any friction from the match.'}
             </p>
             <p>

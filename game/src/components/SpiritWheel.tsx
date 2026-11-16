@@ -43,7 +43,7 @@ export const SPIRIT_CATS: { t: Bi; q: Bi; details: Bi[]; color: string; label: B
     details: [
       ['面对分歧或挑衅时保持冷静，控制语气和动作。', 'Stay calm and control your words and actions through disagreement or provocation.'],
       ['不嘲讽、不恐吓、不报复，也不以攻击性行为施压。', 'Do not taunt, intimidate, retaliate or pressure others with aggression.'],
-      ['主动肯定对手的好球或良好飞盘精神。', 'Recognise an opponent’s good play or positive Spirit.'],
+      ['主动肯定对手的精彩表现或良好飞盘精神。', 'Recognise an opponent’s good play or positive Spirit.'],
       ['投入竞争，但不以牺牲规则、安全、尊重和比赛乐趣为代价。', 'Compete hard without sacrificing the rules, safety, respect or joy of play.'],
     ],
     color: '#8fd17e', label: ['自控与态度', 'Self-control'],
