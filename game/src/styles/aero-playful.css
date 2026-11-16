@@ -47,6 +47,22 @@
   padding: 0;
 }
 .aero-playful .aero-pages-inline { gap: 6px; }
+/* Content pages keep their links visible; the compact Menu disclosure is homepage-only. */
+.aero-playful .aero-mobile-nav-toggle,
+.lab .aero-mobile-nav-toggle { display: none !important; }
+.aero-playful .aero-mobile-nav-items,
+.lab .aero-mobile-nav-items { display: contents !important; }
+.aero-playful .aero-pages-inline,
+.lab .aero-pages-inline { display: flex !important; flex-wrap: nowrap; }
+.aero-playful .aero-nav-pages,
+.lab .aero-nav-pages { display: none !important; }
+.aero-playful .aero-header nav a,
+.aero-playful .aero-header nav button,
+.lab .aero-header nav a,
+.lab .aero-header nav button {
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
 .aero-playful .aero-header nav a,
 .aero-playful .aero-header nav button {
   border: 2px solid var(--aero-ink);
@@ -878,7 +894,8 @@
 .aero-playful .ap-next:hover { box-shadow: 5px 5px 0 var(--uf-ink); }
 .aero-playful .ap-next:active { box-shadow: 1px 1px 0 var(--uf-ink); }
 .aero-playful .aero-page-footer { border-top: 3px solid var(--uf-ink); }
-.aero-playful .ap-love-disc { transition-duration: 280ms; }
+.aero-playful .ap-love-disc { transition: transform 220ms ease; transform-box: view-box; transform-origin: 0 0; }
+.aero-playful .ap-love-disc.is-flying { transition: none; }
 .aero-playful .ap-love-bubble { background: var(--uf-paper); }
 .aero-playful .ap-love-quote-mark { color: var(--uf-coral); }
 .aero-playful .ap-quote {
@@ -917,6 +934,14 @@
   .aero-playful .ap-love-bubble { animation: none !important; transition: none !important; }
 }
 .aero-playful .ap-love-player-label { font-family: 'PingFang SC', 'Microsoft YaHei UI', 'Microsoft YaHei', 'Noto Sans SC', system-ui, sans-serif; }
+.aero-playful .aero-mobile-nav-items .aero-pages-inline a[aria-current='page'] { background: var(--uf-yellow); border-color: var(--uf-ink); }
+.aero-playful .aero-mobile-nav-items .aero-pages-inline a { width: auto; justify-content: center; text-align: center; white-space: nowrap; }
+.ap-love-player.is-catching-jump { animation: ap-love-catch-pop 420ms cubic-bezier(.2,.8,.25,1) both; }
+.ap-love-player.is-catching-layout { animation: ap-love-catch-dive 420ms cubic-bezier(.2,.8,.25,1) both; }
+.ap-love-player.is-catching-crouch { animation: ap-love-catch-crouch 420ms cubic-bezier(.2,.8,.25,1) both; }
+@keyframes ap-love-catch-pop { 0%{translate:0 0} 45%{translate:0 -10px} 100%{translate:0 -3px} }
+@keyframes ap-love-catch-dive { 0%{translate:0 0} 55%{translate:0 -5px} 100%{translate:0 0} }
+@keyframes ap-love-catch-crouch { 0%{translate:0 0} 55%{translate:0 5px} 100%{translate:0 2px} }
 @media (max-width: 640px) {
   .aero-playful .ap-section { padding-block: 36px; }
   .aero-playful .ap-section-head h2 { display: inline-block; font-size: clamp(21px, 6vw, 28px); }

@@ -8,6 +8,8 @@ import PageShell, { Section } from '@/components/PageShell';
 import FieldPlayerFigure from '@/components/PlayerFigure';
 
 type Player = { x: number; y: number; skin: string; hair: string; shirt: string; hairStyle: number; shorts: string };
+type CatchPose = 'jump' | 'layout' | 'crouch';
+const CATCH_POSES: CatchPose[] = ['jump', 'layout', 'crouch'];
 const PLAYERS: Player[] = [
   { x: 150, y: 100, skin: '#c77f5e', hair: '#352a36', shirt: '#ff816f', hairStyle: 0, shorts: '#f6ecd2' },
   { x: 410, y: 65, skin: '#f0c69b', hair: '#6b4938', shirt: '#ffd23f', hairStyle: 1, shorts: '#466d87' },
@@ -34,21 +36,24 @@ function findOpenSpot(players: Player[], movingIndex: number): [number, number] 
   return [players[movingIndex].x, players[movingIndex].y];
 }
 
-function heldDiscPoint(player: Player): [number, number] {
+function heldDiscPoint(player: Player, pose: 'hold' | CatchPose = 'hold'): [number, number] {
   const facing = player.x > 400 ? -1 : 1;
+  if (pose === 'jump') return [player.x + facing * 32, player.y - 49];
+  if (pose === 'layout') return [player.x + facing * 58, player.y + 5];
+  if (pose === 'crouch') return [player.x + facing * 29, player.y - 3];
   return [player.x + facing * 33, player.y - 23];
 }
 
-function PlayerFigure({ player, active, running }: { player: Player; active: boolean; running: boolean }) {
+function PlayerFigure({ player, active, running, catching, catchPose }: { player: Player; active: boolean; running: boolean; catching: boolean; catchPose: CatchPose }) {
   const { x, y, skin, hair, shirt, shorts, hairStyle } = player;
   return (
-    <g className={`ap-love-player${active ? ' is-holder' : ''}${running ? ' is-running' : ''}`} transform={`translate(${x} ${y})`}>
+    <g className={`ap-love-player${active ? ' is-holder' : ''}${running ? ' is-running' : ''}${catching ? ` is-catching is-catching-${catchPose}` : ''}`} transform={`translate(${x} ${y})`}>
       {active && <circle className="ap-love-halo" cx="0" cy="-8" r="42" fill="#ffd23f" opacity=".22" />}
       <FieldPlayerFigure
         x={0}
         y={-59}
         team="o"
-        pose={running ? 'run' : active ? 'hold' : 'stand'}
+        pose={running ? 'run' : active ? catching ? catchPose : 'hold' : 'stand'}
         flip={x > 400}
         shirtColor={shirt}
         skinColor={skin}
@@ -71,11 +76,15 @@ function PassTheLove() {
   const [players, setPlayers] = useState<Player[]>(() => PLAYERS.map(player => ({ ...player })));
   const [runningPlayer, setRunningPlayer] = useState<number | null>(null);
   const [discFlight, setDiscFlight] = useState<{ x: number; y: number; rotation: number } | null>(null);
+  const [catchPose, setCatchPose] = useState<CatchPose>('jump');
+  const [catchingPlayer, setCatchingPlayer] = useState<number | null>(null);
   const passFrame = useRef<number | null>(null);
+  const catchTimer = useRef<number | null>(null);
+  const passCount = useRef(0);
   const current = players[holder];
   const receiver = target === null ? current : players[target];
-  const currentDiscPoint = heldDiscPoint(current);
-  const receiverDiscPoint = heldDiscPoint(receiver);
+  const currentDiscPoint = heldDiscPoint(current, catchingPlayer === holder ? catchPose : 'hold');
+  const receiverDiscPoint = target === null ? currentDiscPoint : heldDiscPoint(receiver, catchPose);
   const discX = discFlight?.x ?? currentDiscPoint[0];
   const discY = discFlight?.y ?? currentDiscPoint[1];
   const discRotation = discFlight?.rotation ?? -12;
@@ -83,12 +92,16 @@ function PassTheLove() {
 
   useEffect(() => () => {
     if (passFrame.current !== null) window.cancelAnimationFrame(passFrame.current);
+    if (catchTimer.current !== null) window.clearTimeout(catchTimer.current);
   }, []);
 
   const pass = () => {
     if (flying) return;
+    if (catchTimer.current !== null) window.clearTimeout(catchTimer.current);
+    setCatchingPlayer(null);
     const candidates = players.map((_, index) => index).filter(index => index !== holder);
     const next = candidates[Math.floor(Math.random() * candidates.length)];
+    const nextCatchPose = CATCH_POSES[passCount.current++ % CATCH_POSES.length];
     const otherVoices = FRISBEE_VOICES.map((_, index) => index).filter(index => index !== voiceIndex);
     const nextVoice = otherVoices.length ? otherVoices[Math.floor(Math.random() * otherVoices.length)] : voiceIndex;
     const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -100,13 +113,14 @@ function PassTheLove() {
 
     const [endX, endY] = findOpenSpot(players, next);
     const [startX, startY] = heldDiscPoint(current);
-    const [targetX, targetY] = heldDiscPoint({ ...players[next], x: endX, y: endY });
+    const [targetX, targetY] = heldDiscPoint({ ...players[next], x: endX, y: endY }, nextCatchPose);
     const controlX = (startX + targetX) / 2;
     const controlY = Math.min(startY, targetY) - 53;
     const startedAt = performance.now();
     const duration = 300;
 
     setPlayers(currentPlayers => currentPlayers.map((player, index) => index === next ? { ...player, x: endX, y: endY } : player));
+    setCatchPose(nextCatchPose);
     setRunningPlayer(next);
     setTarget(next);
     setFlying(true);
@@ -130,6 +144,11 @@ function PassTheLove() {
       setFlying(false);
       setRunningPlayer(null);
       setDiscFlight(null);
+      setCatchingPlayer(next);
+      catchTimer.current = window.setTimeout(() => {
+        setCatchingPlayer(null);
+        catchTimer.current = null;
+      }, 620);
     };
     passFrame.current = window.requestAnimationFrame(animatePass);
   };
@@ -143,14 +162,14 @@ function PassTheLove() {
 
   return (
     <div className="ap-love-pass">
-      <p className="ap-love-instruction">{zh ? '队员在场地里跑动；点飞盘随机传给队友，再读一条朋友的留言。' : 'Players move around the field. Tap the disc to pass it, then read a message from a friend.'}</p>
+      <p className="ap-love-instruction">{zh ? '点飞盘传给队友：他们会跑位接盘，也会跳起、鱼跃或下蹲接球。' : 'Pass the disc to a teammate: watch them cut, jump, layout or crouch to catch.'}</p>
       <svg viewBox="0 0 800 410" role="group" aria-label={zh ? '队员在场地范围内跑动，点击飞盘传球，并随机展示一条朋友留言' : 'Players run within the field; click the disc to pass and reveal a random message from a friend'}>
         <rect x="0" y="0" width="800" height="410" rx="22" fill="#f8f0d9" />
         <path d="M30 165 Q168 130 295 170 T555 167 T790 160 L790 390 Q650 420 520 390 T250 400 T30 385Z" fill="#d8e9bd" />
         <path d="M65 226 C190 86 590 75 735 218 C635 376 201 378 65 226Z" fill="none" stroke="#557d54" strokeWidth="2" strokeDasharray="7 10" opacity=".55" />
         <path d="M0 355 Q100 315 190 355 M610 330 Q700 295 800 335" fill="none" stroke="#fff8e6" strokeWidth="7" strokeLinecap="round" opacity=".8" />
         {flying && target !== null && <path d={`M${currentDiscPoint[0]} ${currentDiscPoint[1]} Q${(currentDiscPoint[0] + receiverDiscPoint[0]) / 2} ${Math.min(currentDiscPoint[1], receiverDiscPoint[1]) - 53} ${receiverDiscPoint[0]} ${receiverDiscPoint[1]}`} fill="none" stroke="#ffd23f" strokeWidth="5" strokeLinecap="round" opacity=".9" />}
-        {players.map((player, index) => <PlayerFigure key={index} player={player} active={index === holder} running={index === runningPlayer} />)}
+        {players.map((player, index) => <PlayerFigure key={index} player={player} active={index === holder} running={index === runningPlayer} catching={index === catchingPlayer} catchPose={catchPose} />)}
         <g
           className={`ap-love-disc${flying ? ' is-flying' : ''}`}
           transform={`translate(${discX} ${discY}) rotate(${discRotation})`}

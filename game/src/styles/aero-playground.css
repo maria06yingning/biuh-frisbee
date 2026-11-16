@@ -50,6 +50,8 @@
   gap: 1px;
   align-items: center;
 }
+/* The compact disclosure is only for narrow screens; desktop keeps links inline. */
+.aero-playground .aero-header nav .aero-mobile-nav-toggle { display: none; }
 .aero-playground .aero-header nav a,
 .aero-playground .aero-header nav button {
   min-height: 44px;
@@ -200,6 +202,12 @@
     box-shadow: var(--play-shadow);
   }
   .aero-playground .aero-header nav .aero-mobile-nav-items[data-open='false'] { display: none; }
+  /* Mobile uses one flat list; the nested Pages disclosure was easy to miss and overlaid the scene. */
+  .aero-playground .aero-header nav .aero-pages-inline { display: flex; flex-direction: column; align-items: stretch; gap: 3px; }
+  .aero-playground .aero-header nav .aero-nav-pages { display: none; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items .aero-pages-inline a { width: 100%; justify-content: flex-start; text-align: left; }
+  .aero-playground .aero-header nav .aero-mobile-nav-items a[aria-current='page'],
+  .aero-playground .aero-header nav .aero-mobile-nav-items button[aria-current='page'] { background: var(--play-yellow); border-color: var(--aero-ink); }
   .aero-playground .aero-header nav .aero-mobile-nav-items > a,
   .aero-playground .aero-header nav .aero-mobile-nav-items > button,
   .aero-playground .aero-header nav .aero-mobile-nav-items > .aero-nav-pages { width: 100%; justify-content: flex-start; text-align: left; }

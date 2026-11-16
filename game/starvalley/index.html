@@ -4714,9 +4714,9 @@ class Walker {
     const gp = this.stepPhase*TAU;
     const amp = this.fly ? 0 : clamp(spd/3.6, 0, 1);
     // vertical at 2x step rate, lateral sway at 1x, roll coupled to sway
-    this.bobY += (Math.sin(gp*2.0)*0.0135*amp - this.bobY)*clamp(11*dt,0,1);
-    this.bobX += (Math.sin(gp)*0.0095*amp     - this.bobX)*clamp(11*dt,0,1);
-    this.roll += (Math.sin(gp)*0.0060*amp     - this.roll)*clamp(9*dt,0,1);
+    this.bobY += (Math.sin(gp*2.0)*0.0070*amp - this.bobY)*clamp(11*dt,0,1);
+    this.bobX += (Math.sin(gp)*0.0045*amp     - this.bobX)*clamp(11*dt,0,1);
+    this.roll += (Math.sin(gp)*0.0028*amp     - this.roll)*clamp(9*dt,0,1);
     const acc = (target.x*this.vel.x + target.z*this.vel.z);
     this.lean += (clamp(spd*0.016,0,0.05) - this.lean)*clamp(4*dt,0,1);
     this.breath += dt*0.9;
@@ -4760,7 +4760,7 @@ class Walker {
       this.groundY += (g - this.groundY)*clamp(16*dt,0,1);
     }
     const eye = this.groundY + CFG.eyeHeight + this.bobY
-              + Math.sin(this.breath)*0.008;
+              + Math.sin(this.breath)*0.004;
     this.cam.position.set(
       this.pos.x + (-Math.cos(this.yaw))*this.bobX,
       eye,
@@ -5250,7 +5250,7 @@ const postMat = (fs, uni)=> new THREE.RawShaderMaterial({
 /*──────── state ────────*/
 const QS = new URLSearchParams(EMBED_MODE ? '' : location.search);
 const State = {
-  q: EMBED_MODE ? 0 : QS.has('q') ? clamp(+QS.get('q'),0,3) : 1,
+  q: EMBED_MODE ? 0 : QS.has('q') ? clamp(+QS.get('q'),0,3) : 0,
   density: QS.has('d') ? +QS.get('d') : 1.0,
   scale:   QS.has('s') ? +QS.get('s') : 1.0,
   exposure:1.0, bloom:1.0, paint:1.0, seasonTone:0,

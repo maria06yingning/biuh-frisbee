@@ -1,4 +1,4 @@
-type PlayerPose = 'stand'|'hold'|'wrap'|'reach'|'run'|'jump'|'call'|'listen'|'block';
+type PlayerPose = 'stand'|'hold'|'wrap'|'reach'|'run'|'jump'|'layout'|'crouch'|'call'|'listen'|'block';
 type HandKind = 'open'|'grip'|'wrap'|'fist';
 
 const INK = '#1b1a2e';
@@ -35,40 +35,56 @@ export default function PlayerFigure({ x, y, team='o', pose='stand', flip=false,
     : hairStyle % 3 === 2
       ? 'M-10 17Q-12 4-3 2Q7-2 12 8L11 27Q7 25 6 17Q1 15-3 17Q-7 21-10 24Z'
       : 'M-10 17Q-11 3 0 4Q12 5 11 18L4 12Q-3 17-9 14Z';
-  const leftArm = pose === 'reach' || pose === 'jump' ? 'M-10 39L-20 25L-23 11'
+  const leftArm = pose === 'layout' ? 'M-10 39L-24 29L-40 24'
+    : pose === 'reach' || pose === 'jump' ? 'M-10 39L-20 25L-23 11'
     : pose === 'run' ? 'M-10 39L-22 31L-30 37'
+    : pose === 'crouch' ? 'M-10 39L-22 48L-27 57'
     : pose === 'listen' ? 'M-10 39L-20 46L-29 40'
     : pose === 'call' ? 'M-10 39L-18 47L-17 58'
     : 'M-10 39L-18 47L-17 58';
-  const rightArm = pose === 'reach' || pose === 'jump' ? 'M10 39L22 25L32 10'
+  const rightArm = pose === 'layout' ? 'M10 39L27 28L43 22'
+    : pose === 'reach' || pose === 'jump' ? 'M10 39L22 25L32 10'
     : pose === 'run' ? 'M10 39L22 46L30 39'
+    : pose === 'crouch' ? 'M10 39L22 48L29 56'
     : pose === 'hold' ? 'M10 39L22 33L33 36'
     : pose === 'wrap' ? 'M10 39L20 31Q33 31 39 42Q45 51 48 58'
     : pose === 'call' ? 'M10 39L18 29L18 13'
     : pose === 'listen' ? 'M10 39L20 47L29 43'
     : pose === 'block' ? 'M10 39L24 39L36 39'
     : 'M10 39L18 47L17 58';
-  const leftLeg = pose === 'run' ? 'M-6 66L-17 77L-28 86'
+  const leftLeg = pose === 'layout' ? 'M-6 66L-18 72L-34 73'
+    : pose === 'run' ? 'M-6 66L-17 77L-28 86'
     : pose === 'reach' ? 'M-6 66L-20 76L-30 72'
     : pose === 'jump' ? 'M-6 66L-18 76L-28 79'
+    : pose === 'crouch' ? 'M-6 66L-18 78L-8 87'
     : 'M-6 66L-10 90';
-  const rightLeg = pose === 'run' ? 'M6 66L17 78L27 87'
+  const rightLeg = pose === 'layout' ? 'M6 66L20 72L38 70'
+    : pose === 'run' ? 'M6 66L17 78L27 87'
     : pose === 'reach' ? 'M6 66L18 76L29 70'
     : pose === 'jump' ? 'M6 66L17 74L10 83'
+    : pose === 'crouch' ? 'M6 66L18 77L7 86'
     : 'M6 66L10 90';
-  const leftShoe = pose === 'run' ? 'M-33 84h13l4 5h-20z'
+  const leftShoe = pose === 'layout' ? 'M-43 71h13l4 5h-20z'
+    : pose === 'run' ? 'M-33 84h13l4 5h-20z'
     : pose === 'reach' ? 'M-36 70h13l4 5h-19z'
     : pose === 'jump' ? 'M-35 77h13l4 5h-19z'
+    : pose === 'crouch' ? 'M-17 84h12l4 5h-19z'
     : 'M-15 88h12l4 5h-19z';
-  const rightShoe = pose === 'run' ? 'M23 85h12l5 5H23z'
+  const rightShoe = pose === 'layout' ? 'M33 68h12l5 5H33z'
+    : pose === 'run' ? 'M23 85h12l5 5H23z'
     : pose === 'reach' ? 'M25 68h12l5 5H25z'
     : pose === 'jump' ? 'M8 81h12l5 5H8z'
+    : pose === 'crouch' ? 'M2 84h12l5 5H2z'
     : 'M5 88h12l5 5H5z';
-  const leftHand = pose === 'reach' || pose === 'jump' ? { x:-23, y:11, kind:'open' as const }
+  const leftHand = pose === 'layout' ? { x:-40, y:24, kind:'open' as const }
+    : pose === 'reach' || pose === 'jump' ? { x:-23, y:11, kind:'open' as const }
+    : pose === 'crouch' ? { x:-27, y:57, kind:'open' as const }
     : pose === 'run' ? { x:-30, y:37, kind:'fist' as const }
     : pose === 'listen' ? { x:-29, y:40, kind:'open' as const }
     : { x:-17, y:58, kind:'fist' as const };
-  const rightHand = pose === 'reach' || pose === 'jump' ? { x:32, y:10, kind:'open' as const }
+  const rightHand = pose === 'layout' ? { x:43, y:22, kind:'open' as const }
+    : pose === 'reach' || pose === 'jump' ? { x:32, y:10, kind:'open' as const }
+    : pose === 'crouch' ? { x:29, y:56, kind:'open' as const }
     : pose === 'run' ? { x:30, y:39, kind:'fist' as const }
     : pose === 'hold' ? { x:33, y:36, kind:'grip' as const }
     : pose === 'wrap' ? { x:48, y:58, kind:'wrap' as const }
@@ -78,7 +94,8 @@ export default function PlayerFigure({ x, y, team='o', pose='stand', flip=false,
     : { x:17, y:58, kind:'fist' as const };
   const limb = (d:string, width=8) => <><path d={d} fill="none" stroke={INK} strokeWidth={width} strokeLinecap="round" strokeLinejoin="round"/><path d={d} fill="none" stroke={skin} strokeWidth={width-3.5} strokeLinecap="round" strokeLinejoin="round"/></>;
   return <g transform={`translate(${x} ${y}) scale(${flip?-scale:scale} ${scale})`} aria-hidden="true">
-    <ellipse cx="0" cy="99" rx={pose === 'jump' ? 10 : 18} ry={pose === 'jump' ? 2 : 4} fill={INK} opacity={pose === 'jump' ? .16 : .28}/>
+    <ellipse cx="0" cy="99" rx={pose === 'jump' || pose === 'layout' ? 10 : 18} ry={pose === 'jump' || pose === 'layout' ? 2 : 4} fill={INK} opacity={pose === 'jump' || pose === 'layout' ? .16 : .28}/>
+    <g transform={pose === 'layout' ? 'rotate(62 0 52)' : undefined}>
     {limb(leftLeg)}{limb(rightLeg)}
     <path d={leftShoe} fill="#fff8e6" stroke={INK} strokeWidth="2" strokeLinejoin="round"/><path d={rightShoe} fill="#fff8e6" stroke={INK} strokeWidth="2" strokeLinejoin="round"/>
     <path d="M-4 25v8q4 4 8 0v-8" fill={skin} stroke={INK} strokeWidth="2"/>
@@ -91,6 +108,7 @@ export default function PlayerFigure({ x, y, team='o', pose='stand', flip=false,
     <circle cx="4" cy="18" r="1.2" fill={INK}/><path d="M5 23l3 1" stroke={INK} strokeWidth="1.2" strokeLinecap="round"/>
     {limb(leftArm)}{limb(rightArm)}
     <Hand x={leftHand.x} y={leftHand.y} skin={skin} kind={leftHand.kind}/><Hand x={rightHand.x} y={rightHand.y} skin={skin} kind={rightHand.kind}/>
+    </g>
   </g>;
 }
 

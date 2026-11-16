@@ -24,6 +24,8 @@ const teamY = (team: 'o'|'d', i: number, step: number) => {
 const discAt = (step: number) => [
   [500, 103], [515, 218], [700, 336], [600, 231], [500, 70], [500, 254],
 ][step];
+// Express SVG viewBox coordinates as percentages so CSS transforms scale with the diagram.
+const pointTransform = (x: number, y: number) => `translate(${x / 10}%, ${y / 4.4}%)`;
 
 export default function PointFlow() {
   const { lang } = useI18n();
@@ -73,7 +75,7 @@ export default function PointFlow() {
           const o=offensePositions(i), d=defensePositions(i);
           const offCaught = step===2 && i===5;
           const offScorer = step===4 && i===3;
-          return <g key={`players-${i}`} className="ap-flow-player" style={{transform:`translate(${o.x}px, ${o.y}px)`, transition: playing&&!reduced ? 'transform 520ms ease-in-out' : 'none'}}>
+          return <g key={`players-${i}`} className="ap-flow-player" style={{transform:pointTransform(o.x, o.y), transition:reduced ? 'none' : 'transform 780ms cubic-bezier(.2,.8,.25,1)'}}>
             <circle r="17" fill="#14c2d8" stroke="#1b1a2e" strokeWidth="3"/>
             <text y="5" textAnchor="middle" fontSize="13" fontWeight="900" fill="#1b1a2e">{i+1}</text>
             {offCaught && <path d="M-24-23l8 8m0-8-8 8" stroke="#1b1a2e" strokeWidth="3"/>}
@@ -82,13 +84,13 @@ export default function PointFlow() {
         })}
         {Array.from({length:7},(_,i)=>{
           const p=defensePositions(i);
-          return <g key={`defenders-${i}`} className="ap-flow-player" style={{transform:`translate(${p.x}px, ${p.y}px)`, transition: playing&&!reduced ? 'transform 520ms ease-in-out' : 'none'}}>
+          return <g key={`defenders-${i}`} className="ap-flow-player" style={{transform:pointTransform(p.x, p.y), transition:reduced ? 'none' : 'transform 780ms cubic-bezier(.2,.8,.25,1)'}}>
             <rect x="-15" y="-15" width="30" height="30" rx="4" fill="#ff5a4a" stroke="#1b1a2e" strokeWidth="3"/>
             <text y="5" textAnchor="middle" fontSize="13" fontWeight="900" fill="#1b1a2e">{i+1}</text>
           </g>;
         })}
         {step===4 && <rect x="35" y="35" width="930" height="65" fill="#ffd23f" fillOpacity=".48" pointerEvents="none"/>}
-        <g className="ap-flow-disc" style={{transform:`translate(${dx}px, ${dy}px)`, transition: playing&&!reduced ? 'transform 620ms cubic-bezier(.2,.8,.25,1)' : 'none'}}>
+        <g className="ap-flow-disc" style={{transform:pointTransform(dx, dy), transition:reduced ? 'none' : 'transform 780ms cubic-bezier(.2,.8,.25,1)'}}>
           <ellipse rx="24" ry="11" fill="#ffd23f" stroke="#1b1a2e" strokeWidth="4"/>
           <ellipse rx="15" ry="5" fill="none" stroke="#ff6a1a" strokeWidth="3"/>
           <path d="M-15-3q11-8 24-2" fill="none" stroke="#fff8e6" strokeWidth="3" strokeLinecap="round"/>

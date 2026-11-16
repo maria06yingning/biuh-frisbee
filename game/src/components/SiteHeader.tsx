@@ -156,9 +156,16 @@ export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCode
               </Link>
             )}
             {tool('codex', onCodex, zh ? '规则图鉴' : 'Rule codex')}
-            <button onClick={() => setLang(zh ? 'en' : 'zh')}>{zh ? 'English' : '中文'}</button>
           </span>
         </span>
+        <button
+          type="button"
+          className="aero-language-toggle"
+          aria-label={zh ? 'Switch language to English' : '切换语言为中文'}
+          onClick={() => setLang(zh ? 'en' : 'zh')}
+        >
+          {zh ? 'English' : '中文'}
+        </button>
         {tool(
           'play',
           onPlay,
