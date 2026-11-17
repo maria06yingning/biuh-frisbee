@@ -117,4 +117,18 @@ export const FRISBEE_VOICES: FrisbeeVoice[] = [
       'After a game, the score is not always what stays with me. It might be someone calling “nice catch,” or the walk back while we pack up together.',
     ],
   },
+  {
+    id: 'maik-lauterbach',
+    source: 'community',
+    name: 'Maik Lauterbach',
+    topic: ['三十年后仍然热爱', 'Still loving it after 30 years'],
+    summary: [
+      '从 1996 年开始打飞盘，三十年后仍深爱这项运动：速度、战术与团队协作令人着迷，而最难忘的，是每场比赛后与对手分享的尊重和友谊。',
+      'After starting in 1996, he still loves the sport 30 years on: its pace, tactics and teamwork—and, above all, the respect and friendship shared with opponents after a game.',
+    ],
+    quote: [
+      '我从 1996 年（没错！）开始打极限飞盘。即使三十年过去，这项运动仍在我心里占有特别的位置。最初吸引我的是传盘技巧、速度、战术和团队合作的独特结合。极限飞盘节奏快、强度高、充满活力。而你真正需要的，无非是一张飞盘、几个人和一块空地！\n\n但极限飞盘真正特别之处，在于飞盘精神。没有裁判，自己承担责任，尊重对手，同时仍为每一分全力拼搏——这是我一直很敬佩的。\n\n回想起来，我记得无数场锦标赛、激动人心的比赛、精彩的胜利和痛苦的失利。但我最深刻的记忆，并不关乎输赢，而是每场比赛结束后，和对手手挽手围成一圈。就在几分钟前，我们还在场上激烈交锋；此刻，我们分享着笑容、尊重与友谊。\n\n极限飞盘让我懂得，竞争和公平可以并行。体育最美好的部分，往往不是结果，而是与你共同经历这一切的人。对我而言，极限飞盘意味着热情、行动、团队精神、公平竞赛，最重要的是友谊。\n\n虽然我的竞技极限飞盘生涯已经过去，但我永远是一个心里热爱极限飞盘的队员。',
+      'I started playing Ultimate Frisbee in 1996 (!), and even 30 years later, this sport still has a special place in my heart. What fascinated me from the beginning was the unique combination of throwing techniques, speed, tactics, and teamwork. Ultimate is fast, intense, and full of action. And all you really need is just a disc, a few people, and some space!\n\nBut what makes Ultimate truly special is the Spirit of the Game. Playing without referees, taking responsibility, respecting your opponents, and still fighting passionately for every point – that is something I have always admired.\n\nLooking back, I remember countless tournaments, exciting matches, great victories, and painful defeats. But my strongest memories are not about winning or losing. They are about standing in a circle after each game, arm in arm with our opponents. Just minutes before, we had been fighting hard against each other. Now we were sharing smiles, respect, and friendship.\n\nUltimate taught me that competition and fairness belong together. And that the best part of sports is often not the result, but the people you share the experience with. For me, Ultimate Frisbee means passion, action, team spirit, fair play, and above all, friendship.\n\nAlthough my days of playing competitive Ultimate are behind me, I will always be an Ultimate player at heart.',
+    ],
+  },
 ];
