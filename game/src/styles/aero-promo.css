@@ -14,27 +14,44 @@
 .ap-promo-teaser {
   position: absolute;
   top: 52%;
-  right: 18px;
+  width: clamp(112px, 15vw, 148px);
+  height: auto;
   min-height: 0;
-  padding: 10px 16px;
-  background: var(--ap-promo-yellow);
-  border: 3px solid var(--ap-promo-ink);
-  box-shadow: 3px 3px 0 var(--ap-promo-ink);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
   color: var(--ap-promo-ink);
   cursor: pointer;
   pointer-events: auto;
-  transform: translateY(-50%) rotate(2deg);
-  transition: transform 120ms ease, background 120ms ease;
+  transition: transform 120ms ease;
 }
-.ap-promo-teaser:hover { background: var(--ap-promo-paper); transform: translateY(-50%) rotate(0) scale(1.04); }
+.ap-promo-teaser.is-left { left: 4px; transform: translate(0, -50%) rotate(-8deg); animation: ap-promo-peek-left 280ms cubic-bezier(.2, 1.35, .35, 1) both; }
+.ap-promo-teaser.is-right { right: 4px; transform: translate(0, -50%) rotate(8deg); animation: ap-promo-peek-right 280ms cubic-bezier(.2, 1.35, .35, 1) both; }
+.ap-promo-teaser.is-left:hover { transform: translate(2px, -50%) rotate(-3deg) scale(1.04); }
+.ap-promo-teaser.is-right:hover { transform: translate(-2px, -50%) rotate(3deg) scale(1.04); }
 .ap-promo-teaser:focus-visible { outline: 3px solid var(--ap-promo-hot); outline-offset: 4px; }
-.ap-promo-teaser-label { font-size: 15px; line-height: 1.2; font-weight: 900; letter-spacing: .06em; }
+.ap-promo-teaser-disc { display: block; width: 100%; height: auto; overflow: visible; }
+.ap-promo-disc-shadow { fill: var(--ap-promo-ink); opacity: .22; }
+.ap-promo-disc-body { fill: var(--ap-promo-cyan); stroke: var(--ap-promo-ink); stroke-width: 5; }
+.ap-promo-disc-highlight { fill: var(--ap-promo-paper); stroke: var(--ap-promo-ink); stroke-width: 2.5; opacity: .64; }
+.ap-promo-disc-groove { fill: none; stroke: var(--ap-promo-ink); stroke-width: 3; }
+.ap-promo-disc-seam { fill: none; stroke: var(--ap-promo-ink); stroke-width: 3; stroke-linecap: round; }
+.ap-promo-disc-label { fill: var(--ap-promo-ink); font-size: 13px; font-weight: 900; letter-spacing: .08em; }
 .ap-promo-overlay { position: fixed; inset: 0; z-index: 152; display: grid; place-items: center; padding: 24px; background: rgba(27, 26, 46, .72); pointer-events: auto; }
-.ap-promo-dialog { position: relative; width: min(440px, calc(100vw - 40px)); max-height: calc(100svh - 48px); outline: none; }
-.ap-promo-close { position: fixed; z-index: 154; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); display: grid; place-items: center; width: 48px; height: 48px; min-height: 48px; padding: 0; background: var(--ap-promo-paper); border: 3px solid var(--ap-promo-ink); box-shadow: 3px 3px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); font-size: 30px; line-height: 1; font-weight: 900; cursor: pointer; pointer-events: auto; }
+.ap-promo-dialog { position: relative; display: grid; place-items: center; width: 100%; height: 100%; outline: none; }
+.ap-promo-close { position: absolute; z-index: 2; top: max(12px, env(safe-area-inset-top)); right: max(12px, env(safe-area-inset-right)); display: grid; place-items: center; width: 48px; height: 48px; min-height: 48px; padding: 0; background: var(--ap-promo-paper); border: 3px solid var(--ap-promo-ink); box-shadow: 3px 3px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); font-size: 30px; line-height: 1; font-weight: 900; cursor: pointer; pointer-events: auto; }
 .ap-promo-close:hover { background: var(--ap-promo-yellow); }
 .ap-promo-close:focus-visible { outline: 3px solid var(--ap-promo-hot); outline-offset: 4px; }
-.ap-promo-back { position: relative; display: grid; align-content: start; justify-items: stretch; gap: 14px; max-height: calc(100svh - 48px); overflow-x: hidden; overflow-y: auto; padding: clamp(18px, 4vw, 32px); background: var(--ap-promo-paper); border: 4px solid var(--ap-promo-ink); box-shadow: 8px 8px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); }
+.ap-promo-flight { width: min(440px, calc(100vw - 40px)); height: min(820px, calc(100svh - 48px)); perspective: 1000px; }
+.ap-promo-flight.from-left { animation: ap-promo-arrive-left 300ms cubic-bezier(.2, 1.35, .35, 1) both; }
+.ap-promo-flight.from-right { animation: ap-promo-arrive-right 300ms cubic-bezier(.2, 1.35, .35, 1) both; }
+.ap-promo-card { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; animation: ap-promo-flip 260ms 40ms ease-in-out forwards; }
+.ap-promo-face { position: absolute; inset: 0; display: grid; align-content: center; justify-items: center; gap: 16px; padding: clamp(18px, 4vw, 32px); overflow: hidden; backface-visibility: hidden; }
+.ap-promo-front { padding: 0; background: transparent; }
+.ap-promo-front > * { position: relative; z-index: 1; }
+.ap-promo-large-disc { display: block; width: min(92%, 390px); height: auto; }
+.ap-promo-back { transform: rotateY(180deg); align-content: start; justify-items: stretch; gap: 14px; overflow-x: hidden; overflow-y: auto; padding: clamp(18px, 4vw, 32px); background: var(--ap-promo-paper); border: 4px solid var(--ap-promo-ink); box-shadow: 8px 8px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); }
 .ap-promo-poster-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 3px dashed var(--ap-promo-ink); font-size: 10px; line-height: 1.3; font-weight: 900; letter-spacing: .08em; }
 .ap-promo-poster-head span:last-child { display: grid; place-items: center; width: 34px; height: 34px; border: 2px solid var(--ap-promo-ink); border-radius: 50%; background: var(--ap-promo-cyan); }
 .ap-promo-poster-stamp svg { width: 24px; height: 18px; fill: var(--ap-promo-paper); stroke: var(--ap-promo-ink); stroke-width: 2; stroke-linecap: round; }
@@ -44,16 +61,24 @@
 .ap-promo-back p { margin: 0; font-size: 13px; line-height: 1.6; font-weight: 600; }
 .ap-promo-contact { display: inline-flex; align-items: center; justify-content: center; gap: 8px; justify-self: start; min-height: 42px; padding: 8px 12px; background: var(--ap-promo-yellow); border: 3px solid var(--ap-promo-ink); box-shadow: 3px 3px 0 var(--ap-promo-ink); color: var(--ap-promo-ink); font-size: 12px; line-height: 1.3; font-weight: 900; text-decoration: none; }
 .ap-promo-contact:focus-visible { outline: 3px solid var(--ap-promo-hot); outline-offset: 3px; }
+@keyframes ap-promo-peek-left { from { transform: translate(-120%, -50%) rotate(24deg); } to { transform: translate(0, -50%) rotate(-8deg); } }
+@keyframes ap-promo-peek-right { from { transform: translate(120%, -50%) rotate(-24deg); } to { transform: translate(0, -50%) rotate(8deg); } }
+@keyframes ap-promo-arrive-left { from { transform: translate3d(-42vw, 0, 0) scale(.18) rotate(32deg); } 68% { transform: translate3d(0, -8px, 0) scale(1.04) rotate(-4deg); } to { transform: translate3d(0, 0, 0) scale(1) rotate(0); } }
+@keyframes ap-promo-arrive-right { from { transform: translate3d(42vw, 0, 0) scale(.18) rotate(-32deg); } 68% { transform: translate3d(0, -8px, 0) scale(1.04) rotate(4deg); } to { transform: translate3d(0, 0, 0) scale(1) rotate(0); } }
+@keyframes ap-promo-flip { from { transform: rotateY(0); } to { transform: rotateY(180deg); } }
 @media (max-width: 560px) {
-  .ap-promo-teaser { right: 12px; padding: 9px 13px; }
+  .ap-promo-teaser { width: 116px; }
   .ap-promo-overlay { padding: 16px; }
-  .ap-promo-dialog { width: min(380px, calc(100vw - 32px)); max-height: calc(100svh - 32px); }
-  .ap-promo-back { gap: 11px; max-height: calc(100svh - 32px); padding: 16px; }
+  .ap-promo-flight { width: min(380px, calc(100vw - 32px)); height: min(720px, calc(100svh - 32px)); }
+  .ap-promo-back { gap: 11px; padding: 16px; }
 }
 @media (max-height: 480px) {
-  .ap-promo-dialog { max-height: calc(100svh - 40px); }
-  .ap-promo-back { gap: 8px; max-height: calc(100svh - 40px); padding: 16px; }
+  .ap-promo-flight { height: calc(100svh - 40px); }
+  .ap-promo-back { gap: 8px; padding: 16px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ap-promo-teaser { transition: none !important; }
+  .ap-promo-teaser,
+  .ap-promo-flight,
+  .ap-promo-card { animation: none !important; transition: none !important; }
+  .ap-promo-card { transform: rotateY(180deg); }
 }
