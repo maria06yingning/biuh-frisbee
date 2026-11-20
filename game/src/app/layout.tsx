@@ -4,9 +4,28 @@ import { I18nProvider } from '@/i18n/I18nProvider';
 import '@/styles/experience.css';
 import '@/styles/story.css';
 
+const siteUrl = 'https://maria06yingning.github.io/biuh-frisbee';
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
+const socialImage = `${siteUrl}${basePath}/opengraph-image.png`;
+
 export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
   title: '极限飞盘 · Ultimate Field',
   description: '第一人称极限飞盘体验 · A first-person ultimate frisbee experience',
+  openGraph: {
+    type: 'website',
+    url: siteUrl,
+    title: '极限飞盘 · Ultimate Field',
+    description: '第一人称极限飞盘体验 · A first-person ultimate frisbee experience',
+    siteName: 'Ultimate Field',
+    images: [{ url: socialImage, width: 1200, height: 630, alt: 'Ultimate Field — Play. Learn. Together.' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: '极限飞盘 · Ultimate Field',
+    description: '第一人称极限飞盘体验 · A first-person ultimate frisbee experience',
+    images: [{ url: socialImage, alt: 'Ultimate Field — Play. Learn. Together.' }],
+  },
   manifest: `${process.env.NEXT_PUBLIC_BASE_PATH ?? ''}/site.webmanifest?v=02b87c1`,
   icons: {
     icon: [

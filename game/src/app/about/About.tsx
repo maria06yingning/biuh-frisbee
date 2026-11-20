@@ -60,7 +60,7 @@ export default function About() {
       >
         <div className="ap-about-intro">
           <span className="ap-about-stamp" aria-hidden="true"><svg viewBox="0 0 64 44"><ellipse cx="32" cy="22" rx="28" ry="16"/><ellipse cx="32" cy="22" rx="18" ry="9"/><path d="M22 22q10-6 20 0"/></svg></span>
-          <p>{zh ? '网站主体通过 Web Coding 一点点搭建，是我把正在学习的计算机科学和喜欢的运动放在一起的一次尝试。' : 'The site was built step by step through web coding—an attempt to bring what I’m studying in computer science together with a sport I love.'}</p>
+          <p>{zh ? '网站主体通过 Vibe Coding 一点点搭建，是我把正在学习的计算机科学和喜欢的运动放在一起的一次尝试。' : 'The site was built step by step through vibe coding—an attempt to bring what I’m studying in computer science together with a sport I love.'}</p>
           <p>{zh ? '这是个人项目，不代表 WFDF 或所列游戏作品的官方立场。规则内容是面向初学者的通俗整理，示意图和游戏也做了简化；需要作正式判断时，请以 WFDF 当前规则和具体赛事规定为准。' : 'This is a personal project, not an official WFDF or game-studio site. The rules are simplified for new players, and the diagrams and game also simplify real play. For official decisions, use the current WFDF rules and event-specific regulations.'}</p>
         </div>
       </Section>
