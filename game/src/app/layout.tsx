@@ -4,12 +4,14 @@ import { I18nProvider } from '@/i18n/I18nProvider';
 import '@/styles/experience.css';
 import '@/styles/story.css';
 
-const siteUrl = 'https://maria06yingning.github.io/biuh-frisbee';
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? '';
-const socialImage = `${siteUrl}${basePath}/opengraph-image.png`;
+const siteOrigin = 'https://maria06yingning.github.io';
+const siteUrl = `${siteOrigin}/biuh-frisbee`;
+const socialImage = `${siteUrl}/opengraph-image.png`;
 
 export const metadata: Metadata = {
-  metadataBase: new URL(siteUrl),
+  // Keep this at the origin: Next.js prepends the GitHub Pages basePath to
+  // file-based metadata routes such as opengraph-image.png.
+  metadataBase: new URL(siteOrigin),
   title: '极限飞盘 · Ultimate Field',
   description: '第一人称极限飞盘体验 · A first-person ultimate frisbee experience',
   openGraph: {

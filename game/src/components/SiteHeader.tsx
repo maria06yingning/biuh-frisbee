@@ -149,13 +149,13 @@ export default function SiteHeader({ current, onHomeClick, onPlay, onLab, onCode
               </span>
             </span>
 
-            {tool('lab', onLab, zh ? '战术实验室' : 'Tactics Lab')}
             {aboutPage && (
               <Link href={aboutPage.slug} aria-current={current === aboutPage.slug ? 'page' : undefined}>
                 {pick(lang, aboutPage.label)}
               </Link>
             )}
             {tool('codex', onCodex, zh ? '规则图鉴' : 'Rule codex')}
+            {tool('lab', onLab, zh ? '战术实验室' : 'Tactics Lab')}
           </span>
         </span>
         <button

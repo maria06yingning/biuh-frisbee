@@ -31,6 +31,7 @@ export default function GlassDisc({
   replayToken = 0,
   season = 'summer',
   sceneIndex = 0,
+  showIntroHint = true,
   discColor = defaultDiscColor(season),
   pickupToken = 0,
   returnToken = 0,
@@ -45,6 +46,7 @@ export default function GlassDisc({
   replayToken?: number;
   season?: MeadowSeason;
   sceneIndex?: number;
+  showIntroHint?: boolean;
   discColor?: number;
   pickupToken?: number;
   returnToken?: number;
@@ -69,7 +71,9 @@ export default function GlassDisc({
   const discStowedRef = useRef(discStowed);
   const stowCallback = useRef(onDiscStowedChange);
   const soundRef = useRef(soundOn);
+  const showIntroHintRef = useRef(showIntroHint);
   soundRef.current = soundOn;
+  showIntroHintRef.current = showIntroHint;
   pause.current = paused;
   replay.current = replayToken;
   seasonRef.current = season;
@@ -445,10 +449,10 @@ export default function GlassDisc({
         node.dataset.mode = inspecting ? 'inspect' : 'locked';
         const interactive = !discStowedRef.current && ready && !userThrow && !discLanded && !reduced && !pause.current;
         node.dataset.interactive = String(interactive);
-        if (interactive && !hintShown) {
+        if (interactive && showIntroHintRef.current && !hintShown) {
           hintShown = true;
           try { window.sessionStorage.setItem(HOME_HINT_SEEN_KEY, '1'); } catch {}
-          hintTimer = window.setTimeout(() => { node.dataset.hintDismissed = 'true'; }, 7000);
+          hintTimer = window.setTimeout(() => { node.dataset.hintDismissed = 'true'; }, 5000);
         }
         return pose;
       };
@@ -1202,8 +1206,8 @@ export default function GlassDisc({
         {Array.from({length:12},(_,i)=><ellipse key={i} rx={235-i*2.6} ry={130-i*2.4} fill="none" stroke={i%3 ? '#fff8e8' : discColorCss} strokeWidth={i%3 ? 2:3}/>)}</g>
     </svg>
     <span className="aero-disc-hint" aria-hidden="true">
-      <span className="aero-hint-desktop">{lang === 'zh' ? '拖动空地环顾；点击飞盘查看，再拖拽甩出。大幅转动视角会自动收起，右下按钮可显示。WASD 行走。' : 'Drag open ground to look around; click and drag the disc to inspect and throw. A wide turn stows it; use Show disc at the lower right to restore it.'}</span>
-      <span className="aero-hint-touch">{lang === 'zh' ? '拖动空地环顾；轻点飞盘查看，再拖拽甩出。大幅转动视角会自动收起。' : 'Drag open ground to look around; tap and drag the disc. A wide turn stows it automatically.'}</span>
+      <span className="aero-hint-desktop">{lang === 'zh' ? '拖动环顾，点击飞盘。' : 'Drag to look around. Click the disc.'}</span>
+      <span className="aero-hint-touch">{lang === 'zh' ? '拖动环顾，轻点飞盘。' : 'Drag to look around. Tap the disc.'}</span>
     </span>
   </div>;
 }
